@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { LoadingPage, LoadingSpinner } from '@/shared/components/ui/LoadingSkeleton';
 import { AuthProvider } from '@/features/auth/hooks/useAuth';
 import { AppLayout } from '@/shared/components/layout/AppLayout';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
@@ -14,7 +15,7 @@ const TalentPoolPage = lazy(() => import('@/features/talent-pool/pages/TalentPoo
 
 function LazyLoad({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="text-[13px] text-text-tertiary p-6">Loading…</div>}>
+    <Suspense fallback={<LoadingSpinner />}>
       {children}
     </Suspense>
   );

@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarCheck, Clock, CheckCircle, XCircle, AlertCircle, ArrowRight, Bell, BellOff } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
+import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { mockInterviews } from '@/data/mock/data/mock-interviews';
 import type { InterviewStatus } from '@/domain/models/interview';
 
@@ -22,6 +24,11 @@ type Filter = 'all' | InterviewStatus;
 
 export function InterviewsPage() {
   const [filter, setFilter] = useState<Filter>('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { const t = setTimeout(() => setLoading(false), 300); return () => clearTimeout(t); }, []);
+
+  if (loading) return <LoadingSkeleton rows={4} />;
 
   const filtered = filter === 'all' ? mockInterviews : mockInterviews.filter(iv => iv.status === filter);
   const upcoming = mockInterviews.filter(iv => iv.status === 'scheduled').length;
@@ -115,9 +122,8 @@ export function InterviewsPage() {
         })}
 
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-text-muted text-[13px]">
-            <CalendarCheck size={32} className="mx-auto mb-2 opacity-30" />
-            No interviews found
+          <div className="col-span-2">
+            <EmptyState icon={CalendarCheck} title="No interviews found" description="Interviews will appear here when candidates are scheduled" />
           </div>
         )}
       </div>

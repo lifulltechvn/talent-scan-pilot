@@ -1,6 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit } from 'lucide-react';
 import { useJob } from '../hooks/useJobs';
+import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { getJobIcon } from '@/shared/utils/job-icon';
 import { useCandidates } from '@/features/candidates/hooks/useCandidates';
 import { Badge } from '@/shared/components/ui/Badge';
@@ -11,7 +13,7 @@ export function JobDetailPage() {
   const { data: job, isLoading: loadingJ } = useJob(id!);
   const { data: allCandidates, isLoading: loadingC } = useCandidates();
 
-  if (loadingJ || loadingC) return <div className="text-text-tertiary text-sm">Loading…</div>;
+  if (loadingJ || loadingC) return <LoadingSkeleton rows={3} />;
   if (!job) return <div className="text-text-tertiary text-sm">Job not found</div>;
 
   const candidates = allCandidates?.filter(c => c.jobId === job.id) ?? [];
@@ -110,7 +112,7 @@ export function JobDetailPage() {
             ))}
           </tbody>
         </table>
-        {candidates.length === 0 && <div className="text-center py-10 text-text-muted text-[13px]">No candidates yet</div>}
+        {candidates.length === 0 && <EmptyState icon={Users} title="No candidates yet" description="Candidates will appear here after CV scanning" />}
       </div>
     </div>
   );

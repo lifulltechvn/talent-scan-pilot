@@ -3,6 +3,7 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveCo
 import { Users, Briefcase, Trophy, TrendingUp, ArrowUpRight, Clock } from 'lucide-react';
 import { useCandidates } from '@/features/candidates/hooks/useCandidates';
 import { useJobs } from '@/features/jobs/hooks/useJobs';
+import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 
@@ -12,7 +13,7 @@ export function DashboardPage() {
   const { data: candidates, isLoading: loadingC } = useCandidates();
   const { data: jobs, isLoading: loadingJ } = useJobs();
 
-  if (loadingC || loadingJ) return <div className="text-text-tertiary text-sm">Loading…</div>;
+  if (loadingC || loadingJ) return <LoadingSkeleton rows={5} />;
 
   const gold = candidates?.filter(c => c.score?.classification === 'gold') ?? [];
   const silver = candidates?.filter(c => c.score?.classification === 'silver') ?? [];

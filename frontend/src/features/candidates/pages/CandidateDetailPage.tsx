@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Briefcase, GraduationCap, Languages, DollarSign, Sparkles } from 'lucide-react';
 import { useCandidate } from '../hooks/useCandidates';
+import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 
@@ -8,7 +9,7 @@ export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: candidate, isLoading } = useCandidate(id!);
 
-  if (isLoading) return <div className="text-text-tertiary text-sm">Loading…</div>;
+  if (isLoading) return <LoadingSkeleton rows={3} />;
   if (!candidate) return <div className="text-text-tertiary text-sm">Candidate not found</div>;
 
   const { structuredData: d, score } = candidate;

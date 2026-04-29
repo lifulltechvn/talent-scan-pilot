@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Search, Users, Trophy, Medal, DatabaseZap } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useCandidates } from '../hooks/useCandidates';
+import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import type { Classification } from '@/domain/models/candidate';
@@ -14,7 +16,7 @@ export function CandidatesPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
 
-  if (isLoading) return <div className="text-text-tertiary text-sm">Loading…</div>;
+  if (isLoading) return <LoadingSkeleton rows={5} />;
 
   const filtered = (candidates ?? [])
     .filter(c => filter === 'all' || c.score?.classification === filter)
@@ -113,7 +115,7 @@ export function CandidatesPage() {
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && <div className="text-center py-10 text-text-muted text-[13px]">No candidates found</div>}
+        {filtered.length === 0 && <EmptyState icon={Users} title="No candidates found" description="Try adjusting your search or filters" />}
       </div>
 
       {/* Mobile cards */}
@@ -141,7 +143,7 @@ export function CandidatesPage() {
             </div>
           </Link>
         ))}
-        {filtered.length === 0 && <div className="text-center py-10 text-text-muted text-[13px]">No candidates found</div>}
+        {filtered.length === 0 && <EmptyState icon={Users} title="No candidates found" description="Try adjusting your search or filters" />}
       </div>
     </div>
   );

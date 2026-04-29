@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { DatabaseZap, RefreshCw, UserCheck, Clock, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
+import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { mockTalentPool } from '@/data/mock/data/mock-interviews';
 import type { TalentPoolEntry } from '@/domain/models/talent-pool';
 
@@ -17,6 +19,11 @@ type Filter = 'all' | TalentPoolEntry['status'];
 
 export function TalentPoolPage() {
   const [filter, setFilter] = useState<Filter>('all');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { const t = setTimeout(() => setLoading(false), 300); return () => clearTimeout(t); }, []);
+
+  if (loading) return <LoadingSkeleton rows={4} />;
 
   const filtered = filter === 'all' ? mockTalentPool : mockTalentPool.filter(tp => tp.status === filter);
   const active = mockTalentPool.filter(tp => tp.status === 'active').length;
@@ -136,9 +143,8 @@ export function TalentPoolPage() {
         })}
 
         {filtered.length === 0 && (
-          <div className="col-span-2 text-center py-12 text-text-muted text-[13px]">
-            <DatabaseZap size={32} className="mx-auto mb-2 opacity-30" />
-            No candidates in pool
+          <div className="col-span-2">
+            <EmptyState icon={DatabaseZap} title="No candidates in pool" description="Candidates scoring below threshold will be added here automatically" />
           </div>
         )}
       </div>

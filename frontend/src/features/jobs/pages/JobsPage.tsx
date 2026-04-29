@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, MapPin, Clock, Users, Plus, Briefcase } from 'lucide-react';
 import { useJobs } from '../hooks/useJobs';
+import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { getJobIcon } from '@/shared/utils/job-icon';
 
 export function JobsPage() {
   const { data: jobs, isLoading } = useJobs();
   const [search, setSearch] = useState('');
 
-  if (isLoading) return <div className="text-text-tertiary text-sm">Loading…</div>;
+  if (isLoading) return <LoadingSkeleton rows={3} />;
 
   const filtered = (jobs ?? []).filter(j =>
     !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.requiredSkills.some(s => s.toLowerCase().includes(search.toLowerCase()))
@@ -75,10 +77,7 @@ export function JobsPage() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-16 text-text-muted text-[13px]">
-          <Briefcase size={32} className="mx-auto mb-2 opacity-30" />
-          No jobs found
-        </div>
+        <EmptyState icon={Briefcase} title="No jobs found" description="Try adjusting your search or create a new job" />
       )}
     </div>
   );

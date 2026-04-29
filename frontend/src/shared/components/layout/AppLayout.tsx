@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { LoadingPage } from '@/shared/components/ui/LoadingSkeleton';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export function AppLayout() {
@@ -9,7 +10,7 @@ export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  if (isLoading) return <div className="min-h-screen bg-bg-primary flex items-center justify-center text-text-tertiary">Loading…</div>;
+  if (isLoading) return <LoadingPage />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (

@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
+import { LoadingPage } from '@/shared/components/ui/LoadingSkeleton';
 import { useAuth } from '../hooks/useAuth';
 
 function validateEmail(email: string): string | null {
@@ -19,10 +21,11 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [touched, setTouched] = useState<{ email?: boolean; password?: boolean }>({});
 
-  if (authLoading) return <div className="min-h-screen bg-bg-primary flex items-center justify-center text-text-tertiary">Loading…</div>;
+  if (authLoading) return <LoadingPage />;
   if (isAuthenticated) return <Navigate to="/" replace />;
 
   const handleBlur = (field: 'email' | 'password') => {
@@ -80,11 +83,17 @@ export function LoginPage() {
 
           <div>
             <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Password</label>
-            <input type="password" value={password}
-              onChange={(e) => { setPassword(e.target.value); if (touched.password) { setFieldErrors(prev => ({ ...prev, password: validatePassword(e.target.value) ?? undefined })); } }}
-              onBlur={() => handleBlur('password')}
-              className={`w-full px-3 py-2 bg-bg-primary border rounded-md text-[14px] text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 transition-colors ${touched.password && fieldErrors.password ? 'border-red-400 focus:border-red-400' : 'border-border-default focus:border-accent'}`}
-              placeholder="••••••••" />
+            <div className="relative">
+              <input type={showPassword ? 'text' : 'password'} value={password}
+                onChange={(e) => { setPassword(e.target.value); if (touched.password) { setFieldErrors(prev => ({ ...prev, password: validatePassword(e.target.value) ?? undefined })); } }}
+                onBlur={() => handleBlur('password')}
+                className={`w-full px-3 py-2 pr-10 bg-bg-primary border rounded-md text-[14px] text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 transition-colors ${touched.password && fieldErrors.password ? 'border-red-400 focus:border-red-400' : 'border-border-default focus:border-accent'}`}
+                placeholder="••••••••" />
+              <button type="button" onClick={() => setShowPassword(v => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             {touched.password && fieldErrors.password && <p className="mt-1 text-[12px] text-red-500">{fieldErrors.password}</p>}
           </div>
 
