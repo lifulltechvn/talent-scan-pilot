@@ -25,6 +25,16 @@ services:
     volumes:
       - ./server:/app
 
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
   nginx:
     image: nginx:alpine
     ports:
@@ -33,6 +43,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - api
+      - frontend
 
 volumes:
   pgdata:

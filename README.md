@@ -101,12 +101,17 @@ talent-scan-pilot/
 
 ## Frontend — Web Dashboard
 
-### Khởi động Frontend
+### Khởi động
+
+Frontend chạy trong Docker cùng với các services khác:
 
 ```bash
-# 1. Đảm bảo server đang chạy (docker compose up -d)
+docker compose up -d --build
+```
 
-# 2. Start frontend
+Hoặc chạy local (dev):
+
+```bash
 cd frontend
 npm install
 npm run dev
@@ -114,51 +119,39 @@ npm run dev
 
 | URL | Mô tả |
 |-----|-------|
-| http://localhost:5173 | Web Dashboard |
-| http://localhost:5173/login | Login page |
+| http://localhost | Web Dashboard (qua Nginx) |
+| http://localhost:5173 | Frontend direct (dev) |
 
 **Test account:** `hr@test.com` / `test1234`
 
-> Frontend proxy `/api` → `localhost:8000` (cấu hình trong `vite.config.ts`), không cần CORS trên server.
+> Nginx proxy `/api/` → FastAPI, `/` → Frontend. Khi chạy local, Vite proxy `/api` → `localhost:8000`.
 
 ### Cấu trúc Frontend
 
 ```
 frontend/
-├── vite.config.ts                   # Vite + Tailwind + API proxy
+├── Dockerfile
+├── vite.config.ts               # Vite + Tailwind + API proxy
 ├── tsconfig.app.json
 └── src/
-    ├── app/                         # App bootstrap
-    │   ├── App.tsx                  # QueryClient provider
-    │   └── router.tsx               # Routes (lazy loaded)
-    ├── domain/models/               # TypeScript types
-    │   ├── candidate.ts             # Candidate, Score, Classification
-    │   ├── job.ts                   # Job
-    │   ├── user.ts                  # User, AuthTokens
-    │   └── repositories.ts          # Repository interfaces
+    ├── app/                     # Router + providers
+    ├── domain/models/           # Candidate, Job, Score, User, Interview, TalentPool
     ├── data/
-    │   ├── api/client.ts            # Axios + JWT interceptor
-    │   ├── repositories/auth.api.ts # Real auth API (login, me, refresh)
-    │   ├── mock/                    # Mock data + mock repositories
-    │   └── di.ts                    # Dependency injection
+    │   ├── api/client.ts        # Axios + JWT interceptor
+    │   ├── repositories/        # Real API (auth)
+    │   ├── mock/                # Mock data + repositories
+    │   └── di.ts                # Dependency injection (swap mock/real)
     ├── features/
-    │   ├── auth/                    # Login + useAuth hook
-    │   ├── dashboard/               # Dashboard (stats, recent candidates, jobs)
-    │   ├── candidates/              # List + detail pages
-    │   └── jobs/                    # List + detail pages
+    │   ├── auth/                # Login + useAuth
+    │   ├── dashboard/           # Stats + charts (Recharts)
+    │   ├── candidates/          # List + detail
+    │   ├── jobs/                # List + detail
+    │   ├── interviews/          # Schedule + status
+    │   └── talent-pool/         # Pool management
     └── shared/
-        ├── components/layout/       # Sidebar, Header, AppLayout
-        ├── components/ui/           # Badge, ScoreBar
-        └── utils/cn.ts              # Tailwind merge helper
+        ├── components/          # Layout (Sidebar, Header) + UI (Badge, ScoreBar)
+        └── utils/               # cn, job-icon
 ```
-
-### Frontend Tech Stack
-
-- React 19 + Vite 8 + TypeScript 6
-- Tailwind CSS v4
-- TanStack Query v5
-- react-router-dom v7
-- axios
 
 ## Tech Stack
 
