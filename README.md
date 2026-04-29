@@ -97,9 +97,73 @@ talent-scan-pilot/
         └── routers/auth.py   # Auth endpoints
 ```
 
+---
+
+## Frontend — Web Dashboard
+
+### Khởi động Frontend
+
+```bash
+# 1. Đảm bảo server đang chạy (docker compose up -d)
+
+# 2. Start frontend
+cd frontend
+npm install
+npm run dev
+```
+
+| URL | Mô tả |
+|-----|-------|
+| http://localhost:5173 | Web Dashboard |
+| http://localhost:5173/login | Login page |
+
+**Test account:** `hr@test.com` / `test1234`
+
+> Frontend proxy `/api` → `localhost:8000` (cấu hình trong `vite.config.ts`), không cần CORS trên server.
+
+### Cấu trúc Frontend
+
+```
+frontend/
+├── vite.config.ts                   # Vite + Tailwind + API proxy
+├── tsconfig.app.json
+└── src/
+    ├── app/                         # App bootstrap
+    │   ├── App.tsx                  # QueryClient provider
+    │   └── router.tsx               # Routes (lazy loaded)
+    ├── domain/models/               # TypeScript types
+    │   ├── candidate.ts             # Candidate, Score, Classification
+    │   ├── job.ts                   # Job
+    │   ├── user.ts                  # User, AuthTokens
+    │   └── repositories.ts          # Repository interfaces
+    ├── data/
+    │   ├── api/client.ts            # Axios + JWT interceptor
+    │   ├── repositories/auth.api.ts # Real auth API (login, me, refresh)
+    │   ├── mock/                    # Mock data + mock repositories
+    │   └── di.ts                    # Dependency injection
+    ├── features/
+    │   ├── auth/                    # Login + useAuth hook
+    │   ├── dashboard/               # Dashboard (stats, recent candidates, jobs)
+    │   ├── candidates/              # List + detail pages
+    │   └── jobs/                    # List + detail pages
+    └── shared/
+        ├── components/layout/       # Sidebar, Header, AppLayout
+        ├── components/ui/           # Badge, ScoreBar
+        └── utils/cn.ts              # Tailwind merge helper
+```
+
+### Frontend Tech Stack
+
+- React 19 + Vite 8 + TypeScript 6
+- Tailwind CSS v4
+- TanStack Query v5
+- react-router-dom v7
+- axios
+
 ## Tech Stack
 
 - **Backend:** FastAPI + SQLAlchemy 2.0 (async) + Alembic
 - **Database:** PostgreSQL 16 + pgvector (vector search 1536-dim)
 - **Auth:** JWT (python-jose HS256) + bcrypt
 - **Infra:** Docker Compose (3 containers: Nginx + FastAPI + PostgreSQL)
+- **Frontend:** React 19 + Vite 8 + TypeScript 6 + Tailwind CSS v4 + TanStack Query v5

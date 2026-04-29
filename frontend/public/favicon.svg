@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#ED6103"/>
+  <!-- 4 corner brackets -->
+  <path d="M5 5v5M5 5h5" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M27 5v5M27 5h-5" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M5 27v-5M5 27h5" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M27 27v-5M27 27h-5" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- CV document -->
+  <rect x="10" y="7" width="12" height="18" rx="2" stroke="white" stroke-width="1.8" fill="none"/>
+  <line x1="13" y1="12" x2="19" y2="12" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="13" y1="15.5" x2="19" y2="15.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="13" y1="19" x2="17" y2="19" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
