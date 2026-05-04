@@ -2,155 +2,104 @@
 
 Hệ thống tuyển dụng AI: quét CV, ẩn danh PII, parse & normalize, matching JD, scoring ứng viên.
 
+Gồm 3 phần:
+
+- **Server** (Docker) — FastAPI + PostgreSQL + Nginx: API, matching, scoring, dashboard
+- **Frontend** (Docker) — React SPA: dashboard cho HR
+- **Desktop App** (native) — Flet GUI: quét CV trên máy HR, trích xuất text từ PDF/DOCX
+
 ## Yêu cầu
 
 - Docker & Docker Compose
+- Python 3.11–3.13 (cho Desktop App)
+
+---
 
 ## Khởi động
 
+### 1. Server + Frontend (Docker)
+
 ```bash
-# 1. Clone và vào thư mục project
 cd talent-scan-pilot
-
-# 2. Tạo file .env (lần đầu)
-cp .env.example .env
-
-# 3. Start toàn bộ (PostgreSQL + pgvector, FastAPI, Nginx)
-docker compose up -d
-
-# 4. Chạy migration tạo database tables (lần đầu)
-docker compose exec api alembic upgrade head
+cp .env.example .env                          # Lần đầu
+docker compose up -d                          # Start tất cả
+docker compose exec api alembic upgrade head  # Tạo DB tables (lần đầu)
 ```
 
-Xong! Truy cập:
+### 2. Desktop App (native trên máy)
+
+```bash
+cd app
+python3.13 -m venv .venv        # Tạo venv (lần đầu)
+source .venv/bin/activate       # macOS/Linux
+# .venv\Scripts\activate        # Windows
+pip install -r requirements.txt # Cài dependencies (lần đầu)
+python main.py                  # Chạy app
+```
+
+App mở cửa sổ native → nhấn **"📂 Chọn file CV"** → chọn PDF/DOCX → xem kết quả trích xuất.
+
+- **Digital PDF/DOCX** → trích xuất text ngay (PyMuPDF / python-docx)
+- **Scanned PDF** (ảnh, không có text) → đánh dấu "cần OCR" (GPT-4o Vision — sẽ tích hợp ở W6)
+
+---
+
+## Truy cập
 
 | URL | Mô tả |
 |-----|-------|
-| http://localhost:8000/docs | Swagger UI — test API trực tiếp trên trình duyệt |
-| http://localhost/api/v1/health | Health check qua Nginx |
+| http://localhost | Web Dashboard (qua Nginx) |
+| http://localhost:8000/docs | Swagger UI — test API trên trình duyệt |
+| http://localhost:5173 | Frontend dev (direct) |
+
+**Test account:** `hr@test.com` / `test1234`
+
+---
 
 ## Dừng / Khởi động lại
 
 ```bash
 docker compose stop     # Dừng (giữ data)
 docker compose start    # Khởi động lại
-docker compose down     # Dừng + xóa containers (data PostgreSQL vẫn giữ trong volume)
-docker compose down -v  # Dừng + xóa tất cả kể cả data (⚠️ mất hết DB)
+docker compose down     # Dừng + xóa containers (data vẫn giữ trong volume)
+docker compose down -v  # ⚠️ Xóa tất cả kể cả data
 ```
 
-## Sử dụng API
-
-### 1. Tạo tài khoản
-
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email": "hr@company.com", "password": "MyPass123!", "full_name": "HR Admin"}'
-```
-
-### 2. Đăng nhập (lấy token)
-
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -d "username=hr@company.com&password=MyPass123!"
-```
-
-Response trả về `access_token` và `refresh_token`.
-
-### 3. Gọi API có xác thực
-
-```bash
-curl http://localhost:8000/api/v1/auth/me \
-  -H "Authorization: Bearer <access_token>"
-```
-
-### 4. Refresh token
-
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d '{"refresh_token": "<refresh_token>"}'
-```
-
-> 💡 **Tip:** Mở http://localhost:8000/docs trên trình duyệt để dùng Swagger UI — không cần gõ curl, click thẳng để test.
+---
 
 ## Cấu trúc project
 
 ```
 talent-scan-pilot/
-├── docker-compose.yml        # 3 services: db, api, nginx
-├── .env                      # Biến môi trường (không commit)
-├── nginx/nginx.conf          # Reverse proxy config
-└── server/
-    ├── Dockerfile
-    ├── requirements.txt
-    ├── alembic.ini
-    ├── alembic/              # DB migrations
-    └── app/
-        ├── main.py           # FastAPI entrypoint
-        ├── config.py         # Settings từ .env
-        ├── database.py       # Async SQLAlchemy session
-        ├── models.py         # DB models (User, Job, Candidate, Score, AuditLog)
-        ├── auth.py           # JWT + bcrypt
-        ├── schemas.py        # Pydantic schemas
-        ├── deps.py           # Auth dependency
-        └── routers/auth.py   # Auth endpoints
-```
-
----
-
-## Frontend — Web Dashboard
-
-### Khởi động
-
-Frontend chạy trong Docker cùng với các services khác:
-
-```bash
-docker compose up -d --build
-```
-
-Hoặc chạy local (dev):
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-| URL | Mô tả |
-|-----|-------|
-| http://localhost | Web Dashboard (qua Nginx) |
-| http://localhost:5173 | Frontend direct (dev) |
-
-**Test account:** `hr@test.com` / `test1234`
-
-> Nginx proxy `/api/` → FastAPI, `/` → Frontend. Khi chạy local, Vite proxy `/api` → `localhost:8000`.
-
-### Cấu trúc Frontend
-
-```
-frontend/
-├── Dockerfile
-├── vite.config.ts               # Vite + Tailwind + API proxy
-├── tsconfig.app.json
-└── src/
-    ├── app/                     # Router + providers
-    ├── domain/models/           # Candidate, Job, Score, User, Interview, TalentPool
-    ├── data/
-    │   ├── api/client.ts        # Axios + JWT interceptor
-    │   ├── repositories/        # Real API (auth)
-    │   ├── mock/                # Mock data + repositories
-    │   └── di.ts                # Dependency injection (swap mock/real)
-    ├── features/
-    │   ├── auth/                # Login + useAuth
-    │   ├── dashboard/           # Stats + charts (Recharts)
-    │   ├── candidates/          # List + detail
-    │   ├── jobs/                # List + detail
-    │   ├── interviews/          # Schedule + status
-    │   └── talent-pool/         # Pool management
-    └── shared/
-        ├── components/          # Layout (Sidebar, Header) + UI (Badge, ScoreBar)
-        └── utils/               # cn, job-icon
+├── docker-compose.yml          # 4 services: db, api, frontend, nginx
+├── .env                        # Biến môi trường (không commit)
+├── nginx/nginx.conf            # Reverse proxy
+├── server/                     # Backend — FastAPI (Docker)
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── alembic/                # DB migrations
+│   └── app/
+│       ├── main.py             # FastAPI entrypoint
+│       ├── config.py           # Settings từ .env
+│       ├── database.py         # Async SQLAlchemy session
+│       ├── models.py           # User, Job, Candidate, Score, AuditLog
+│       ├── auth.py             # JWT + bcrypt
+│       ├── schemas.py          # Pydantic schemas
+│       ├── deps.py             # Auth dependency
+│       └── routers/auth.py     # Auth endpoints
+├── frontend/                   # Web Dashboard — React (Docker)
+│   ├── Dockerfile
+│   ├── vite.config.ts
+│   └── src/
+│       ├── app/                # Router + providers
+│       ├── domain/models/      # Candidate, Job, Score, User, Interview, TalentPool
+│       ├── data/               # API client, mock data, DI
+│       ├── features/           # auth, dashboard, candidates, jobs, interviews, talent-pool
+│       └── shared/             # Layout, UI components, utils
+└── app/                        # Desktop App — Flet GUI (native)
+    ├── requirements.txt        # flet, PyMuPDF, python-docx, pydantic
+    ├── main.py                 # Flet GUI: file picker, progress, results
+    └── extractor.py            # Text extraction: PDF (PyMuPDF) + DOCX (python-docx)
 ```
 
 ## Tech Stack
@@ -158,5 +107,6 @@ frontend/
 - **Backend:** FastAPI + SQLAlchemy 2.0 (async) + Alembic
 - **Database:** PostgreSQL 16 + pgvector (vector search 1536-dim)
 - **Auth:** JWT (python-jose HS256) + bcrypt
-- **Infra:** Docker Compose (3 containers: Nginx + FastAPI + PostgreSQL)
-- **Frontend:** React 19 + Vite 8 + TypeScript 6 + Tailwind CSS v4 + TanStack Query v5
+- **Infra:** Docker Compose (4 containers: Nginx + FastAPI + PostgreSQL + Frontend)
+- **Frontend:** React 19 + Vite + TypeScript + Tailwind CSS v4 + TanStack Query v5
+- **Desktop App:** Python + Flet (Flutter-based GUI) + PyMuPDF + python-docx
