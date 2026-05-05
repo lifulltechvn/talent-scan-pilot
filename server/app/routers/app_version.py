@@ -17,7 +17,11 @@ async def get_version():
     if RELEASES_DIR.exists():
         for f in RELEASES_DIR.iterdir():
             if f.suffix in (".zip", ".dmg", ".exe"):
-                downloads[f.stem.split("-")[-1]] = f"/api/v1/app/download/{f.name}"
+                name = f.name.lower()
+                if "macos" in name:
+                    downloads["macos"] = f"/api/v1/app/download/{f.name}"
+                elif "windows" in name:
+                    downloads["windows"] = f"/api/v1/app/download/{f.name}"
     return {"version": settings.APP_VERSION, "downloads": downloads}
 
 

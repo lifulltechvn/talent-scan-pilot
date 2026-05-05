@@ -77,6 +77,7 @@ talent-scan-pilot/
 ├── server/                     # Backend — FastAPI (Docker)
 │   ├── Dockerfile
 │   ├── requirements.txt
+│   ├── releases/               # App binaries cho client download (.zip)
 │   ├── alembic/                # DB migrations
 │   └── app/
 │       ├── main.py             # FastAPI entrypoint
@@ -86,7 +87,9 @@ talent-scan-pilot/
 │       ├── auth.py             # JWT + bcrypt
 │       ├── schemas.py          # Pydantic schemas
 │       ├── deps.py             # Auth dependency
-│       └── routers/auth.py     # Auth endpoints
+│       └── routers/
+│           ├── auth.py         # Auth endpoints
+│           └── app_version.py  # App version + download endpoints
 ├── frontend/                   # Web Dashboard — React (Docker)
 │   ├── Dockerfile
 │   ├── vite.config.ts
@@ -99,8 +102,55 @@ talent-scan-pilot/
 └── app/                        # Desktop App — Flet GUI (native)
     ├── requirements.txt        # flet, PyMuPDF, python-docx, pydantic
     ├── main.py                 # Flet GUI: file picker, progress, results
-    └── extractor.py            # Text extraction: PDF (PyMuPDF) + DOCX (python-docx)
+    ├── extractor.py            # Text extraction: PDF (PyMuPDF) + DOCX (python-docx)
+    └── updater.py              # Auto-updater: check version, download, replace
 ```
+
+---
+
+## Build & Release Desktop App
+
+### Build (macOS)
+
+```bash
+cd app
+source .venv/bin/activate
+pip install pyinstaller        # Lần đầu
+flet pack main.py \
+  --name "TalentScan" \
+  --product-name "TalentScan" \
+  --product-version "1.0.5" \
+  --bundle-id "com.lifull.talentscan" \
+  -y
+```
+
+Output: `app/dist/TalentScan.app`
+
+### Đưa lên server để client download
+
+```bash
+cd app/dist
+zip -r ../../server/releases/TalentScan-v1.0.5-macos.zip TalentScan.app
+```
+
+Cập nhật `APP_VERSION` trong `.env` cho khớp version mới.
+
+### API phân phối
+
+| Endpoint | Mô tả |
+|----------|--------|
+| `GET /api/v1/app/version` | Trả version mới nhất + download URLs |
+| `GET /api/v1/app/download/{filename}` | Download file release |
+
+### Flow release version mới
+
+1. Sửa `CURRENT_VERSION` trong `app/updater.py`
+2. Build app bằng `flet pack`
+3. Nén zip vào `server/releases/`
+4. Cập nhật `APP_VERSION` trong `.env`
+5. Restart server → client tự detect và cập nhật
+
+---
 
 ## Tech Stack
 

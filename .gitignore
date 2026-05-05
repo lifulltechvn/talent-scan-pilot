@@ -4,3 +4,15 @@ __pycache__/
 .venv/
 *.egg-info/
 node_modules/
+
+# Desktop app build artifacts
+app/dist/
+app/build/
+app/*.spec
+app/_update/
+app/_backup/
+
+# Release binaries (large files)
+server/releases/*.zip
+server/releases/*.dmg
+server/releases/*.exe
