@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users } from 'lucide-react';
-import { useCandidate } from '../hooks/useCandidates';
+import { ArrowLeft, CheckCircle, XCircle, Briefcase, GraduationCap, Languages, DollarSign, Sparkles } from 'lucide-react';
+import { useCandidate, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
@@ -9,6 +9,7 @@ import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: candidate, isLoading } = useCandidate(id!);
+  const updateStatus = useUpdateCandidateStatus();
 
   if (isLoading) return <LoadingSkeleton rows={3} />;
   if (!candidate) return <EmptyState icon={Users} title="Candidate not found" description="This candidate may have been removed or the link is invalid" action={{ label: 'Back to Candidates', onClick: () => window.history.back() }} />;
@@ -37,10 +38,10 @@ export function CandidateDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-600 transition-colors">
+            <button onClick={() => updateStatus.mutate({ id: id!, status: 'approved' })} disabled={updateStatus.isPending} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50">
               <CheckCircle size={14} /> Approve
             </button>
-            <button className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-red-50 hover:text-red-600 border border-border-subtle transition-colors">
+            <button onClick={() => updateStatus.mutate({ id: id!, status: 'rejected' })} disabled={updateStatus.isPending} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-red-50 hover:text-red-600 border border-border-subtle transition-colors disabled:opacity-50">
               <XCircle size={14} /> Reject
             </button>
           </div>

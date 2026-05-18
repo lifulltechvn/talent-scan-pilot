@@ -1,0 +1,71 @@
+import { apiClient } from '@/data/api/client';
+import type { Candidate, Score } from '@/domain/models/candidate';
+import type { ICandidateRepository } from '@/domain/models/repositories';
+
+function mapCandidate(raw: any, score?: Score | null): Candidate {
+  return {
+    id: raw.id,
+    jobId: raw.job_id,
+    structuredData: {
+      name: raw.structured_data?.name ?? 'Unknown',
+      skills: raw.structured_data?.skills ?? [],
+      experience: raw.structured_data?.experience ?? [],
+      education: raw.structured_data?.education ?? [],
+      languages: raw.structured_data?.languages ?? [],
+      totalYearsExperience: raw.structured_data?.experience_years ?? raw.structured_data?.totalYearsExperience ?? 0,
+      expectedSalary: raw.structured_data?.expected_salary ?? null,
+      insight: raw.structured_data?.insight ?? { strengths: '', weaknesses: '', recommendation: '' },
+    },
+    status: raw.status,
+    matchScore: raw.match_score,
+    score: score ?? null,
+    sourceAppVersion: raw.source_app_version,
+    scannedAt: raw.scanned_at ?? raw.created_at,
+    createdAt: raw.created_at,
+  };
+}
+
+function mapScore(raw: any): Score {
+  return {
+    id: raw.id,
+    candidateId: raw.candidate_id,
+    ruleScore: raw.rule_score,
+    llmScore: raw.llm_score,
+    finalScore: raw.final_score,
+    classification: raw.classification,
+    details: raw.details,
+    createdAt: raw.created_at,
+  };
+}
+
+async function fetchScore(candidateId: string): Promise<Score | null> {
+  try {
+    const { data } = await apiClient.get(`/scoring/candidates/${candidateId}/score`);
+    return mapScore(data);
+  } catch {
+    return null;
+  }
+}
+
+export const candidateApiRepo: ICandidateRepository = {
+  async getAll() {
+    const { data } = await apiClient.get('/candidates');
+    const candidates: Candidate[] = await Promise.all(
+      data.map(async (raw: any) => {
+        const score = await fetchScore(raw.id);
+        return mapCandidate(raw, score);
+      })
+    );
+    return candidates;
+  },
+
+  async getById(id: string) {
+    const { data } = await apiClient.get(`/candidates/${id}`);
+    const score = await fetchScore(id);
+    return mapCandidate(data, score);
+  },
+
+  async updateStatus(id: string, status: string) {
+    await apiClient.patch(`/candidates/${id}/status?new_status=${status}`);
+  },
+};
