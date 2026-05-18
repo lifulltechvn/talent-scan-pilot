@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit, Briefcase } from 'lucide-react';
 import { useJob } from '../hooks/useJobs';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -14,7 +14,7 @@ export function JobDetailPage() {
   const { data: allCandidates, isLoading: loadingC } = useCandidates();
 
   if (loadingJ || loadingC) return <LoadingSkeleton rows={3} />;
-  if (!job) return <div className="text-text-tertiary text-sm">Job not found</div>;
+  if (!job) return <EmptyState icon={Briefcase} title="Job not found" description="This job may have been removed or the link is invalid" action={{ label: 'Back to Jobs', onClick: () => window.history.back() }} />;
 
   const candidates = allCandidates?.filter(c => c.jobId === job.id) ?? [];
   const gold = candidates.filter(c => c.score?.classification === 'gold').length;

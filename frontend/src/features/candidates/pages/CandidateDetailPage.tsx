@@ -1,7 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Briefcase, GraduationCap, Languages, DollarSign, Sparkles } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users } from 'lucide-react';
 import { useCandidate } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 
@@ -10,7 +11,7 @@ export function CandidateDetailPage() {
   const { data: candidate, isLoading } = useCandidate(id!);
 
   if (isLoading) return <LoadingSkeleton rows={3} />;
-  if (!candidate) return <div className="text-text-tertiary text-sm">Candidate not found</div>;
+  if (!candidate) return <EmptyState icon={Users} title="Candidate not found" description="This candidate may have been removed or the link is invalid" action={{ label: 'Back to Candidates', onClick: () => window.history.back() }} />;
 
   const { structuredData: d, score } = candidate;
 
