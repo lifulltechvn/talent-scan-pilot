@@ -16,3 +16,4 @@ app/_backup/
 server/releases/*.zip
 server/releases/*.dmg
 server/releases/*.exe
+app/TalentScan.app/
