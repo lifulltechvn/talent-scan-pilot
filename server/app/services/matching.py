@@ -1,8 +1,12 @@
 """
 Matching service: cosine similarity (embeddings) + keyword overlap.
-Uses mock embeddings when real ones are not available.
+Uses OpenAI embeddings when OPENAI_API_KEY is set, mock otherwise.
 """
+import os
+
 import numpy as np
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 
 def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
@@ -14,6 +18,16 @@ def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     if norm == 0:
         return 0.0
     return float(dot / norm)
+
+
+def get_embedding(text: str, dim: int = 1536) -> list[float]:
+    """Get embedding via OpenAI API or generate mock."""
+    if OPENAI_API_KEY:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        response = client.embeddings.create(model="text-embedding-3-small", input=text[:8000])
+        return response.data[0].embedding
+    return generate_mock_embedding(text, dim)
 
 
 def generate_mock_embedding(seed_text: str, dim: int = 1536) -> list[float]:

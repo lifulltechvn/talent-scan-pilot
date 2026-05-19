@@ -8,10 +8,34 @@ import flet as ft
 from extractor import extract, SUPPORTED_EXTENSIONS
 from pii_filter import filter_pii
 from pii_crypto import encrypt_pii
-from offline_queue import add_to_queue, get_queue_count
+from offline_queue import add_to_queue, get_queue_count, get_pending, mark_uploaded, mark_failed
 from cv_parser import parse_cv_text
+from openai_service import ocr_scanned_pdf
 from updater import CURRENT_VERSION, check_update, download_and_install, apply_update
 import api_client
+
+
+RETRY_INTERVAL_SEC = 30
+
+
+def retry_offline_queue():
+    """Background thread: retry pending uploads every RETRY_INTERVAL_SEC."""
+    import time
+    while True:
+        time.sleep(RETRY_INTERVAL_SEC)
+        if not api_client.get_token():
+            continue
+        pending = get_pending()
+        if not pending:
+            continue
+        for row in pending:
+            try:
+                import json
+                structured = json.loads(row["structured_data_json"]) if row["structured_data_json"] else {}
+                api_client.upload_candidate(None, structured)
+                mark_uploaded(row["id"])
+            except Exception:
+                mark_failed(row["id"])
 
 
 def main(page: ft.Page):
@@ -95,6 +119,7 @@ def main(page: ft.Page):
             main_content.visible = True
             login_status.value = ""
             load_jobs()
+            threading.Thread(target=retry_offline_queue, daemon=True).start()
             page.update()
         except Exception as e:
             login_status.value = f"❌ Login thất bại: {e}"
@@ -125,14 +150,8 @@ def main(page: ft.Page):
             r = extract(data, name)
 
             if r.is_scanned:
-                card = ft.Container(
-                    content=ft.Column([
-                        ft.Row([ft.Icon(ft.Icons.WARNING, color=ft.Colors.ORANGE_400), ft.Text(name, weight=ft.FontWeight.BOLD, size=13)]),
-                        ft.Text("⚠️ Scanned PDF — cần OCR (chưa hỗ trợ)", size=12, color=ft.Colors.ORANGE_600),
-                    ], spacing=6),
-                    border=ft.border.all(1, ft.Colors.ORANGE_200), border_radius=8, padding=12, margin=ft.margin.only(bottom=8),
-                )
-                return card, True
+                # OCR via GPT-4o Vision (or mock)
+                r.text = ocr_scanned_pdf(data)
 
             # Filter PII
             masked_text, pii_data = filter_pii(r.text)

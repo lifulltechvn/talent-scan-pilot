@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Briefcase, GraduationCap, Languages, DollarSign, Sparkles } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users } from 'lucide-react';
 import { useCandidate, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';

@@ -3,51 +3,86 @@ import type { TalentPoolEntry } from '@/domain/models/talent-pool';
 
 export const mockInterviews: Interview[] = [
   {
-    id: 'iv1', candidateId: 'c1', candidateName: '[NAME-1]', jobId: 'j1', jobTitle: 'Frontend Developer',
-    scheduledAt: '2026-05-02T10:00:00', round: 1, status: 'scheduled', result: null,
-    notes: null, reminderSent: false,
+    id: 'iv1', candidateId: 'c1', candidateName: 'Pham Duc Anh', jobId: 'j1', jobTitle: 'React Frontend Developer',
+    scheduledAt: '2026-05-20T10:00:00', round: 1, status: 'scheduled', result: null,
+    notes: 'Strong React portfolio. Discuss team fit.', reminderSent: false,
   },
   {
-    id: 'iv2', candidateId: 'c4', candidateName: '[NAME-4]', jobId: 'j2', jobTitle: 'Backend Engineer',
-    scheduledAt: '2026-05-01T14:00:00', round: 1, status: 'completed', result: 'pass',
-    notes: 'Strong FastAPI knowledge. Recommend for round 2.', reminderSent: true,
+    id: 'iv2', candidateId: 'c2', candidateName: 'Nguyen Van Minh', jobId: 'j2', jobTitle: 'Senior Python Backend Developer',
+    scheduledAt: '2026-05-18T14:00:00', round: 1, status: 'completed', result: 'pass',
+    notes: 'Excellent FastAPI knowledge. 5y experience confirmed. Recommend for final round.', reminderSent: true,
   },
   {
-    id: 'iv3', candidateId: 'c4', candidateName: '[NAME-4]', jobId: 'j2', jobTitle: 'Backend Engineer',
-    scheduledAt: '2026-05-05T10:00:00', round: 2, status: 'scheduled', result: null,
-    notes: null, reminderSent: false,
+    id: 'iv3', candidateId: 'c2', candidateName: 'Nguyen Van Minh', jobId: 'j2', jobTitle: 'Senior Python Backend Developer',
+    scheduledAt: '2026-05-22T10:00:00', round: 2, status: 'scheduled', result: null,
+    notes: 'Final round with CTO. System design discussion.', reminderSent: false,
   },
   {
-    id: 'iv4', candidateId: 'c2', candidateName: '[NAME-2]', jobId: 'j1', jobTitle: 'Frontend Developer',
-    scheduledAt: '2026-04-28T09:00:00', round: 1, status: 'completed', result: 'fail',
-    notes: 'Lacks TypeScript experience. Moved to talent pool.', reminderSent: true,
+    id: 'iv4', candidateId: 'c3', candidateName: 'Vo Minh Thu', jobId: 'j1', jobTitle: 'React Frontend Developer',
+    scheduledAt: '2026-05-15T09:00:00', round: 1, status: 'completed', result: 'fail',
+    notes: 'Only Vue.js experience. No React/TypeScript. Moved to talent pool.', reminderSent: true,
   },
   {
-    id: 'iv5', candidateId: 'c5', candidateName: '[NAME-5]', jobId: 'j2', jobTitle: 'Backend Engineer',
-    scheduledAt: '2026-04-30T15:00:00', round: 1, status: 'cancelled', result: null,
-    notes: 'Candidate withdrew application.', reminderSent: true,
+    id: 'iv5', candidateId: 'c4', candidateName: 'Hoang Quoc Bao', jobId: 'j3', jobTitle: 'DevOps Engineer',
+    scheduledAt: '2026-05-19T15:00:00', round: 1, status: 'completed', result: 'next_round',
+    notes: 'AWS certified, K8s expert. Salary negotiation needed. Schedule final round.', reminderSent: true,
+  },
+  {
+    id: 'iv6', candidateId: 'c5', candidateName: 'Nguyen Thi Mai', jobId: 'j1', jobTitle: 'React Frontend Developer',
+    scheduledAt: '2026-05-21T11:00:00', round: 1, status: 'scheduled', result: null,
+    notes: 'Design + code background. Interesting profile.', reminderSent: false,
+  },
+  {
+    id: 'iv7', candidateId: 'c6', candidateName: 'Tran Van Duc', jobId: 'j3', jobTitle: 'DevOps Engineer',
+    scheduledAt: '2026-05-16T14:00:00', round: 1, status: 'completed', result: 'pass',
+    notes: 'Multi-cloud certified. Good Terraform skills. Proceed to technical challenge.', reminderSent: true,
+  },
+  {
+    id: 'iv8', candidateId: 'c7', candidateName: 'Le Hoang Nam', jobId: 'j2', jobTitle: 'Senior Python Backend Developer',
+    scheduledAt: '2026-05-14T10:00:00', round: 1, status: 'cancelled', result: null,
+    notes: 'Candidate accepted offer elsewhere (Java role at Samsung).', reminderSent: true,
+  },
+  {
+    id: 'iv9', candidateId: 'c8', candidateName: 'Bui Quang Huy', jobId: 'j2', jobTitle: 'Senior Python Backend Developer',
+    scheduledAt: '2026-05-23T09:30:00', round: 1, status: 'scheduled', result: null,
+    notes: 'Staff engineer from Shopee. Discuss scope and salary expectations.', reminderSent: false,
+  },
+  {
+    id: 'iv10', candidateId: 'c9', candidateName: 'Do Hai Yen', jobId: 'j1', jobTitle: 'React Frontend Developer',
+    scheduledAt: '2026-05-13T16:00:00', round: 1, status: 'completed', result: 'pass',
+    notes: 'Solid React skills. TypeScript gap is trainable. Good culture fit.', reminderSent: true,
+  },
+  {
+    id: 'iv11', candidateId: 'c10', candidateName: 'Dang Thanh Son', jobId: 'j3', jobTitle: 'DevOps Engineer',
+    scheduledAt: '2026-05-12T11:00:00', round: 1, status: 'no_show', result: null,
+    notes: 'Did not attend. Sent follow-up email.', reminderSent: true,
   },
 ];
 
 export const mockTalentPool: TalentPoolEntry[] = [
   {
-    id: 'tp1', candidateId: 'c3', candidateName: '[NAME-3]', originalJobId: 'j1', originalJobTitle: 'Frontend Developer',
-    skills: ['HTML', 'CSS', 'jQuery'], score: 27, reason: 'No modern framework experience. Eager to learn.',
-    status: 'active', addedAt: '2026-04-21T09:00:00', rematchedJobTitle: null,
+    id: 'tp1', candidateId: 'c3', candidateName: 'Vo Minh Thu', originalJobId: 'j1', originalJobTitle: 'React Frontend Developer',
+    skills: ['Vue.js', 'JavaScript', 'CSS'], score: 35, reason: 'Only Vue.js experience. Learning React. Re-evaluate in 3 months.',
+    status: 'active', addedAt: '2026-05-15T10:00:00', rematchedJobTitle: null,
   },
   {
-    id: 'tp2', candidateId: 'c2', candidateName: '[NAME-2]', originalJobId: 'j1', originalJobTitle: 'Frontend Developer',
-    skills: ['React', 'JavaScript', 'CSS'], score: 42, reason: 'Junior level. Needs mentoring on TypeScript.',
-    status: 'rematched', addedAt: '2026-04-28T10:00:00', rematchedJobTitle: 'QA Engineer',
+    id: 'tp2', candidateId: 'c7', candidateName: 'Le Hoang Nam', originalJobId: 'j2', originalJobTitle: 'Senior Python Backend Developer',
+    skills: ['Java', 'Spring Boot', 'MySQL', 'Kafka'], score: 28, reason: 'Wrong tech stack (Java vs Python). Strong OOP fundamentals. Monitor for Java roles.',
+    status: 'active', addedAt: '2026-05-14T11:00:00', rematchedJobTitle: null,
   },
   {
-    id: 'tp3', candidateId: 'c6', candidateName: '[NAME-6]', originalJobId: 'j2', originalJobTitle: 'Backend Engineer',
-    skills: ['Java', 'Spring Boot', 'MySQL'], score: 35, reason: 'Wrong tech stack (Java vs Python). Good fundamentals.',
-    status: 'active', addedAt: '2026-04-22T11:00:00', rematchedJobTitle: null,
+    id: 'tp3', candidateId: 'c10', candidateName: 'Dang Thanh Son', originalJobId: 'j3', originalJobTitle: 'DevOps Engineer',
+    skills: ['Docker', 'Linux', 'CI/CD', 'Python'], score: 32, reason: 'Too junior for Senior DevOps. Good foundation. Consider for Junior DevOps opening.',
+    status: 'rematched', addedAt: '2026-05-12T14:00:00', rematchedJobTitle: 'Junior DevOps Engineer',
   },
   {
-    id: 'tp4', candidateId: 'c7', candidateName: '[NAME-7]', originalJobId: 'j3', originalJobTitle: 'QA Engineer',
-    skills: ['Manual Testing', 'Selenium'], score: 38, reason: 'No automation experience with Playwright.',
-    status: 'active', addedAt: '2026-04-23T14:00:00', rematchedJobTitle: null,
+    id: 'tp4', candidateId: 'c11', candidateName: 'Ly Minh Tuan', originalJobId: 'j2', originalJobTitle: 'Senior Python Backend Developer',
+    skills: ['Python', 'Flask', 'MySQL'], score: 22, reason: 'Fresh graduate. Only internship experience. Talent pool for Junior Python roles.',
+    status: 'active', addedAt: '2026-05-16T09:00:00', rematchedJobTitle: null,
+  },
+  {
+    id: 'tp5', candidateId: 'c12', candidateName: 'Tran Thi Lan', originalJobId: 'j2', originalJobTitle: 'Senior Python Backend Developer',
+    skills: ['Python', 'Django', 'PostgreSQL', 'Docker'], score: 45, reason: 'Good potential but no FastAPI. Recommend self-study then re-apply.',
+    status: 'active', addedAt: '2026-05-17T10:00:00', rematchedJobTitle: null,
   },
 ];

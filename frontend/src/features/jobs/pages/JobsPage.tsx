@@ -1,14 +1,55 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, MapPin, Clock, Users, Plus, Briefcase } from 'lucide-react';
-import { useJobs } from '../hooks/useJobs';
+import { Search, MapPin, Clock, Users, Plus, Briefcase, X } from 'lucide-react';
+import { useJobs, useCreateJob } from '../hooks/useJobs';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { getJobIcon } from '@/shared/utils/job-icon';
 
+function CreateJobModal({ onClose }: { onClose: () => void }) {
+  const createJob = useCreateJob();
+  const [form, setForm] = useState({ title: '', description: '', skills: '', salaryRange: '', location: '', deadline: '' });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createJob.mutate(
+      { title: form.title, description: form.description, requiredSkills: form.skills.split(',').map(s => s.trim()).filter(Boolean), salaryRange: form.salaryRange || undefined, location: form.location || undefined, deadline: form.deadline || undefined },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <form onSubmit={handleSubmit} className="bg-bg-panel rounded-xl p-6 w-full max-w-lg shadow-xl border border-border-subtle">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-text-primary">Create New Job</h2>
+          <button type="button" onClick={onClose} className="text-text-muted hover:text-text-primary"><X size={18} /></button>
+        </div>
+        <div className="space-y-3">
+          <input required value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Job title *" className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          <textarea required value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Job description *" rows={3} className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          <input value={form.skills} onChange={e => setForm(p => ({ ...p, skills: e.target.value }))} placeholder="Required skills (comma separated)" className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          <div className="grid grid-cols-2 gap-3">
+            <input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} placeholder="Location" className="px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <input value={form.salaryRange} onChange={e => setForm(p => ({ ...p, salaryRange: e.target.value }))} placeholder="Salary range" className="px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          </div>
+          <input type="date" value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">Cancel</button>
+          <button type="submit" disabled={createJob.isPending} className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover disabled:opacity-50">
+            {createJob.isPending ? 'Creating...' : 'Create Job'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export function JobsPage() {
   const { data: jobs, isLoading } = useJobs();
   const [search, setSearch] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
 
   if (isLoading) return <LoadingSkeleton rows={3} />;
 
@@ -25,10 +66,12 @@ export function JobsPage() {
           <h1 className="text-xl font-semibold text-text-primary">Jobs</h1>
           <p className="text-[13px] text-text-tertiary mt-0.5">{jobs?.length ?? 0} open positions · {totalCandidates} total candidates</p>
         </div>
-        <button className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">
           <Plus size={14} /> New Job
         </button>
       </div>
+
+      {showCreate && <CreateJobModal onClose={() => setShowCreate(false)} />}
 
       {/* Search */}
       <div className="relative mb-5">

@@ -214,6 +214,132 @@ CANDIDATES = [
             },
         },
     },
+    # Additional candidates for richer dashboard
+    {
+        "job_idx": 0,
+        "structured_data": {
+            "name": "Bui Quang Huy",
+            "skills": ["Python", "FastAPI", "Redis", "Docker", "Kubernetes", "PostgreSQL", "AWS"],
+            "experience_years": 7,
+            "totalYearsExperience": 7,
+            "education_level": "master",
+            "summary": "Staff engineer, 7 năm Python. Architect hệ thống xử lý 50K req/s.",
+            "expectedSalary": "4000-5000 USD",
+            "experience": [
+                {"company": "Shopee", "role": "Staff Engineer", "years": 3, "description": "Architect payment system, 50K req/s, team 12 người."},
+                {"company": "ZaloPay", "role": "Senior Backend", "years": 2, "description": "Microservices Python + Go, event-driven architecture."},
+                {"company": "KMS Technology", "role": "Backend Developer", "years": 2, "description": "Python/Django REST APIs, PostgreSQL optimization."},
+            ],
+            "education": [
+                {"school": "KAIST (Korea)", "major": "Computer Science", "degree": "master", "year": 2017},
+            ],
+            "languages": [{"language": "Vietnamese", "level": "Native"}, {"language": "English", "level": "Fluent"}, {"language": "Korean", "level": "Conversational"}],
+            "insight": {
+                "strengths": "Exceptional technical depth. System design at scale. Multi-language (Python + Go). International education.",
+                "weaknesses": "Salary expectation above budget. May find the role too small.",
+                "recommendation": "Outstanding candidate but overqualified. Offer if budget allows, otherwise talent pool for Tech Lead role.",
+            },
+        },
+    },
+    {
+        "job_idx": 1,
+        "structured_data": {
+            "name": "Nguyen Thi Mai",
+            "skills": ["React", "TypeScript", "Next.js", "TailwindCSS", "GraphQL", "Git", "Figma"],
+            "experience_years": 3,
+            "totalYearsExperience": 3,
+            "education_level": "bachelor",
+            "summary": "Frontend developer với design sense tốt. Từng làm UI/UX trước khi chuyển sang code.",
+            "expectedSalary": "1800-2200 USD",
+            "experience": [
+                {"company": "Tiki", "role": "Frontend Developer", "years": 2, "description": "React + Next.js e-commerce. A/B testing, performance optimization."},
+                {"company": "Design Agency", "role": "UI/UX Designer → Developer", "years": 1, "description": "Chuyển từ design sang code. Figma → React components."},
+            ],
+            "education": [
+                {"school": "Đại học RMIT Vietnam", "major": "Information Technology", "degree": "bachelor", "year": 2021},
+            ],
+            "languages": [{"language": "Vietnamese", "level": "Native"}, {"language": "English", "level": "Advanced"}],
+            "insight": {
+                "strengths": "Unique design + code combination. Strong React/TypeScript. Good eye for UI details.",
+                "weaknesses": "Less pure engineering depth. GraphQL over REST preference may need adjustment.",
+                "recommendation": "Great fit. Design background is a bonus for dashboard work. Recommend hire.",
+            },
+        },
+    },
+    {
+        "job_idx": 2,
+        "structured_data": {
+            "name": "Tran Van Duc",
+            "skills": ["AWS", "GCP", "Docker", "Kubernetes", "Terraform", "CI/CD", "Python", "Go"],
+            "experience_years": 5,
+            "totalYearsExperience": 5,
+            "education_level": "bachelor",
+            "summary": "Multi-cloud DevOps, AWS + GCP certified. Automation enthusiast.",
+            "expectedSalary": "3000-3500 USD",
+            "experience": [
+                {"company": "Axon Active", "role": "DevOps Engineer", "years": 3, "description": "Multi-cloud (AWS + GCP), Terraform modules, GitOps with ArgoCD."},
+                {"company": "Ến Vàng Tech", "role": "Cloud Engineer", "years": 2, "description": "AWS migration, Docker/ECS, CloudFormation."},
+            ],
+            "education": [
+                {"school": "Đại học Bách Khoa Đà Nẵng", "major": "Khoa học Máy tính", "degree": "bachelor", "year": 2019},
+            ],
+            "languages": [{"language": "Vietnamese", "level": "Native"}, {"language": "English", "level": "Professional"}, {"language": "German", "level": "Basic"}],
+            "insight": {
+                "strengths": "Multi-cloud expertise, IaC mastery, automation mindset. AWS + GCP certified.",
+                "weaknesses": "Salary slightly above mid-range. No team lead experience yet.",
+                "recommendation": "Strong candidate. Good balance of skills and experience. Recommend for interview.",
+            },
+        },
+    },
+    {
+        "job_idx": 0,
+        "structured_data": {
+            "name": "Ly Minh Tuan",
+            "skills": ["Python", "Flask", "MySQL", "Git"],
+            "experience_years": 1,
+            "totalYearsExperience": 1,
+            "education_level": "bachelor",
+            "summary": "Fresh graduate, internship experience with Flask. Eager to learn.",
+            "expectedSalary": "800-1200 USD",
+            "experience": [
+                {"company": "Intern atẾn Vàng", "role": "Backend Intern", "years": 1, "description": "Flask REST API, MySQL queries, basic Git workflow."},
+            ],
+            "education": [
+                {"school": "Đại học Cần Thơ", "major": "Công nghệ Thông tin", "degree": "bachelor", "year": 2024},
+            ],
+            "languages": [{"language": "Vietnamese", "level": "Native"}, {"language": "English", "level": "Basic"}],
+            "insight": {
+                "strengths": "Affordable, eager to learn, basic Python foundation.",
+                "weaknesses": "No FastAPI/PostgreSQL/Docker/Redis experience. Too junior for Senior role.",
+                "recommendation": "Not suitable for Senior position. Talent pool for future Junior openings.",
+            },
+        },
+    },
+    {
+        "job_idx": 1,
+        "structured_data": {
+            "name": "Do Hai Yen",
+            "skills": ["React", "JavaScript", "CSS", "HTML", "REST API", "Git", "Redux"],
+            "experience_years": 3,
+            "totalYearsExperience": 3,
+            "education_level": "bachelor",
+            "summary": "React developer 3 năm, chưa dùng TypeScript nhiều nhưng đang học.",
+            "expectedSalary": "1500-1800 USD",
+            "experience": [
+                {"company": "VietnamWorks", "role": "Frontend Developer", "years": 2, "description": "React + Redux job portal. Responsive design, REST API integration."},
+                {"company": "Freelance", "role": "Web Developer", "years": 1, "description": "Landing pages, React SPAs for small businesses."},
+            ],
+            "education": [
+                {"school": "Đại học Công nghệ TP.HCM (HUTECH)", "major": "Công nghệ Phần mềm", "degree": "bachelor", "year": 2021},
+            ],
+            "languages": [{"language": "Vietnamese", "level": "Native"}, {"language": "English", "level": "Intermediate"}],
+            "insight": {
+                "strengths": "Solid React experience, familiar with REST API integration, good CSS skills.",
+                "weaknesses": "Limited TypeScript experience. No TailwindCSS (uses plain CSS/SCSS).",
+                "recommendation": "Decent candidate. TypeScript gap is trainable. Consider for mid-level if budget allows.",
+            },
+        },
+    },
 ]
 
 

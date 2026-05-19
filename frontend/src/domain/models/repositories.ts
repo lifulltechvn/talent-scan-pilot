@@ -10,4 +10,5 @@ export interface ICandidateRepository {
 export interface IJobRepository {
   getAll(): Promise<Job[]>;
   getById(id: string): Promise<Job | undefined>;
+  create(data: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; deadline?: string }): Promise<Job>;
 }
