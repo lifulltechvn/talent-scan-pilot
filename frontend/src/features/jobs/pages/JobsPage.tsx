@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, MapPin, Clock, Users, Plus, Briefcase, X } from 'lucide-react';
 import { useJobs, useCreateJob } from '../hooks/useJobs';
+import { useCandidates } from '@/features/candidates/hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { getJobIcon } from '@/shared/utils/job-icon';
+import { DatePicker } from '@/shared/components/ui/DatePicker';
 
 function CreateJobModal({ onClose }: { onClose: () => void }) {
   const createJob = useCreateJob();
@@ -33,7 +35,7 @@ function CreateJobModal({ onClose }: { onClose: () => void }) {
             <input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} placeholder="Location" className="px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
             <input value={form.salaryRange} onChange={e => setForm(p => ({ ...p, salaryRange: e.target.value }))} placeholder="Salary range" className="px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
           </div>
-          <input type="date" value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          <DatePicker value={form.deadline} onChange={v => setForm(p => ({ ...p, deadline: v }))} placeholder="Deadline" />
         </div>
         <div className="flex justify-end gap-2 mt-5">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">Cancel</button>
@@ -48,16 +50,19 @@ function CreateJobModal({ onClose }: { onClose: () => void }) {
 
 export function JobsPage() {
   const { data: jobs, isLoading } = useJobs();
+  const { data: candidates } = useCandidates();
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
 
   if (isLoading) return <LoadingSkeleton rows={3} />;
 
+  const candidateCountByJob = (jobId: string) => candidates?.filter(c => c.jobId === jobId).length ?? 0;
+
   const filtered = (jobs ?? []).filter(j =>
     !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.requiredSkills.some(s => s.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const totalCandidates = jobs?.reduce((sum, j) => sum + j.candidateCount, 0) ?? 0;
+  const totalCandidates = candidates?.length ?? 0;
 
   return (
     <div>
@@ -95,7 +100,7 @@ export function JobsPage() {
               </div>
               <div className="flex items-center gap-1 text-[11px] text-text-muted">
                 <Users size={12} />
-                {j.candidateCount}
+                {candidateCountByJob(j.id)}
               </div>
             </div>
 

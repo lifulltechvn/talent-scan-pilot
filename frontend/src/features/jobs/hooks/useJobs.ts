@@ -19,3 +19,15 @@ export function useCreateJob() {
     },
   });
 }
+
+export function useUpdateJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; deadline?: string } }) =>
+      jobRepo.update(id, data),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      qc.invalidateQueries({ queryKey: ['jobs', id] });
+    },
+  });
+}

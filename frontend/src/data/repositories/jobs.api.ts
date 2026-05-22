@@ -40,4 +40,16 @@ export const jobApiRepo: IJobRepository = {
     });
     return mapJob(data);
   },
+
+  async update(id: string, payload: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; deadline?: string }) {
+    const { data } = await apiClient.put(`/jobs/${id}`, {
+      title: payload.title,
+      description: payload.description,
+      required_skills: payload.requiredSkills,
+      salary_range: payload.salaryRange,
+      location: payload.location,
+      deadline: payload.deadline,
+    });
+    return mapJob(data);
+  },
 };

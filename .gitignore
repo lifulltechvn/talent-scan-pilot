@@ -17,3 +17,6 @@ server/releases/*.zip
 server/releases/*.dmg
 server/releases/*.exe
 app/TalentScan.app/
+
+# Desktop app runtime data
+app/queue.db

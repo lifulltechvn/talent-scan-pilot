@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Briefcase, CalendarCheck, DatabaseZap, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, CalendarCheck, DatabaseZap, Mail, Settings } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/jobs', label: 'Jobs', icon: Briefcase },
   { to: '/interviews', label: 'Interviews', icon: CalendarCheck },
   { to: '/talent-pool', label: 'Talent Pool', icon: DatabaseZap },
+  { to: '/outreach', label: 'Outreach', icon: Mail },
 ];
 
 interface SidebarProps {

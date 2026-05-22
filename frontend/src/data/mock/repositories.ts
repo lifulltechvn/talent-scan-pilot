@@ -11,4 +11,6 @@ export const candidateRepo: ICandidateRepository = {
 export const jobRepo: IJobRepository = {
   async getAll() { await delay(300); return mockJobs; },
   async getById(id) { await delay(200); return mockJobs.find(j => j.id === id); },
+  async create(data) { await delay(300); return { id: '1', ...data, candidateCount: 0, createdBy: '1', createdAt: '', updatedAt: '' } as any; },
+  async update(id, data) { await delay(300); return { id, ...data, candidateCount: 0, createdBy: '1', createdAt: '', updatedAt: '' } as any; },
 };

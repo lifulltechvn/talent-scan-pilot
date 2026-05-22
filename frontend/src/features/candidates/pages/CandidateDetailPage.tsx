@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users } from 'lucide-react';
-import { useCandidate, useUpdateCandidateStatus } from '../hooks/useCandidates';
+import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users } from 'lucide-react';
+import { useCandidate } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
@@ -9,7 +9,6 @@ import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: candidate, isLoading } = useCandidate(id!);
-  const updateStatus = useUpdateCandidateStatus();
 
   if (isLoading) return <LoadingSkeleton rows={3} />;
   if (!candidate) return <EmptyState icon={Users} title="Candidate not found" description="This candidate may have been removed or the link is invalid" action={{ label: 'Back to Candidates', onClick: () => window.history.back() }} />;
@@ -24,7 +23,7 @@ export function CandidateDetailPage() {
 
       {/* Header Card */}
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mb-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-lg font-bold">
               {d.name.replace(/[\[\]NAME-]/g, '').trim().charAt(0) || 'C'}
@@ -36,14 +35,6 @@ export function CandidateDetailPage() {
               </div>
               <p className="text-[13px] text-text-tertiary">{d.totalYearsExperience}y experience · {d.languages.map(l => `${l.language} (${l.level})`).join(', ')}</p>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => updateStatus.mutate({ id: id!, status: 'approved' })} disabled={updateStatus.isPending} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50">
-              <CheckCircle size={14} /> Approve
-            </button>
-            <button onClick={() => updateStatus.mutate({ id: id!, status: 'rejected' })} disabled={updateStatus.isPending} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-red-50 hover:text-red-600 border border-border-subtle transition-colors disabled:opacity-50">
-              <XCircle size={14} /> Reject
-            </button>
           </div>
         </div>
       </div>
@@ -93,15 +84,12 @@ export function CandidateDetailPage() {
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
           <h2 className="text-sm font-medium text-text-primary mb-4">Profile</h2>
           <div className="space-y-4">
-            {/* Skills */}
             <div>
               <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Skills</span>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {d.skills.map(s => <span key={s} className="text-[11px] bg-accent/10 text-accent px-2 py-0.5 rounded-md font-medium">{s}</span>)}
               </div>
             </div>
-
-            {/* Experience */}
             {d.experience.length > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
@@ -116,8 +104,6 @@ export function CandidateDetailPage() {
                 ))}
               </div>
             )}
-
-            {/* Education */}
             {d.education.length > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
@@ -132,8 +118,6 @@ export function CandidateDetailPage() {
                 ))}
               </div>
             )}
-
-            {/* Languages */}
             <div className="flex items-center gap-1.5">
               <Languages size={13} className="text-text-muted" />
               <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider mr-2">Languages</span>
@@ -141,8 +125,6 @@ export function CandidateDetailPage() {
                 <span key={l.language} className="text-[11px] bg-bg-surface text-text-secondary px-2 py-0.5 rounded">{l.language} ({l.level})</span>
               ))}
             </div>
-
-            {/* Salary */}
             {d.expectedSalary && (
               <div className="flex items-center gap-1.5">
                 <DollarSign size={13} className="text-text-muted" />

@@ -12,6 +12,10 @@ const JobsPage = lazy(() => import('@/features/jobs/pages/JobsPage').then(m => (
 const JobDetailPage = lazy(() => import('@/features/jobs/pages/JobDetailPage').then(m => ({ default: m.JobDetailPage })));
 const InterviewsPage = lazy(() => import('@/features/interviews/pages/InterviewsPage').then(m => ({ default: m.InterviewsPage })));
 const TalentPoolPage = lazy(() => import('@/features/talent-pool/pages/TalentPoolPage').then(m => ({ default: m.TalentPoolPage })));
+const OutreachPage = lazy(() => import('@/features/outreach/pages/OutreachPage').then(m => ({ default: m.OutreachPage })));
+const SettingsPage = lazy(() => import('@/features/settings/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const QuizPublicPage = lazy(() => import('@/features/quiz/pages/QuizPublicPage').then(m => ({ default: m.QuizPublicPage })));
+const SchedulePublicPage = lazy(() => import('@/features/schedule/pages/SchedulePublicPage').then(m => ({ default: m.SchedulePublicPage })));
 
 function LazyLoad({ children }: { children: React.ReactNode }) {
   return (
@@ -44,9 +48,14 @@ export const router = createBrowserRouter([
           { path: 'jobs/:id', element: <LazyLoad><JobDetailPage /></LazyLoad> },
           { path: 'interviews', element: <LazyLoad><InterviewsPage /></LazyLoad> },
           { path: 'talent-pool', element: <LazyLoad><TalentPoolPage /></LazyLoad> },
+          { path: 'outreach', element: <LazyLoad><OutreachPage /></LazyLoad> },
+          { path: 'settings', element: <LazyLoad><SettingsPage /></LazyLoad> },
           { path: '*', element: <Navigate to="/" replace /> },
         ],
       },
     ],
   },
+  // Public pages (no auth required)
+  { path: '/quiz/:token', element: <LazyLoad><QuizPublicPage /></LazyLoad> },
+  { path: '/schedule/:token', element: <LazyLoad><SchedulePublicPage /></LazyLoad> },
 ]);
