@@ -16,15 +16,16 @@ import { cn } from '@/shared/utils/cn';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { useUpdateCandidateStatus } from '../hooks/useCandidates';
+import { useI18n } from '@/shared/i18n';
 import type { Candidate, CandidateStatus } from '@/domain/models/candidate';
 import { Inbox, Eye, CheckCircle2, XCircle, DatabaseZap, GripVertical } from 'lucide-react';
 
-const COLUMNS: { id: CandidateStatus; label: string; icon: typeof Inbox; color: string }[] = [
-  { id: 'new', label: 'New', icon: Inbox, color: 'border-t-blue-400' },
-  { id: 'reviewed', label: 'Reviewed', icon: Eye, color: 'border-t-amber-400' },
-  { id: 'approved', label: 'Approved', icon: CheckCircle2, color: 'border-t-emerald-400' },
-  { id: 'rejected', label: 'Rejected', icon: XCircle, color: 'border-t-red-400' },
-  { id: 'talent_pool', label: 'Talent Pool', icon: DatabaseZap, color: 'border-t-indigo-400' },
+const COLUMNS: { id: CandidateStatus; labelKey: 'statusNew' | 'statusReviewed' | 'statusApproved' | 'statusRejected' | 'statusTalentPool'; icon: typeof Inbox; color: string }[] = [
+  { id: 'new', labelKey: 'statusNew', icon: Inbox, color: 'border-t-blue-400' },
+  { id: 'reviewed', labelKey: 'statusReviewed', icon: Eye, color: 'border-t-amber-400' },
+  { id: 'approved', labelKey: 'statusApproved', icon: CheckCircle2, color: 'border-t-emerald-400' },
+  { id: 'rejected', labelKey: 'statusRejected', icon: XCircle, color: 'border-t-red-400' },
+  { id: 'talent_pool', labelKey: 'statusTalentPool', icon: DatabaseZap, color: 'border-t-indigo-400' },
 ];
 
 function Column({ id, label, icon: Icon, color, count, isOver, children }: {
@@ -99,6 +100,7 @@ export function KanbanBoard({ candidates }: { candidates: Candidate[] }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const updateStatus = useUpdateCandidateStatus();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const { t } = useI18n();
 
   const grouped = COLUMNS.reduce((acc, col) => {
     acc[col.id] = candidates.filter(c => c.status === col.id);
@@ -125,7 +127,7 @@ export function KanbanBoard({ candidates }: { candidates: Candidate[] }) {
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex gap-3 overflow-x-auto pb-4">
         {COLUMNS.map(col => (
-          <DroppableColumn key={col.id} {...col} count={grouped[col.id].length}>
+          <DroppableColumn key={col.id} id={col.id} label={t(col.labelKey)} icon={col.icon} color={col.color} count={grouped[col.id].length}>
             {grouped[col.id].map(c => <DraggableCard key={c.id} candidate={c} />)}
           </DroppableColumn>
         ))}

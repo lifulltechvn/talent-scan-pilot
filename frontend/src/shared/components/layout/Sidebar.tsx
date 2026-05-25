@@ -1,14 +1,16 @@
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, Briefcase, CalendarCheck, DatabaseZap, Mail, Settings } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
+import { useI18n } from '@/shared/i18n';
+import type { TranslationKey } from '@/shared/i18n/en';
 
-const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/candidates', label: 'Candidates', icon: Users },
-  { to: '/jobs', label: 'Jobs', icon: Briefcase },
-  { to: '/interviews', label: 'Interviews', icon: CalendarCheck },
-  { to: '/talent-pool', label: 'Talent Pool', icon: DatabaseZap },
-  { to: '/outreach', label: 'Outreach', icon: Mail },
+const navItems: { to: string; labelKey: TranslationKey; icon: typeof LayoutDashboard }[] = [
+  { to: '/', labelKey: 'navDashboard', icon: LayoutDashboard },
+  { to: '/candidates', labelKey: 'navCandidates', icon: Users },
+  { to: '/jobs', labelKey: 'navJobs', icon: Briefcase },
+  { to: '/interviews', labelKey: 'navInterviews', icon: CalendarCheck },
+  { to: '/talent-pool', labelKey: 'navTalentPool', icon: DatabaseZap },
+  { to: '/outreach', labelKey: 'navOutreach', icon: Mail },
 ];
 
 interface SidebarProps {
@@ -19,6 +21,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: SidebarProps) {
+  const { t } = useI18n();
   return (
     <>
       {mobileOpen && (
@@ -68,10 +71,10 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
                     : 'text-text-secondary hover:text-text-primary hover:bg-bg-surface'
                 )
               }
-              title={collapsed ? item.label : undefined}
+              title={collapsed ? t(item.labelKey) : undefined}
             >
               <item.icon size={16} className="shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && <span>{t(item.labelKey)}</span>}
             </NavLink>
           ))}
         </nav>
@@ -85,10 +88,10 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
               'flex items-center gap-2.5 py-1.5 rounded-md text-[13px] font-medium text-text-tertiary hover:text-text-primary hover:bg-bg-surface transition-colors whitespace-nowrap overflow-hidden',
               collapsed ? 'justify-center px-0' : 'px-2.5',
             )}
-            title={collapsed ? 'Settings' : undefined}
+            title={collapsed ? t('navSettings') : undefined}
           >
             <Settings size={16} className="shrink-0" />
-            {!collapsed && <span>Settings</span>}
+            {!collapsed && <span>{t('navSettings')}</span>}
           </NavLink>
         </div>
 

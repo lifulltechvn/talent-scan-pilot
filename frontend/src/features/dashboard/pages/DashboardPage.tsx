@@ -7,12 +7,14 @@ import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { ActionItemsPanel } from '../components/ActionItemsPanel';
+import { useI18n } from '@/shared/i18n';
 
 const PIE_COLORS = ['#f59e0b', '#64748b', '#6366f1'];
 
 export function DashboardPage() {
   const { data: candidates, isLoading: loadingC } = useCandidates();
   const { data: jobs, isLoading: loadingJ } = useJobs();
+  const { t } = useI18n();
 
   if (loadingC || loadingJ) return <LoadingSkeleton rows={5} />;
 
@@ -40,18 +42,18 @@ export function DashboardPage() {
   ];
 
   const stats = [
-    { label: 'Total CVs', value: candidates?.length ?? 0, icon: Users, color: 'bg-accent/10 text-accent', trend: '+12%' },
-    { label: 'Gold Candidates', value: gold.length, icon: Trophy, color: 'bg-amber-50 text-amber-600', trend: '+5%' },
-    { label: 'Active Jobs', value: jobs?.length ?? 0, icon: Briefcase, color: 'bg-blue-50 text-blue-600', trend: '+2' },
-    { label: 'Avg Score', value: Math.round((candidates?.reduce((sum, c) => sum + (c.score?.finalScore ?? 0), 0) ?? 0) / (candidates?.length || 1)), icon: TrendingUp, color: 'bg-emerald-50 text-emerald-600', trend: '+3pts' },
+    { label: t('totalCVs'), value: candidates?.length ?? 0, icon: Users, color: 'bg-accent/10 text-accent', trend: '+12%' },
+    { label: t('goldCandidates'), value: gold.length, icon: Trophy, color: 'bg-amber-50 text-amber-600', trend: '+5%' },
+    { label: t('activeJobs'), value: jobs?.length ?? 0, icon: Briefcase, color: 'bg-blue-50 text-blue-600', trend: '+2' },
+    { label: t('avgScore'), value: Math.round((candidates?.reduce((sum, c) => sum + (c.score?.finalScore ?? 0), 0) ?? 0) / (candidates?.length || 1)), icon: TrendingUp, color: 'bg-emerald-50 text-emerald-600', trend: '+3pts' },
   ];
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Dashboard</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">Overview of your recruitment pipeline</p>
+          <h1 className="text-xl font-semibold text-text-primary">{t('dashboardTitle')}</h1>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{t('dashboardSubtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Link to="/jobs" className="text-[13px] font-medium text-accent hover:text-accent-hover transition-colors flex items-center gap-1">
@@ -83,8 +85,8 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
         {/* Classification Pie */}
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-          <h2 className="text-sm font-medium text-text-primary mb-1">Classification</h2>
-          <p className="text-[11px] text-text-muted mb-3">Candidate distribution</p>
+          <h2 className="text-sm font-medium text-text-primary mb-1">{t('classification')}</h2>
+          <p className="text-[11px] text-text-muted mb-3">{t('candidateDistribution')}</p>
           <div className="flex items-center justify-center">
             <ResponsiveContainer width={180} height={180}>
               <PieChart>
@@ -107,8 +109,8 @@ export function DashboardPage() {
 
         {/* Score Distribution Bar */}
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-          <h2 className="text-sm font-medium text-text-primary mb-1">Score Distribution</h2>
-          <p className="text-[11px] text-text-muted mb-3">Candidates by score range</p>
+          <h2 className="text-sm font-medium text-text-primary mb-1">{t('scoreDistribution')}</h2>
+          <p className="text-[11px] text-text-muted mb-3">{t('candidatesByScoreRange')}</p>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={scoreRanges} barSize={32}>
               <XAxis dataKey="range" tick={{ fontSize: 11, fill: '#6b7194' }} axisLine={false} tickLine={false} />
@@ -123,8 +125,8 @@ export function DashboardPage() {
 
         {/* Weekly Trend */}
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-          <h2 className="text-sm font-medium text-text-primary mb-1">Weekly Trend</h2>
-          <p className="text-[11px] text-text-muted mb-3">CVs scanned this week</p>
+          <h2 className="text-sm font-medium text-text-primary mb-1">{t('weeklyTrend')}</h2>
+          <p className="text-[11px] text-text-muted mb-3">{t('cvsScannedThisWeek')}</p>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={trendData}>
               <defs>
@@ -148,11 +150,11 @@ export function DashboardPage() {
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-sm font-medium text-text-primary">Recent Candidates</h2>
-              <p className="text-[11px] text-text-muted mt-0.5">Latest scanned CVs</p>
+              <h2 className="text-sm font-medium text-text-primary">{t('recentCandidates')}</h2>
+              <p className="text-[11px] text-text-muted mt-0.5">{t('latestScannedCVs')}</p>
             </div>
             <Link to="/candidates" className="text-[12px] text-accent hover:text-accent-hover flex items-center gap-0.5">
-              View all <ArrowUpRight size={12} />
+              {t('viewAll')} <ArrowUpRight size={12} />
             </Link>
           </div>
           <div className="space-y-1">
@@ -180,11 +182,11 @@ export function DashboardPage() {
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-sm font-medium text-text-primary">Active Jobs</h2>
-              <p className="text-[11px] text-text-muted mt-0.5">Open positions</p>
+              <h2 className="text-sm font-medium text-text-primary">{t('activeJobs')}</h2>
+              <p className="text-[11px] text-text-muted mt-0.5">{t('navJobs')}</p>
             </div>
             <Link to="/jobs" className="text-[12px] text-accent hover:text-accent-hover flex items-center gap-0.5">
-              View all <ArrowUpRight size={12} />
+              {t('viewAll')} <ArrowUpRight size={12} />
             </Link>
           </div>
           <div className="space-y-3">

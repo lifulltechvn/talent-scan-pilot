@@ -4,6 +4,7 @@ import { useCandidates } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { Badge } from '@/shared/components/ui/Badge';
 import { cn } from '@/shared/utils/cn';
+import { useI18n } from '@/shared/i18n';
 
 function ScoreCell({ score, best }: { score: number | null; best: boolean }) {
   const val = score ?? 0;
@@ -19,6 +20,7 @@ export function CandidateComparePage() {
   const [searchParams] = useSearchParams();
   const ids = searchParams.get('ids')?.split(',').filter(Boolean) ?? [];
   const { data: allCandidates, isLoading } = useCandidates();
+  const { t } = useI18n();
 
   if (isLoading) return <LoadingSkeleton rows={8} />;
 
@@ -27,8 +29,8 @@ export function CandidateComparePage() {
   if (candidates.length < 2) {
     return (
       <div className="text-center py-20">
-        <p className="text-text-muted text-sm">Chọn ít nhất 2 ứng viên để so sánh.</p>
-        <Link to="/candidates" className="text-accent text-sm mt-2 inline-block">← Quay lại danh sách</Link>
+        <p className="text-text-muted text-sm">{t('selectAtLeast2')}</p>
+        <Link to="/candidates" className="text-accent text-sm mt-2 inline-block">{t('backToList')}</Link>
       </div>
     );
   }
@@ -45,8 +47,8 @@ export function CandidateComparePage() {
           <ArrowLeft size={16} className="text-text-muted" />
         </Link>
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">So sánh ứng viên</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{candidates.length} ứng viên được chọn</p>
+          <h1 className="text-xl font-semibold text-text-primary">{t('compareTitle')}</h1>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{t('compareCandidatesSelected', { count: candidates.length })}</p>
         </div>
       </div>
 
@@ -73,7 +75,7 @@ export function CandidateComparePage() {
         <div className="grid grid-cols-[180px_1fr] border-b border-border-subtle">
           <div className="flex items-center gap-2 px-4 py-3 bg-bg-surface/50 border-r border-border-subtle">
             <Trophy size={14} className="text-text-muted" />
-            <span className="text-[12px] font-medium text-text-secondary">Final Score</span>
+            <span className="text-[12px] font-medium text-text-secondary">{t('finalScore')}</span>
           </div>
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
@@ -92,7 +94,7 @@ export function CandidateComparePage() {
         <div className="grid grid-cols-[180px_1fr] border-b border-border-subtle">
           <div className="flex items-center gap-2 px-4 py-3 bg-bg-surface/50 border-r border-border-subtle">
             <Briefcase size={14} className="text-text-muted" />
-            <span className="text-[12px] font-medium text-text-secondary">Experience</span>
+            <span className="text-[12px] font-medium text-text-secondary">{t('experience')}</span>
           </div>
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
@@ -115,7 +117,7 @@ export function CandidateComparePage() {
         <div className="grid grid-cols-[180px_1fr] border-b border-border-subtle">
           <div className="flex items-center gap-2 px-4 py-3 bg-bg-surface/50 border-r border-border-subtle">
             <Trophy size={14} className="text-text-muted" />
-            <span className="text-[12px] font-medium text-text-secondary">Skills</span>
+            <span className="text-[12px] font-medium text-text-secondary">{t("skills")}</span>
           </div>
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
@@ -134,7 +136,7 @@ export function CandidateComparePage() {
         <div className="grid grid-cols-[180px_1fr] border-b border-border-subtle">
           <div className="flex items-center gap-2 px-4 py-3 bg-bg-surface/50 border-r border-border-subtle">
             <GraduationCap size={14} className="text-text-muted" />
-            <span className="text-[12px] font-medium text-text-secondary">Education</span>
+            <span className="text-[12px] font-medium text-text-secondary">{t("education")}</span>
           </div>
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
@@ -154,7 +156,7 @@ export function CandidateComparePage() {
         <div className="grid grid-cols-[180px_1fr] border-b border-border-subtle">
           <div className="flex items-center gap-2 px-4 py-3 bg-bg-surface/50 border-r border-border-subtle">
             <Languages size={14} className="text-text-muted" />
-            <span className="text-[12px] font-medium text-text-secondary">Languages</span>
+            <span className="text-[12px] font-medium text-text-secondary">{t("languages")}</span>
           </div>
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
@@ -171,7 +173,7 @@ export function CandidateComparePage() {
         <div className="grid grid-cols-[180px_1fr] border-b border-border-subtle">
           <div className="flex items-center gap-2 px-4 py-3 bg-bg-surface/50 border-r border-border-subtle">
             <DollarSign size={14} className="text-text-muted" />
-            <span className="text-[12px] font-medium text-text-secondary">Expected Salary</span>
+            <span className="text-[12px] font-medium text-text-secondary">{t("expectedSalary")}</span>
           </div>
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
@@ -186,7 +188,7 @@ export function CandidateComparePage() {
         <div className="grid grid-cols-[180px_1fr] border-b border-border-subtle">
           <div className="flex items-center gap-2 px-4 py-3 bg-bg-surface/50 border-r border-border-subtle">
             <Lightbulb size={14} className="text-text-muted" />
-            <span className="text-[12px] font-medium text-text-secondary">Strengths</span>
+            <span className="text-[12px] font-medium text-text-secondary">{t("strengths")}</span>
           </div>
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
@@ -201,7 +203,7 @@ export function CandidateComparePage() {
         <div className="grid grid-cols-[180px_1fr] border-b border-border-subtle">
           <div className="flex items-center gap-2 px-4 py-3 bg-bg-surface/50 border-r border-border-subtle">
             <AlertTriangle size={14} className="text-text-muted" />
-            <span className="text-[12px] font-medium text-text-secondary">Weaknesses</span>
+            <span className="text-[12px] font-medium text-text-secondary">{t("weaknesses")}</span>
           </div>
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
@@ -216,7 +218,7 @@ export function CandidateComparePage() {
         <div className="grid grid-cols-[180px_1fr]">
           <div className="flex items-center gap-2 px-4 py-3 bg-bg-surface/50 border-r border-border-subtle">
             <ThumbsUp size={14} className="text-text-muted" />
-            <span className="text-[12px] font-medium text-text-secondary">Recommendation</span>
+            <span className="text-[12px] font-medium text-text-secondary">{t("recommendation")}</span>
           </div>
           <div className="grid" style={colStyle}>
             {candidates.map(c => (

@@ -8,6 +8,7 @@ import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { KanbanBoard } from '../components/KanbanBoard';
+import { useI18n } from '@/shared/i18n';
 import type { Classification } from '@/domain/models/candidate';
 
 type Filter = 'all' | Classification;
@@ -20,6 +21,7 @@ export function CandidatesPage() {
   const [view, setView] = useState<ViewMode>('kanban');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -40,17 +42,17 @@ export function CandidatesPage() {
   const pool = candidates?.filter(c => c.score?.classification === 'talent_pool').length ?? 0;
 
   const filters: { value: Filter; label: string; count: number; icon: typeof Trophy }[] = [
-    { value: 'all', label: 'All', count: candidates?.length ?? 0, icon: Users },
-    { value: 'gold', label: 'Gold', count: gold, icon: Trophy },
-    { value: 'silver', label: 'Silver', count: silver, icon: Medal },
-    { value: 'talent_pool', label: 'Pool', count: pool, icon: DatabaseZap },
+    { value: 'all', label: t('all'), count: candidates?.length ?? 0, icon: Users },
+    { value: 'gold', label: t('gold'), count: gold, icon: Trophy },
+    { value: 'silver', label: t('silver'), count: silver, icon: Medal },
+    { value: 'talent_pool', label: t('pool'), count: pool, icon: DatabaseZap },
   ];
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Candidates</h1>
+          <h1 className="text-xl font-semibold text-text-primary">{t('candidatesTitle')}</h1>
           <p className="text-[13px] text-text-tertiary mt-0.5">{candidates?.length ?? 0} total · {gold} gold · {silver} silver</p>
         </div>
         {/* View toggle + Compare button */}
@@ -60,11 +62,11 @@ export function CandidatesPage() {
               onClick={() => navigate(`/candidates/compare?ids=${[...selected].join(',')}`)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-[12px] font-medium rounded-lg hover:bg-accent-hover transition-colors"
             >
-              <GitCompareArrows size={13} /> Compare ({selected.size})
+              <GitCompareArrows size={13} /> {t('compare')} ({selected.size})
             </button>
           )}
           {selected.size > 0 && selected.size < 2 && (
-            <span className="text-[11px] text-text-muted">Select {2 - selected.size} more to compare</span>
+            <span className="text-[11px] text-text-muted">{t('selectMoreToCompare', { count: 2 - selected.size })}</span>
           )}
           <div className="flex items-center gap-1 bg-bg-surface border border-border-subtle rounded-lg p-0.5">
             <button
@@ -72,14 +74,14 @@ export function CandidatesPage() {
               className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium transition-colors',
                 view === 'list' ? 'bg-bg-panel text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary')}
             >
-              <LayoutList size={13} /> List
+              <LayoutList size={13} /> {t('list')}
             </button>
             <button
               onClick={() => setView('kanban')}
               className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium transition-colors',
                 view === 'kanban' ? 'bg-bg-panel text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary')}
             >
-              <Columns3 size={13} /> Pipeline
+              <Columns3 size={13} /> {t('pipeline')}
             </button>
           </div>
         </div>
@@ -93,7 +95,7 @@ export function CandidatesPage() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or skill..."
+            placeholder={t('searchByNameOrSkill')}
             className="w-full pl-9 pr-3 py-2 bg-bg-panel border border-border-subtle rounded-lg text-[13px] text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40"
           />
         </div>
