@@ -11,12 +11,20 @@ app/build/
 app/*.spec
 app/_update/
 app/_backup/
+app/TalentScan.app/
+
+# Desktop app runtime data
+app/queue.db
+app/pii.key
+
+# Desktop app old duplicate
+app/app/
 
 # Release binaries (large files)
 server/releases/*.zip
 server/releases/*.dmg
 server/releases/*.exe
-app/TalentScan.app/
 
-# Desktop app runtime data
-app/queue.db
+# Misc
+version_report.md
+bin/

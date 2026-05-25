@@ -6,6 +6,7 @@ import { useJobs } from '@/features/jobs/hooks/useJobs';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
+import { ActionItemsPanel } from '../components/ActionItemsPanel';
 
 const PIE_COLORS = ['#f59e0b', '#64748b', '#6366f1'];
 
@@ -58,6 +59,9 @@ export function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Action Items — Today's Tasks */}
+      <ActionItemsPanel />
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
