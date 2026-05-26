@@ -3,18 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { LoadingPage } from '@/shared/components/ui/LoadingSkeleton';
 import { useAuth } from '../hooks/useAuth';
-
-function validateEmail(email: string): string | null {
-  if (!email) return 'Email is required';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Invalid email format';
-  return null;
-}
-
-function validatePassword(password: string): string | null {
-  if (!password) return 'Password is required';
-  if (password.length < 6) return 'Password must be at least 6 characters';
-  return null;
-}
+import { useI18n } from '@/shared/i18n';
 
 export function LoginPage() {
   const { login, isAuthenticated, isLoading: authLoading, error: serverError } = useAuth();
@@ -24,9 +13,13 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [touched, setTouched] = useState<{ email?: boolean; password?: boolean }>({});
+  const { t } = useI18n();
 
   if (authLoading) return <LoadingPage />;
   if (isAuthenticated) return <Navigate to="/" replace />;
+
+  const validateEmail = (v: string) => !v ? t('login') : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? t('email') : null;
+  const validatePassword = (v: string) => !v ? t('password') : v.length < 6 ? t('password') : null;
 
   const handleBlur = (field: 'email' | 'password') => {
     setTouched(prev => ({ ...prev, [field]: true }));
@@ -68,11 +61,11 @@ export function LoginPage() {
           </span>
         </h1>
 
-        {serverError && <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded text-[13px] text-red-600">{serverError}</div>}
+        {serverError && <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded text-[13px] text-red-600">{t('loginFailed')}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Email</label>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">{t('email')}</label>
             <input type="text" value={email}
               onChange={(e) => { setEmail(e.target.value); if (touched.email) { setFieldErrors(prev => ({ ...prev, email: validateEmail(e.target.value) ?? undefined })); } }}
               onBlur={() => handleBlur('email')}
@@ -82,7 +75,7 @@ export function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Password</label>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">{t('password')}</label>
             <div className="relative">
               <input type={showPassword ? 'text' : 'password'} value={password}
                 onChange={(e) => { setPassword(e.target.value); if (touched.password) { setFieldErrors(prev => ({ ...prev, password: validatePassword(e.target.value) ?? undefined })); } }}
@@ -99,11 +92,9 @@ export function LoginPage() {
 
           <button type="submit" disabled={submitting}
             className="w-full py-2 bg-accent text-white text-[13px] font-medium rounded-md hover:bg-accent-hover disabled:opacity-50 transition-colors">
-            {submitting ? 'Signing in…' : 'Sign in'}
+            {submitting ? t('loading') : t('login')}
           </button>
         </form>
-
-        <p className="text-[11px] text-text-muted text-center mt-6 pt-4 border-t border-border-subtle">AI-powered recruitment platform — automatically scan CVs, anonymize PII, match candidates to job descriptions, and score them using hybrid AI pipeline</p>
       </div>
     </div>
   );

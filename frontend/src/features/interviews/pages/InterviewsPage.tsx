@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarCheck, Clock, CheckCircle, XCircle, AlertCircle, Bell, BellOff } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
+import { useI18n } from '@/shared/i18n';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { mockInterviews } from '@/data/mock/data/mock-interviews';
@@ -23,6 +24,7 @@ const resultBadge = {
 type Filter = 'all' | InterviewStatus;
 
 export function InterviewsPage() {
+  const { t } = useI18n();
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
 
@@ -45,8 +47,8 @@ export function InterviewsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Interviews</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{upcoming} upcoming · {completed} completed</p>
+          <h1 className="text-xl font-semibold text-text-primary">{t('interviewsTitle')}</h1>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{t('interviewsSubtitle', { upcoming, completed })}</p>
         </div>
       </div>
 
@@ -119,7 +121,7 @@ export function InterviewsPage() {
 
                 {/* Reminder indicator */}
                 <div className="shrink-0 pt-1">
-                  <span className={cn('flex items-center gap-1 text-[10px]', iv.reminderSent ? 'text-emerald-500' : 'text-text-muted')} title={iv.reminderSent ? 'Reminder sent' : 'Reminder pending'}>
+                  <span className={cn('flex items-center gap-1 text-[10px]', iv.reminderSent ? 'text-emerald-500' : 'text-text-muted')} title={iv.reminderSent ? t('reminderSent') : t('reminderPending')}>
                     {iv.reminderSent ? <Bell size={12} /> : <BellOff size={12} />}
                   </span>
                 </div>
@@ -129,7 +131,7 @@ export function InterviewsPage() {
         })}
 
         {filtered.length === 0 && (
-          <EmptyState icon={CalendarCheck} title="No interviews found" description="Interviews will appear here when candidates are scheduled" />
+          <EmptyState icon={CalendarCheck} title={t('noInterviewsFound')} description={t('noInterviewsDescription')} />
         )}
       </div>
     </div>

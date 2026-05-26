@@ -6,6 +6,7 @@ import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { getJobIcon } from '@/shared/utils/job-icon';
 import { useCandidates, useUpdateCandidateStatus } from '@/features/candidates/hooks/useCandidates';
+import { useI18n } from '@/shared/i18n';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { DatePicker } from '@/shared/components/ui/DatePicker';
@@ -15,6 +16,7 @@ export function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: job, isLoading: loadingJ } = useJob(id!);
   const { data: allCandidates, isLoading: loadingC } = useCandidates();
+  const { t } = useI18n();
   const [outreachModal, setOutreachModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [quizModal, setQuizModal] = useState(false);
@@ -303,7 +305,7 @@ function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void;
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
-          <h2 className="text-[15px] font-semibold text-white">Edit Job</h2>
+          <h2 className="text-[15px] font-semibold text-white">{t("edit")}</h2>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
         <div className="p-5 space-y-4">
@@ -320,7 +322,7 @@ function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void;
             <div className="mt-1"><DatePicker value={deadline} onChange={setDeadline} placeholder="Select deadline" /></div>
           </div>
           <div className="flex justify-end pt-2">
-            <button onClick={handleSave} className="px-5 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">Save Changes</button>
+            <button onClick={handleSave} className="px-5 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">{t("save")}</button>
           </div>
         </div>
       </div>

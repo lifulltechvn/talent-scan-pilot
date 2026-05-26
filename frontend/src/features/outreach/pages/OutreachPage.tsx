@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Send, XCircle, Bell, Search } from 'lucide-react';
+import { useI18n } from '@/shared/i18n';
 import { cn } from '@/shared/utils/cn';
 import { apiClient } from '@/data/api/client';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
@@ -26,6 +27,7 @@ const typeConfig: Record<string, { label: string; icon: typeof Send; color: stri
 type Filter = 'all' | 'outreach' | 'rejection' | 'reminder';
 
 export function OutreachPage() {
+  const { t } = useI18n();
   const [logs, setLogs] = useState<OutreachLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
@@ -63,8 +65,8 @@ export function OutreachPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Email Outreach</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{logs.length} emails sent</p>
+          <h1 className="text-xl font-semibold text-text-primary">{t('outreachTitle')}</h1>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{t('emailsSent', { count: logs.length })}</p>
         </div>
       </div>
 
@@ -76,7 +78,7 @@ export function OutreachPage() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by candidate or subject..."
+            placeholder={t('searchByCandidateOrSubject')}
             className="w-full pl-9 pr-3 py-2 bg-bg-panel border border-border-subtle rounded-lg text-[13px] text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40"
           />
         </div>
@@ -98,7 +100,7 @@ export function OutreachPage() {
 
       {/* Email list */}
       {filtered.length === 0 ? (
-        <EmptyState icon={Mail} title="No emails found" description="Outreach emails will appear here when candidates are approved or rejected" />
+        <EmptyState icon={Mail} title={t('noEmailsFound')} description={t('noEmailsDescription')} />
       ) : (
         <div className="space-y-2">
           {filtered.map(log => {
@@ -128,7 +130,7 @@ export function OutreachPage() {
                         {tc.label}
                       </span>
                     </div>
-                    <p className="text-[12px] text-text-tertiary truncate mt-0.5">{log.subject || '(no subject)'}</p>
+                    <p className="text-[12px] text-text-tertiary truncate mt-0.5">{log.subject || t('noSubject')}</p>
                   </div>
                   <div className="text-[11px] text-text-muted shrink-0">
                     {new Date(log.sent_at).toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}

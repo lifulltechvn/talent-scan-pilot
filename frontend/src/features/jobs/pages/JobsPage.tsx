@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, MapPin, Clock, Users, Plus, Briefcase, X } from 'lucide-react';
 import { useJobs, useCreateJob } from '../hooks/useJobs';
 import { useCandidates } from '@/features/candidates/hooks/useCandidates';
+import { useI18n } from '@/shared/i18n';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { getJobIcon } from '@/shared/utils/job-icon';
@@ -53,6 +54,7 @@ export function JobsPage() {
   const { data: candidates } = useCandidates();
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const { t } = useI18n();
 
   if (isLoading) return <LoadingSkeleton rows={3} />;
 
@@ -68,7 +70,7 @@ export function JobsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Jobs</h1>
+          <h1 className="text-xl font-semibold text-text-primary">{t("jobsTitle")}</h1>
           <p className="text-[13px] text-text-tertiary mt-0.5">{jobs?.length ?? 0} open positions · {totalCandidates} total candidates</p>
         </div>
         <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">
@@ -85,7 +87,7 @@ export function JobsPage() {
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search jobs or skills..."
+          placeholder={t("search")}
           className="w-full sm:w-80 pl-9 pr-3 py-2 bg-bg-panel border border-border-subtle rounded-lg text-[13px] text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40"
         />
       </div>
@@ -125,7 +127,7 @@ export function JobsPage() {
       </div>
 
       {filtered.length === 0 && (
-        <EmptyState icon={Briefcase} title="No jobs found" description="Try adjusting your search or create a new job" />
+        <EmptyState icon={Briefcase} title={t("noData")} description="Try adjusting your search or create a new job" />
       )}
     </div>
   );

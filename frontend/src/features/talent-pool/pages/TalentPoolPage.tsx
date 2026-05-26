@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { DatabaseZap, RefreshCw, UserCheck, Clock, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
+import { useI18n } from '@/shared/i18n';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -18,6 +19,7 @@ const statusConfig: Record<TalentPoolEntry['status'], { label: string; icon: typ
 type Filter = 'all' | TalentPoolEntry['status'];
 
 export function TalentPoolPage() {
+  const { t } = useI18n();
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +41,7 @@ export function TalentPoolPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Talent Pool</h1>
+          <h1 className="text-xl font-semibold text-text-primary">{t("navTalentPool")}</h1>
           <p className="text-[13px] text-text-tertiary mt-0.5">{active} active candidates · Auto re-matched when new jobs are created</p>
         </div>
       </div>

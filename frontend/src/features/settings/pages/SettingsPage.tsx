@@ -1,26 +1,29 @@
 import { Settings as SettingsIcon, Mail, Bell, Shield } from 'lucide-react';
+import { useI18n } from '@/shared/i18n';
 
 export function SettingsPage() {
+  const { t } = useI18n();
+
   return (
     <div>
-      <h1 className="text-xl font-semibold text-text-primary mb-1">Settings</h1>
-      <p className="text-[13px] text-text-tertiary mb-6">System configuration</p>
+      <h1 className="text-xl font-semibold text-text-primary mb-1">{t('settingsTitle')}</h1>
+      <p className="text-[13px] text-text-tertiary mb-6">{t('settingsSubtitle')}</p>
 
       <div className="space-y-4">
-        <Section icon={Mail} title="Email" description="SMTP configuration for outreach emails">
-          <Row label="Provider" value="SMTP (Mailtrap)" />
-          <Row label="Server" value="sandbox.smtp.mailtrap.io" />
-          <Row label="From" value="hr@lftalentscan.com" />
+        <Section icon={Mail} title={t('emailSection')} description={t('emailSectionDesc')}>
+          <Row label={t('provider')} value="SMTP (Mailtrap)" />
+          <Row label={t('server')} value="sandbox.smtp.mailtrap.io" />
+          <Row label={t('from')} value="hr@lftalentscan.com" />
         </Section>
 
-        <Section icon={Bell} title="Reminders" description="Automatic interview reminder settings">
-          <Row label="Send before" value="24 hours" />
-          <Row label="Check interval" value="Every 1 hour" />
+        <Section icon={Bell} title={t('remindersSection')} description={t('remindersSectionDesc')}>
+          <Row label={t('sendBefore')} value="24 hours" />
+          <Row label={t('checkInterval')} value="Every 1 hour" />
         </Section>
 
-        <Section icon={Shield} title="Security" description="Authentication and access">
-          <Row label="Token expiry" value="30 minutes" />
-          <Row label="Quiz deadline" value="48 hours" />
+        <Section icon={Shield} title={t('securitySection')} description={t('securitySectionDesc')}>
+          <Row label={t('tokenExpiry')} value="30 minutes" />
+          <Row label={t('quizDeadline')} value="48 hours" />
         </Section>
       </div>
     </div>

@@ -5,11 +5,12 @@ import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
+import { useI18n } from '@/shared/i18n';
 
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: candidate, isLoading } = useCandidate(id!);
-
+  const { t } = useI18n();
   if (isLoading) return <LoadingSkeleton rows={3} />;
   if (!candidate) return <EmptyState icon={Users} title="Candidate not found" description="This candidate may have been removed or the link is invalid" action={{ label: 'Back to Candidates', onClick: () => window.history.back() }} />;
 
@@ -66,15 +67,15 @@ export function CandidateDetailPage() {
           </div>
           <div className="space-y-3">
             <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-              <span className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">Strengths</span>
+              <span className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{t("strengths")}</span>
               <p className="text-[13px] text-emerald-800 mt-1">{d.insight.strengths}</p>
             </div>
             <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
-              <span className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">Weaknesses</span>
+              <span className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">{t("weaknesses")}</span>
               <p className="text-[13px] text-amber-800 mt-1">{d.insight.weaknesses}</p>
             </div>
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-              <span className="text-[11px] font-medium text-blue-700 uppercase tracking-wider">Recommendation</span>
+              <span className="text-[11px] font-medium text-blue-700 uppercase tracking-wider">{t("recommendation")}</span>
               <p className="text-[13px] text-blue-800 mt-1">{d.insight.recommendation}</p>
             </div>
           </div>
@@ -85,7 +86,7 @@ export function CandidateDetailPage() {
           <h2 className="text-sm font-medium text-text-primary mb-4">Profile</h2>
           <div className="space-y-4">
             <div>
-              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Skills</span>
+              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t("skills")}</span>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {d.skills.map(s => <span key={s} className="text-[11px] bg-accent/10 text-accent px-2 py-0.5 rounded-md font-medium">{s}</span>)}
               </div>
@@ -94,7 +95,7 @@ export function CandidateDetailPage() {
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Briefcase size={13} className="text-text-muted" />
-                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Experience</span>
+                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t("experience")}</span>
                 </div>
                 {d.experience.map((exp, i) => (
                   <div key={i} className="ml-5 py-1.5 border-l-2 border-border-subtle pl-3 mb-1">
@@ -108,7 +109,7 @@ export function CandidateDetailPage() {
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <GraduationCap size={13} className="text-text-muted" />
-                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Education</span>
+                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t("education")}</span>
                 </div>
                 {d.education.map((edu, i) => (
                   <div key={i} className="ml-5 py-1">
@@ -120,7 +121,7 @@ export function CandidateDetailPage() {
             )}
             <div className="flex items-center gap-1.5">
               <Languages size={13} className="text-text-muted" />
-              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider mr-2">Languages</span>
+              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider mr-2">{t("languages")}</span>
               {d.languages.map(l => (
                 <span key={l.language} className="text-[11px] bg-bg-surface text-text-secondary px-2 py-0.5 rounded">{l.language} ({l.level})</span>
               ))}

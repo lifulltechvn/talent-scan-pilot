@@ -125,9 +125,50 @@ export const en = {
   outreachType: 'Outreach',
   rejectionType: 'Rejection',
   reminderType: 'Reminder',
+  emailsSent: '{count} emails sent',
+  searchByCandidateOrSubject: 'Search by candidate or subject...',
+  noEmailsFound: 'No emails found',
+  noEmailsDescription: 'Outreach emails will appear here when candidates are approved or rejected',
+  noSubject: '(no subject)',
+
+  // Interviews
+  interviewsSubtitle: '{upcoming} upcoming · {completed} completed',
+  noInterviewsFound: 'No interviews found',
+  noInterviewsDescription: 'Interviews will appear here when candidates are scheduled',
+  noShow: 'No Show',
+  pass: 'Pass',
+  fail: 'Fail',
+  nextRound: 'Next Round',
+  reminderSent: 'Reminder sent',
+  reminderPending: 'Reminder pending',
+
+  // Talent Pool
+  talentPoolTitle: 'Talent Pool',
+  talentPoolSubtitle: '{count} active candidates · Auto re-matched when new jobs are created',
+  inPool: 'In Pool',
+  rematched: 'Re-matched',
+  active: 'Active',
+  hired: 'Hired',
+  expired: 'Expired',
+  noCandidatesInPool: 'No candidates in pool',
+  noCandidatesInPoolDescription: 'Candidates scoring below threshold will be added here automatically',
 
   // Settings
   settingsTitle: 'Settings',
+  settingsSubtitle: 'System configuration',
+  emailSection: 'Email',
+  emailSectionDesc: 'SMTP configuration for outreach emails',
+  remindersSection: 'Reminders',
+  remindersSectionDesc: 'Automatic interview reminder settings',
+  securitySection: 'Security',
+  securitySectionDesc: 'Authentication and access',
+  provider: 'Provider',
+  server: 'Server',
+  from: 'From',
+  sendBefore: 'Send before',
+  checkInterval: 'Check interval',
+  tokenExpiry: 'Token expiry',
+  quizDeadline: 'Quiz deadline',
 } as const;
 
 export type TranslationKey = keyof typeof en;
