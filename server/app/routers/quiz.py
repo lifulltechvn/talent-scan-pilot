@@ -178,26 +178,70 @@ async def get_public_quiz(token: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/public/{token}/submit")
 async def submit_quiz(token: str, body: QuizSubmitRequest, db: AsyncSession = Depends(get_db)):
-    """Public endpoint: candidate submits answers."""
+    """Public endpoint: candidate submits answers. AI evaluates responses."""
     quiz = await _get_quiz_by_token(db, token)
 
     if quiz.status != "pending":
         raise HTTPException(status_code=400, detail="Quiz already submitted")
 
     # Save responses
-    question_ids = {str(q.id) for q in quiz.questions}
+    question_map = {str(q.id): q for q in quiz.questions}
     for ans in body.answers:
-        if ans.question_id not in question_ids:
+        if ans.question_id not in question_map:
             raise HTTPException(status_code=400, detail=f"Invalid question_id: {ans.question_id}")
         db.add(QuizResponse(question_id=ans.question_id, answer=ans.answer))
 
     quiz.status = "submitted"
-    await db.commit()
+    await db.flush()
 
-    return {"status": "submitted", "message": "Thank you for completing the quiz."}
+    # AI evaluation via Claude Haiku
+    credibility_score = await _evaluate_quiz(quiz, body.answers, question_map, db)
+    quiz.credibility_score = credibility_score
+    quiz.status = "evaluated"
+
+    await db.commit()
+    return {"status": "evaluated", "credibility_score": credibility_score, "message": "Thank you for completing the quiz."}
 
 
 # --- Helpers ---
+
+async def _evaluate_quiz(quiz, answers: list, question_map: dict, db: AsyncSession) -> float:
+    """Evaluate quiz answers using Claude Haiku. Returns credibility score 0-100."""
+    import logging
+    from app.bedrock import invoke_claude
+    from app.config import settings
+
+    if not settings.AWS_ACCESS_KEY_ID:
+        return 70.0  # Mock score when no credentials
+
+    qa_text = ""
+    for ans in answers:
+        q = question_map.get(ans.question_id)
+        if q:
+            qa_text += f"Q: {q.question}\nCriteria: {q.eval_criteria}\nA: {ans.answer}\n\n"
+
+    prompt = f"""Evaluate these quiz responses for candidate credibility.
+Quiz reason: {quiz.reason}
+
+{qa_text}
+
+For each answer, assess if it demonstrates real experience (specific details, numbers, tools) vs generic/vague responses.
+Reply in this format:
+SCORE: <0-100 credibility score>
+VERDICT: <credible / suspicious / insufficient>
+REASON: <one sentence explanation>"""
+
+    try:
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=300)
+        for line in result.strip().split("\n"):
+            if line.startswith("SCORE:"):
+                score = float(line.replace("SCORE:", "").strip())
+                return max(0, min(100, score))
+        return 60.0
+    except Exception as e:
+        logging.warning(f"Quiz evaluation failed: {e}")
+        return 60.0
+
 
 async def _get_quiz_by_token(db: AsyncSession, token: str) -> Quiz:
     result = await db.execute(
@@ -214,56 +258,104 @@ async def _get_quiz_by_token(db: AsyncSession, token: str) -> Quiz:
 
 
 def _generate_questions(skills: list, experience: list, job_title: str, reason: str) -> list[dict]:
-    """Generate quiz questions. In production, this calls Claude Sonnet via Bedrock.
-    For now, returns template-based questions personalized with CV data."""
+    """Generate quiz questions via Claude Sonnet (Bedrock) or fallback to templates."""
+    import json
+    import logging
+    from app.bedrock import invoke_claude_with_tools
+    from app.config import settings
+
     top_skills = skills[:3] if skills else ["your main skill"]
     latest_role = experience[0].get("role", "your role") if experience else "your role"
 
+    # Try AI generation if credentials available
+    if settings.AWS_ACCESS_KEY_ID:
+        try:
+            tools = [{
+                "name": "save_questions",
+                "description": "Save generated quiz questions",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "questions": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "type": {"type": "string", "enum": ["text", "radio", "checkbox"]},
+                                    "question": {"type": "string"},
+                                    "options": {"type": "array", "items": {"type": "string"}},
+                                    "purpose": {"type": "string"},
+                                    "eval_criteria": {"type": "string"},
+                                },
+                                "required": ["type", "question", "purpose", "eval_criteria"],
+                            },
+                        },
+                    },
+                    "required": ["questions"],
+                },
+            }]
+
+            prompt = f"""Generate 5 personalized verification questions for a candidate.
+
+Candidate skills: {', '.join(skills[:5])}
+Latest role: {latest_role}
+Job position: {job_title}
+Reason for quiz: {reason}
+
+Requirements:
+- Mix of question types: 1 radio, 1 checkbox, 3 text
+- Questions must reference specific skills from the CV
+- Text questions should require concrete details (numbers, timelines, specific tools)
+- If reason is "suspected_ai_cv", add questions that are hard to answer without real experience
+- Each question needs eval_criteria for automated evaluation"""
+
+            result = invoke_claude_with_tools(prompt, tools, model=settings.BEDROCK_MODEL_SONNET)
+            if result and "questions" in result:
+                return result["questions"]
+        except Exception as e:
+            logging.warning(f"AI quiz generation failed, using templates: {e}")
+
+    # Fallback: template-based questions
     questions = [
         {
             "type": "radio",
-            "question": f"How many years of hands-on experience do you have with {top_skills[0] if top_skills else 'your primary skill'}?",
+            "question": f"How many years of hands-on experience do you have with {top_skills[0]}?",
             "options": ["Less than 1 year", "1-2 years", "3-5 years", "More than 5 years"],
             "purpose": "Quick verification of experience level",
             "eval_criteria": "Cross-reference with CV timeline",
         },
         {
             "type": "checkbox",
-            "question": f"Which of the following have you used in a production environment?",
+            "question": "Which of the following have you used in a production environment?",
             "options": top_skills + ["CI/CD Pipeline", "Unit Testing", "Code Review"],
             "purpose": "Verify breadth of practical experience",
             "eval_criteria": "Selections should align with CV claims",
         },
         {
             "type": "text",
-            "question": f"You listed {', '.join(top_skills)} on your CV. Describe a specific technical challenge you solved using these skills. Include the approach, tools used, and outcome.",
+            "question": f"You listed {', '.join(top_skills)} on your CV. Describe a specific technical challenge you solved using these skills.",
             "purpose": "Verify hands-on experience with claimed skills",
             "eval_criteria": "Must mention specific tools/patterns, not generic answers",
         },
         {
             "type": "text",
-            "question": f"As a {latest_role}, describe a time when a project deadline was at risk. What did you do to address it? What was the result?",
+            "question": f"As a {latest_role}, describe a time when a project deadline was at risk. What did you do?",
             "purpose": "Assess problem-solving and real experience",
             "eval_criteria": "Should include specific timeline, actions taken, and measurable outcome",
         },
         {
             "type": "text",
-            "question": f"For the {job_title} position: What is the largest project you've worked on? Describe the team size, your specific contribution, tech stack used, and number of users/scale.",
+            "question": f"For the {job_title} position: What is the largest project you've worked on? Describe team size, your contribution, and tech stack.",
             "purpose": "Verify project experience with concrete details",
-            "eval_criteria": "Must have specific numbers (team size, users, duration). Vague answers suggest fabrication",
+            "eval_criteria": "Must have specific numbers. Vague answers suggest fabrication",
         },
     ]
 
     if reason == "suspected_ai_cv":
         questions.append({
             "type": "radio",
-            "question": f"Which best describes your typical debugging workflow with {top_skills[0] if top_skills else 'your main tool'}?",
-            "options": [
-                "Print/log statements → isolate → fix",
-                "Debugger with breakpoints → step through",
-                "Write a failing test → fix → verify",
-                "Ask AI/colleagues first → then investigate",
-            ],
+            "question": f"Which best describes your typical debugging workflow with {top_skills[0]}?",
+            "options": ["Print/log → isolate → fix", "Debugger with breakpoints", "Write failing test → fix → verify", "Ask AI/colleagues first"],
             "purpose": "AI-generated CVs often lack workflow details",
             "eval_criteria": "Any specific answer is acceptable; vague or no preference is suspicious",
         })

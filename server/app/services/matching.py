@@ -1,12 +1,11 @@
 """
 Matching service: cosine similarity (embeddings) + keyword overlap.
-Uses OpenAI embeddings when OPENAI_API_KEY is set, mock otherwise.
+Uses Amazon Titan Embedding V2 via Bedrock when credentials are set, mock otherwise.
 """
-import os
-
 import numpy as np
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+from app.bedrock import get_embedding as bedrock_get_embedding
+from app.config import settings
 
 
 def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
@@ -20,26 +19,23 @@ def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     return float(dot / norm)
 
 
-def get_embedding(text: str, dim: int = 1536) -> list[float]:
-    """Get embedding via OpenAI API or generate mock."""
-    if OPENAI_API_KEY:
-        from openai import OpenAI
-        client = OpenAI(api_key=OPENAI_API_KEY)
-        response = client.embeddings.create(model="text-embedding-3-small", input=text[:8000])
-        return response.data[0].embedding
-    return generate_mock_embedding(text, dim)
+def get_embedding(text: str) -> list[float]:
+    """Get embedding via Bedrock Titan V2 or generate mock."""
+    if settings.AWS_ACCESS_KEY_ID:
+        return bedrock_get_embedding(text[:8000])
+    return generate_mock_embedding(text)
 
 
-def generate_mock_embedding(seed_text: str, dim: int = 1536) -> list[float]:
+def generate_mock_embedding(seed_text: str, dim: int = 1024) -> list[float]:
     """Generate a deterministic mock embedding from text (for testing)."""
     rng = np.random.default_rng(seed=hash(seed_text) % (2**32))
     vec = rng.standard_normal(dim).astype(np.float32)
-    vec = vec / np.linalg.norm(vec)  # normalize
+    vec = vec / np.linalg.norm(vec)
     return vec.tolist()
 
 
 def keyword_match_score(job_skills: list[str], candidate_skills: list[str]) -> float:
-    """Calculate keyword overlap ratio between job required skills and candidate skills."""
+    """Calculate keyword overlap ratio."""
     if not job_skills:
         return 0.0
     job_set = {s.lower().strip() for s in job_skills}
@@ -58,20 +54,13 @@ def compute_match_score(
     cosine_weight: float = 0.6,
     keyword_weight: float = 0.4,
 ) -> dict:
-    """
-    Combined match score: weighted cosine + keyword.
-    Returns dict with cosine_score, keyword_score, combined_score.
-    """
-    # Cosine similarity
+    """Combined match score: weighted cosine + keyword."""
     if job_embedding and candidate_embedding:
         cos_score = cosine_similarity(job_embedding, candidate_embedding)
     else:
         cos_score = 0.0
 
-    # Keyword overlap
     kw_score = keyword_match_score(job_skills, candidate_skills)
-
-    # Weighted combination
     combined = cos_score * cosine_weight + kw_score * keyword_weight
 
     return {

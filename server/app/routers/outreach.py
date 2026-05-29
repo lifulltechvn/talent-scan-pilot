@@ -122,8 +122,9 @@ async def get_preview(
             job_title = job.title
 
     if body.template_type == "outreach":
-        s = default_outreach(name, job_title, "LIFULL Tech Vietnam", skills, body.schedule_url)
-        subject = f"🚀 Exciting opportunity: {job_title} at {s.company}"
+        # Try AI-generated personalized content
+        s = _ai_generate_outreach(name, job_title, skills) or default_outreach(name, job_title, "LIFULL Tech Vietnam", skills, body.schedule_url)
+        subject = f"🚀 Exciting opportunity: {job_title} at LIFULL Tech Vietnam"
         return PreviewResponse(greeting=s.greeting, body=s.body, highlights=s.highlights, closing=s.closing, subject=subject)
 
     elif body.template_type == "rejection":
@@ -212,3 +213,44 @@ async def send_email(
         raise HTTPException(status_code=502, detail="Email delivery failed")
 
     return {"id": str(log.id), "status": email_status}
+
+
+def _ai_generate_outreach(name: str, job_title: str, skills: list[str]) -> OutreachSections | None:
+    """Generate personalized outreach email using Claude Haiku."""
+    import logging
+    from app.bedrock import invoke_claude
+    from app.config import settings
+
+    if not settings.AWS_ACCESS_KEY_ID:
+        return None
+
+    try:
+        prompt = f"""Write a short, warm outreach email to a candidate.
+Name: {name}
+Position: {job_title}
+Their skills: {', '.join(skills[:5])}
+Company: LIFULL Tech Vietnam
+
+Reply in this exact format:
+GREETING: <greeting line>
+BODY: <2-3 sentences, personalized to their skills>
+HIGHLIGHTS: <comma-separated list of 3 role highlights>
+CLOSING: <closing line>"""
+
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400)
+        parts = {}
+        for line in result.strip().split("\n"):
+            for key in ["GREETING", "BODY", "HIGHLIGHTS", "CLOSING"]:
+                if line.startswith(f"{key}:"):
+                    parts[key.lower()] = line.split(":", 1)[1].strip()
+
+        if all(k in parts for k in ["greeting", "body", "closing"]):
+            highlights = [h.strip() for h in parts.get("highlights", "").split(",") if h.strip()]
+            return OutreachSections(
+                greeting=parts["greeting"], body=parts["body"],
+                highlights=highlights or ["Great team", "Competitive salary", "Growth opportunities"],
+                closing=parts["closing"], job_title=job_title, company="LIFULL Tech Vietnam",
+            )
+    except Exception as e:
+        logging.warning(f"AI outreach generation failed: {e}")
+    return None

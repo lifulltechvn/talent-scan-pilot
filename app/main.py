@@ -10,7 +10,7 @@ from pii_filter import filter_pii
 from pii_crypto import encrypt_pii
 from offline_queue import add_to_queue, get_queue_count, get_pending, mark_uploaded, mark_failed
 from cv_parser import parse_cv_text
-from openai_service import ocr_scanned_pdf
+from openai_service import ocr_scanned_pdf, get_embedding
 from updater import CURRENT_VERSION, check_update, download_and_install, apply_update
 import api_client
 
@@ -20,6 +20,7 @@ RETRY_INTERVAL_SEC = 30
 
 def retry_offline_queue():
     """Background thread: retry pending uploads every RETRY_INTERVAL_SEC."""
+    import json
     import time
     while True:
         time.sleep(RETRY_INTERVAL_SEC)
@@ -30,9 +31,10 @@ def retry_offline_queue():
             continue
         for row in pending:
             try:
-                import json
                 structured = json.loads(row["structured_data_json"]) if row["structured_data_json"] else {}
-                api_client.upload_candidate(None, structured)
+                job_id = row.get("job_id")
+                embedding = json.loads(row["embedding_json"]) if row.get("embedding_json") else None
+                api_client.upload_candidate(job_id, structured, embedding)
                 mark_uploaded(row["id"])
             except Exception:
                 mark_failed(row["id"])
@@ -162,15 +164,21 @@ def main(page: ft.Page):
             # Parse CV text into structured data
             structured = parse_cv_text(masked_text, name)
 
+            # Generate embedding via Bedrock Titan V2
+            embed_text = " ".join(structured.get("skills", [])) + " " + " ".join(
+                e.get("role", "") for e in structured.get("experience", [])
+            )
+            embedding = get_embedding(embed_text) if embed_text.strip() else None
+
             # Upload to server
             upload_status = "✅ Uploaded"
             try:
-                result = api_client.upload_candidate(selected_job_id["value"], structured)
+                result = api_client.upload_candidate(selected_job_id["value"], structured, embedding)
                 candidate_id = result.get("id", "?")
                 upload_status = f"✅ Uploaded → ID: {candidate_id[:8]}..."
             except Exception as e:
                 # Save to offline queue
-                add_to_queue(name, masked_text, structured, pii_encrypted)
+                add_to_queue(name, masked_text, structured, pii_encrypted, job_id=selected_job_id["value"], embedding=embedding)
                 upload_status = f"📥 Saved offline (queue: {get_queue_count()})"
 
             # PII info

@@ -20,57 +20,52 @@ async def match_and_score_candidates(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Match all candidates for a job, compute scores, and save results."""
-    # Get job
+    """Match all candidates for a job, compute hybrid scores (rule 70% + LLM 30%)."""
     result = await db.execute(select(Job).where(Job.id == job_id))
     job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(404, "Job not found")
 
-    # Get candidates for this job
     result = await db.execute(select(Candidate).where(Candidate.job_id == job_id))
     candidates = result.scalars().all()
     if not candidates:
         raise HTTPException(404, "No candidates found for this job")
 
-    # Use real embedding or generate mock
-    job_embedding = job.embedding
-    if not job_embedding:
-        job_embedding = generate_mock_embedding(job.title + job.description)
+    job_embedding = job.embedding or generate_mock_embedding(job.title + (job.description or ""))
 
     results = []
     for cand in candidates:
-        # Candidate embedding
         cand_embedding = cand.embedding
         if not cand_embedding:
-            cand_text = str(cand.structured_data.get("skills", [])) + str(cand.structured_data.get("summary", ""))
+            cand_text = " ".join(cand.structured_data.get("skills", []))
             cand_embedding = generate_mock_embedding(cand_text)
 
         # Matching (cosine + keyword)
         cand_skills = cand.structured_data.get("skills", [])
-        match_result = compute_match_score(
-            job_embedding, cand_embedding, job.required_skills, cand_skills
-        )
+        match_result = compute_match_score(job_embedding, cand_embedding, job.required_skills, cand_skills)
 
-        # Rule-based scoring
+        # Hybrid scoring (rule 70% + LLM 30%)
         score_result = compute_rule_score(
             job_skills=job.required_skills,
             candidate_data=cand.structured_data,
             required_years=cand.structured_data.get("required_years"),
             required_education=cand.structured_data.get("required_education"),
+            job_title=job.title,
         )
 
-        # Final score = average of match + rule
-        final_score = round((match_result["combined_score"] * 100 + score_result["rule_score"]) / 2, 2)
+        final_score = score_result["final_score"]
         classification = score_result["classification"]
-
-        # Update candidate match_score
         cand.match_score = match_result["combined_score"]
 
-        # Upsert Score record
+        # Upsert Score
         existing = await db.execute(select(Score).where(Score.candidate_id == cand.id))
         score_obj = existing.scalar_one_or_none()
-        details = {"matching": match_result, "rule_scoring": score_result["details"]}
+        details = {
+            "matching": match_result,
+            "rule_scoring": score_result["details"],
+            "llm_score": score_result["llm_score"],
+            "llm_summary": score_result["llm_summary"],
+        }
 
         if score_obj:
             score_obj.rule_score = score_result["rule_score"]
@@ -91,6 +86,7 @@ async def match_and_score_candidates(
             "candidate_id": str(cand.id),
             "match_score": match_result["combined_score"],
             "rule_score": score_result["rule_score"],
+            "llm_score": score_result["llm_score"],
             "final_score": final_score,
             "classification": classification,
         })
@@ -105,7 +101,6 @@ async def get_candidate_score(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Get score details for a specific candidate."""
     result = await db.execute(select(Score).where(Score.candidate_id == candidate_id))
     score = result.scalar_one_or_none()
     if not score:

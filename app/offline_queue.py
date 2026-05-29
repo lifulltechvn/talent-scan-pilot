@@ -18,19 +18,27 @@ def _conn() -> sqlite3.Connection:
             extracted_text TEXT,
             structured_data_json TEXT,
             pii_encrypted TEXT,
+            job_id TEXT,
+            embedding_json TEXT,
             status TEXT DEFAULT 'pending',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Migrate: add columns if missing
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(pending_uploads)").fetchall()}
+    if "job_id" not in cols:
+        conn.execute("ALTER TABLE pending_uploads ADD COLUMN job_id TEXT")
+    if "embedding_json" not in cols:
+        conn.execute("ALTER TABLE pending_uploads ADD COLUMN embedding_json TEXT")
     return conn
 
 
-def add_to_queue(file_name: str, extracted_text: str, structured_data: dict | None = None, pii_encrypted: str | None = None) -> str:
+def add_to_queue(file_name: str, extracted_text: str, structured_data: dict | None = None, pii_encrypted: str | None = None, job_id: str | None = None, embedding: list[float] | None = None) -> str:
     row_id = str(uuid.uuid4())
     conn = _conn()
     conn.execute(
-        "INSERT INTO pending_uploads (id, file_name, extracted_text, structured_data_json, pii_encrypted) VALUES (?, ?, ?, ?, ?)",
-        (row_id, file_name, extracted_text, json.dumps(structured_data) if structured_data else None, pii_encrypted),
+        "INSERT INTO pending_uploads (id, file_name, extracted_text, structured_data_json, pii_encrypted, job_id, embedding_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (row_id, file_name, extracted_text, json.dumps(structured_data) if structured_data else None, pii_encrypted, job_id, json.dumps(embedding) if embedding else None),
     )
     conn.commit()
     conn.close()

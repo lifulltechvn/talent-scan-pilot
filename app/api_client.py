@@ -24,13 +24,16 @@ def get_token() -> str | None:
     return _token
 
 
-def upload_candidate(job_id: str | None, structured_data: dict) -> dict:
+def upload_candidate(job_id: str | None, structured_data: dict, embedding: list[float] | None = None) -> dict:
     """Upload a candidate to server. Returns created candidate."""
     if not _token:
         raise RuntimeError("Not logged in")
-    payload = {"structured_data": structured_data}
+    from updater import CURRENT_VERSION
+    payload = {"structured_data": structured_data, "source_app_version": CURRENT_VERSION}
     if job_id:
         payload["job_id"] = job_id
+    if embedding:
+        payload["embedding"] = embedding
     r = httpx.post(
         f"{SERVER_URL}/api/v1/candidates",
         json=payload,

@@ -41,7 +41,7 @@ class Job(Base):
     salary_range: Mapped[str | None] = mapped_column(String(255))
     location: Mapped[str | None] = mapped_column(String(255))
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    embedding = mapped_column(Vector(1536), nullable=True)
+    embedding = mapped_column(Vector(1024), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -55,7 +55,7 @@ class Candidate(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("jobs.id"))
     structured_data: Mapped[dict] = mapped_column(JSONB, default=dict)
-    embedding = mapped_column(Vector(1536), nullable=True)
+    embedding = mapped_column(Vector(1024), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="new")  # new / reviewed / approved / rejected / talent_pool
     match_score: Mapped[float | None] = mapped_column(Float)
     source_app_version: Mapped[str | None] = mapped_column(String(20))

@@ -9,6 +9,14 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     APP_VERSION: str = "1.0.0"
 
+    # AWS Bedrock
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_REGION: str = "us-east-1"
+    BEDROCK_MODEL_SONNET: str = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    BEDROCK_MODEL_HAIKU: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    BEDROCK_MODEL_EMBEDDING: str = "amazon.titan-embed-text-v2:0"
+
     # Email
     MAIL_PROVIDER: str = "smtp"  # smtp | ses
     MAIL_SERVER: str = ""

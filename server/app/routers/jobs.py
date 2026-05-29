@@ -39,6 +39,12 @@ async def create_job(
     user: User = Depends(get_current_user),
 ):
     job = Job(**data.model_dump(), created_by=user.id)
+
+    # Generate JD embedding
+    from app.services.matching import get_embedding
+    embed_text = f"{data.title} {data.description or ''} {' '.join(data.required_skills)}"
+    job.embedding = get_embedding(embed_text)
+
     db.add(job)
     await db.commit()
     await db.refresh(job)
@@ -81,6 +87,12 @@ async def update_job(
         raise HTTPException(status_code=404, detail="Job not found")
     for k, v in data.model_dump(exclude_unset=True).items():
         setattr(job, k, v)
+
+    # Re-generate embedding on update
+    from app.services.matching import get_embedding
+    embed_text = f"{job.title} {job.description or ''} {' '.join(job.required_skills)}"
+    job.embedding = get_embedding(embed_text)
+
     await db.commit()
     await db.refresh(job)
     return job

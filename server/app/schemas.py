@@ -68,6 +68,7 @@ class JobRead(BaseModel):
 class CandidateCreate(BaseModel):
     job_id: Optional[uuid.UUID] = None
     structured_data: dict = {}
+    embedding: Optional[list[float]] = None
     source_app_version: Optional[str] = None
     scanned_at: Optional[datetime] = None
 
