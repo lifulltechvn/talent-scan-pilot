@@ -22,6 +22,8 @@ function mapCandidate(raw: any, score?: Score | null): Candidate {
     sourceAppVersion: raw.source_app_version,
     scannedAt: raw.scanned_at ?? raw.created_at,
     createdAt: raw.created_at,
+    quizStatus: raw.quiz_status ?? null,
+    quizReason: raw.quiz_reason ?? null,
   };
 }
 

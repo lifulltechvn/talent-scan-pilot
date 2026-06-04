@@ -47,6 +47,8 @@ export interface Candidate {
   sourceAppVersion: string | null;
   scannedAt: string;
   createdAt: string;
+  quizStatus: string | null;
+  quizReason: string | null;
 }
 
 export interface Score {
