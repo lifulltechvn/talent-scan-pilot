@@ -78,7 +78,7 @@ SCORE: <number>
 SUMMARY: <one sentence>"""
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=200)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=200, feature="scoring")
         lines = result.strip().split("\n")
         score = 60.0
         summary = result.strip()

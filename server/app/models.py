@@ -188,3 +188,16 @@ class OutreachLog(Base):
 
     candidate = relationship("Candidate")
     job = relationship("Job")
+
+
+class AIUsageLog(Base):
+    __tablename__ = "ai_usage_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    model_id: Mapped[str] = mapped_column(String(100))  # e.g. "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    feature: Mapped[str] = mapped_column(String(50))  # scoring / quiz / outreach / parsing / embedding / ocr
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    source: Mapped[str] = mapped_column(String(20), default="server")  # server / desktop
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

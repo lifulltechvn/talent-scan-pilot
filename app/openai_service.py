@@ -5,9 +5,12 @@ When not set, returns mock data for development."""
 import base64
 import hashlib
 import json
+import logging
 import os
 import random
 import re
+
+logger = logging.getLogger(__name__)
 
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
 AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
@@ -17,9 +20,39 @@ MODEL_EMBEDDING = os.environ.get("BEDROCK_MODEL_EMBEDDING", "amazon.titan-embed-
 
 _client = None
 
+# Pricing per 1K tokens
+PRICING = {
+    "us.anthropic.claude-sonnet-4-5-20250929-v1:0": {"input": 0.003, "output": 0.015},
+    "us.anthropic.claude-haiku-4-5-20251001-v1:0": {"input": 0.001, "output": 0.005},
+    "amazon.titan-embed-text-v2:0": {"input": 0.00002, "output": 0.0},
+}
+
 
 def _has_credentials() -> bool:
     return bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY)
+
+
+def _log_usage(model_id: str, feature: str, input_tokens: int, output_tokens: int):
+    """Log usage to server via API (fire-and-forget)."""
+    import threading
+
+    def _send():
+        try:
+            import api_client
+            token = api_client.get_token()
+            if not token:
+                return
+            import httpx
+            httpx.post(
+                f"{api_client.SERVER_URL}/api/v1/ai-usage/log",
+                json={"model_id": model_id, "feature": feature, "input_tokens": input_tokens, "output_tokens": output_tokens, "source": "desktop"},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5,
+            )
+        except Exception as e:
+            logger.debug(f"Usage log failed: {e}")
+
+    threading.Thread(target=_send, daemon=True).start()
 
 
 def _get_client():
@@ -64,7 +97,7 @@ def parse_cv_with_gpt(text: str, file_name: str) -> dict:
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 4096,
             "temperature": 0,
-            "system": "You are a CV parser. Anonymize PII: replace real name with [NAME], email with [EMAIL], phone with [PHONE]. Parse the CV into structured data. Provide a 3-line insight (strengths, weaknesses, recommendation).",
+            "system": "You are a CV parser. Extract the candidate's real name as-is. Parse the CV into structured data. Provide a 3-line insight (strengths, weaknesses, recommendation).",
             "messages": [{"role": "user", "content": f"Parse this CV:\n\n{text[:6000]}"}],
             "tools": tools,
             "tool_choice": {"type": "tool", "name": "save_cv_data"},
@@ -72,6 +105,9 @@ def parse_cv_with_gpt(text: str, file_name: str) -> dict:
 
         response = client.invoke_model(modelId=MODEL_SONNET, body=json.dumps(body))
         result = json.loads(response["body"].read())
+
+        usage = result.get("usage", {})
+        _log_usage(MODEL_SONNET, "parsing", usage.get("input_tokens", 0), usage.get("output_tokens", 0))
 
         for block in result["content"]:
             if block["type"] == "tool_use":
@@ -102,6 +138,10 @@ def ocr_scanned_pdf(image_bytes: bytes) -> str:
 
         response = client.invoke_model(modelId=MODEL_SONNET, body=json.dumps(body))
         result = json.loads(response["body"].read())
+
+        usage = result.get("usage", {})
+        _log_usage(MODEL_SONNET, "ocr", usage.get("input_tokens", 0), usage.get("output_tokens", 0))
+
         return result["content"][0]["text"]
 
     return "[Mock OCR] This is simulated text from a scanned document. Skills: Python, React, AWS. Experience: 5 years."
@@ -114,6 +154,9 @@ def get_embedding(text: str) -> list[float]:
         body = {"inputText": text[:8000], "dimensions": 1024, "normalize": True}
         response = client.invoke_model(modelId=MODEL_EMBEDDING, body=json.dumps(body))
         result = json.loads(response["body"].read())
+
+        _log_usage(MODEL_EMBEDDING, "embedding", result.get("inputTextTokenCount", 0), 0)
+
         return result["embedding"]
 
     # Mock fallback - deterministic 1024-dim vector

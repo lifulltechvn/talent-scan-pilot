@@ -232,7 +232,7 @@ VERDICT: <credible / suspicious / insufficient>
 REASON: <one sentence explanation>"""
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=300)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=300, feature="quiz")
         for line in result.strip().split("\n"):
             if line.startswith("SCORE:"):
                 score = float(line.replace("SCORE:", "").strip())
@@ -309,7 +309,7 @@ Requirements:
 - If reason is "suspected_ai_cv", add questions that are hard to answer without real experience
 - Each question needs eval_criteria for automated evaluation"""
 
-            result = invoke_claude_with_tools(prompt, tools, model=settings.BEDROCK_MODEL_SONNET)
+            result = invoke_claude_with_tools(prompt, tools, model=settings.BEDROCK_MODEL_SONNET, feature="quiz")
             if result and "questions" in result:
                 return result["questions"]
         except Exception as e:

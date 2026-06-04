@@ -55,7 +55,7 @@ def compute_match_score(
     keyword_weight: float = 0.4,
 ) -> dict:
     """Combined match score: weighted cosine + keyword."""
-    if job_embedding and candidate_embedding:
+    if job_embedding is not None and candidate_embedding is not None:
         cos_score = cosine_similarity(job_embedding, candidate_embedding)
     else:
         cos_score = 0.0

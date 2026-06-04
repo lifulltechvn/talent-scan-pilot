@@ -237,7 +237,7 @@ BODY: <2-3 sentences, personalized to their skills>
 HIGHLIGHTS: <comma-separated list of 3 role highlights>
 CLOSING: <closing line>"""
 
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="outreach")
         parts = {}
         for line in result.strip().split("\n"):
             for key in ["GREETING", "BODY", "HIGHLIGHTS", "CLOSING"]:

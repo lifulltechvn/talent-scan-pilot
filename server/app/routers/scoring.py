@@ -31,12 +31,12 @@ async def match_and_score_candidates(
     if not candidates:
         raise HTTPException(404, "No candidates found for this job")
 
-    job_embedding = job.embedding or generate_mock_embedding(job.title + (job.description or ""))
+    job_embedding = job.embedding if job.embedding is not None else generate_mock_embedding(job.title + (job.description or ""))
 
     results = []
     for cand in candidates:
         cand_embedding = cand.embedding
-        if not cand_embedding:
+        if cand_embedding is None:
             cand_text = " ".join(cand.structured_data.get("skills", []))
             cand_embedding = generate_mock_embedding(cand_text)
 
@@ -69,6 +69,7 @@ async def match_and_score_candidates(
 
         if score_obj:
             score_obj.rule_score = score_result["rule_score"]
+            score_obj.llm_score = score_result["llm_score"]
             score_obj.final_score = final_score
             score_obj.classification = classification
             score_obj.details = details
@@ -76,6 +77,7 @@ async def match_and_score_candidates(
             score_obj = Score(
                 candidate_id=cand.id,
                 rule_score=score_result["rule_score"],
+                llm_score=score_result["llm_score"],
                 final_score=final_score,
                 classification=classification,
                 details=details,
