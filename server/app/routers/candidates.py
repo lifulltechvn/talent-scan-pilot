@@ -73,17 +73,14 @@ async def create_candidate(
     if candidate.job_id:
         try:
             from app.models import Job, Score
-            from app.services.matching import compute_match_score, generate_mock_embedding
+            from app.services.matching import compute_match_score, get_embedding
             from app.services.scoring import compute_rule_score
 
             result = await db.execute(select(Job).where(Job.id == candidate.job_id))
             job = result.scalar_one_or_none()
             if job:
-                job_embedding = job.embedding if job.embedding is not None else generate_mock_embedding(job.title + (job.description or ""))
+                job_embedding = job.embedding
                 cand_embedding = candidate.embedding
-                if cand_embedding is None:
-                    cand_text = " ".join(candidate.structured_data.get("skills", []))
-                    cand_embedding = generate_mock_embedding(cand_text)
 
                 cand_skills = candidate.structured_data.get("skills", [])
                 match_result = compute_match_score(job_embedding, cand_embedding, job.required_skills, cand_skills)

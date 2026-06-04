@@ -53,10 +53,7 @@ def classify_candidate(final_score: float) -> str:
 
 
 def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str] | None = None) -> tuple[float, str]:
-    """Use Claude Haiku to evaluate candidate (0-100 score + summary). Returns (score, summary)."""
-    if not settings.AWS_ACCESS_KEY_ID:
-        return 60.0, "Mock LLM evaluation — credentials not configured"
-
+    """Use Claude Haiku to evaluate candidate (0-100 score + summary)."""
     skills = candidate_data.get("skills", [])
     experience = candidate_data.get("experience", [])
     exp_years = candidate_data.get("experience_years", 0)

@@ -1,15 +1,11 @@
-"""
-Matching service: cosine similarity (embeddings) + keyword overlap.
-Uses Amazon Titan Embedding V2 via Bedrock when credentials are set, mock otherwise.
-"""
+"""Matching service: cosine similarity (embeddings) + keyword overlap."""
+
 import numpy as np
 
 from app.bedrock import get_embedding as bedrock_get_embedding
-from app.config import settings
 
 
 def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
-    """Compute cosine similarity between two vectors."""
     a = np.array(vec_a, dtype=np.float32)
     b = np.array(vec_b, dtype=np.float32)
     dot = np.dot(a, b)
@@ -20,28 +16,14 @@ def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
 
 
 def get_embedding(text: str) -> list[float]:
-    """Get embedding via Bedrock Titan V2 or generate mock."""
-    if settings.AWS_ACCESS_KEY_ID:
-        return bedrock_get_embedding(text[:8000])
-    return generate_mock_embedding(text)
-
-
-def generate_mock_embedding(seed_text: str, dim: int = 1024) -> list[float]:
-    """Generate a deterministic mock embedding from text (for testing)."""
-    rng = np.random.default_rng(seed=hash(seed_text) % (2**32))
-    vec = rng.standard_normal(dim).astype(np.float32)
-    vec = vec / np.linalg.norm(vec)
-    return vec.tolist()
+    return bedrock_get_embedding(text[:8000])
 
 
 def keyword_match_score(job_skills: list[str], candidate_skills: list[str]) -> float:
-    """Calculate keyword overlap ratio."""
     if not job_skills:
         return 0.0
     job_set = {s.lower().strip() for s in job_skills}
     cand_set = {s.lower().strip() for s in candidate_skills}
-    if not job_set:
-        return 0.0
     matched = job_set & cand_set
     return len(matched) / len(job_set)
 
@@ -54,7 +36,6 @@ def compute_match_score(
     cosine_weight: float = 0.6,
     keyword_weight: float = 0.4,
 ) -> dict:
-    """Combined match score: weighted cosine + keyword."""
     if job_embedding is not None and candidate_embedding is not None:
         cos_score = cosine_similarity(job_embedding, candidate_embedding)
     else:

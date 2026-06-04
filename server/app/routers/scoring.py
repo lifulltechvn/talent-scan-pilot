@@ -8,7 +8,7 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models import Candidate, Job, Score, User
 from app.schemas import ScoreRead
-from app.services.matching import compute_match_score, generate_mock_embedding
+from app.services.matching import compute_match_score, get_embedding
 from app.services.scoring import compute_rule_score
 
 router = APIRouter(prefix="/scoring", tags=["scoring"])
@@ -31,14 +31,14 @@ async def match_and_score_candidates(
     if not candidates:
         raise HTTPException(404, "No candidates found for this job")
 
-    job_embedding = job.embedding if job.embedding is not None else generate_mock_embedding(job.title + (job.description or ""))
+    job_embedding = job.embedding if job.embedding is not None else get_embedding(job.title + " " + (job.description or ""))
 
     results = []
     for cand in candidates:
         cand_embedding = cand.embedding
         if cand_embedding is None:
             cand_text = " ".join(cand.structured_data.get("skills", []))
-            cand_embedding = generate_mock_embedding(cand_text)
+            cand_embedding = get_embedding(cand_text)
 
         # Matching (cosine + keyword)
         cand_skills = cand.structured_data.get("skills", [])

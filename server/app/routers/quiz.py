@@ -212,7 +212,7 @@ async def _evaluate_quiz(quiz, answers: list, question_map: dict, db: AsyncSessi
     from app.config import settings
 
     if not settings.AWS_ACCESS_KEY_ID:
-        return 70.0  # Mock score when no credentials
+        return 60.0  # Credentials required
 
     qa_text = ""
     for ans in answers:
