@@ -52,4 +52,8 @@ export const jobApiRepo: IJobRepository = {
     });
     return mapJob(data);
   },
+
+  async delete(id: string) {
+    await apiClient.delete(`/jobs/${id}`);
+  },
 };

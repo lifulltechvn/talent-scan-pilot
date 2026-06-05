@@ -3,7 +3,7 @@ import os
 
 import httpx
 
-SERVER_URL = os.environ.get("TALENTSCAN_SERVER_URL", "http://localhost:8000")
+SERVER_URL = os.environ.get("TALENTSCAN_SERVER_URL", "http://18.181.237.122")
 _token: str | None = None
 
 

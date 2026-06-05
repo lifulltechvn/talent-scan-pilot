@@ -31,3 +31,13 @@ export function useUpdateJob() {
     },
   });
 }
+
+export function useDeleteJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => jobRepo.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    },
+  });
+}

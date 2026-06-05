@@ -13,7 +13,7 @@ from urllib.parse import urljoin
 import httpx
 
 CURRENT_VERSION = "1.0.8"
-DEFAULT_SERVER_URL = "http://localhost:8000"
+DEFAULT_SERVER_URL = "http://18.181.237.122"
 
 
 def get_server_url() -> str:

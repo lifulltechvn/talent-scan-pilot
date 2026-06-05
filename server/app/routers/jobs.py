@@ -40,10 +40,13 @@ async def create_job(
 ):
     job = Job(**data.model_dump(), created_by=user.id)
 
-    # Generate JD embedding
-    from app.services.matching import get_embedding
-    embed_text = f"{data.title} {data.description or ''} {' '.join(data.required_skills)}"
-    job.embedding = get_embedding(embed_text)
+    # Generate JD embedding (non-blocking — skip on failure)
+    try:
+        from app.services.matching import get_embedding
+        embed_text = f"{data.title} {data.description or ''} {' '.join(data.required_skills)}"
+        job.embedding = get_embedding(embed_text)
+    except Exception:
+        pass
 
     db.add(job)
     await db.commit()
@@ -88,10 +91,13 @@ async def update_job(
     for k, v in data.model_dump(exclude_unset=True).items():
         setattr(job, k, v)
 
-    # Re-generate embedding on update
-    from app.services.matching import get_embedding
-    embed_text = f"{job.title} {job.description or ''} {' '.join(job.required_skills)}"
-    job.embedding = get_embedding(embed_text)
+    # Re-generate embedding on update (skip on failure)
+    try:
+        from app.services.matching import get_embedding
+        embed_text = f"{job.title} {job.description or ''} {' '.join(job.required_skills)}"
+        job.embedding = get_embedding(embed_text)
+    except Exception:
+        pass
 
     await db.commit()
     await db.refresh(job)

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit, Briefcase, Mail, X, Send, CheckCircle, XCircle, ClipboardCheck } from 'lucide-react';
-import { useJob, useUpdateJob } from '../hooks/useJobs';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit, Trash2, Briefcase, Mail, X, Send, CheckCircle, XCircle, ClipboardCheck } from 'lucide-react';
+import { useJob, useUpdateJob, useDeleteJob } from '../hooks/useJobs';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { getJobIcon } from '@/shared/utils/job-icon';
@@ -14,6 +14,7 @@ import { apiClient } from '@/data/api/client';
 
 export function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: job, isLoading: loadingJ } = useJob(id!);
   const { data: allCandidates, isLoading: loadingC } = useCandidates();
   const { t } = useI18n();
@@ -22,6 +23,7 @@ export function JobDetailPage() {
   const [quizModal, setQuizModal] = useState(false);
   const updateStatus = useUpdateCandidateStatus();
   const updateJob = useUpdateJob();
+  const deleteJob = useDeleteJob();
   const [actionModal, setActionModal] = useState<{ candidateId: string; action: 'approved' | 'rejected'; sendEmail?: boolean } | null>(null);
 
   if (loadingJ || loadingC) return <LoadingSkeleton rows={3} />;
@@ -61,6 +63,9 @@ export function JobDetailPage() {
             </button>
             <button onClick={() => setEditModal(true)} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-accent/10 hover:text-accent border border-border-subtle transition-colors">
               <Edit size={14} /> Edit Job
+            </button>
+            <button onClick={() => { if (confirm('Delete this job?')) deleteJob.mutate(id!, { onSuccess: () => navigate('/jobs') }); }} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-red-500 text-[13px] font-medium rounded-lg hover:bg-red-50 border border-border-subtle transition-colors">
+              <Trash2 size={14} /> Delete
             </button>
           </div>
         </div>
