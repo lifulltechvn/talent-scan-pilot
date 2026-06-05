@@ -1,5 +1,18 @@
 """TalentScan Desktop App — Flet native GUI for CV scanning."""
 
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env from same directory as executable (or script)
+if getattr(sys, 'frozen', False):
+    _base = Path(sys.executable).parent
+else:
+    _base = Path(__file__).parent
+
+_env_path = _base / ".env"
+load_dotenv(_env_path)
+
 import os
 import threading
 
@@ -251,11 +264,52 @@ def main(page: ft.Page):
     def pick_files(_):
         file_picker.pick_files(allow_multiple=True, allowed_extensions=["pdf", "docx"], dialog_title="Chọn CV (PDF, DOCX)")
 
+    # ── Settings Dialog ──
+    aws_key_field = ft.TextField(label="AWS Access Key ID", value=os.environ.get("AWS_ACCESS_KEY_ID", ""), width=400, text_size=13)
+    aws_secret_field = ft.TextField(label="AWS Secret Access Key", value=os.environ.get("AWS_SECRET_ACCESS_KEY", ""), width=400, text_size=13, password=True, can_reveal_password=True)
+    aws_region_field = ft.TextField(label="AWS Region", value=os.environ.get("AWS_REGION", "us-east-1"), width=400, text_size=13)
+    settings_status = ft.Text("", size=12)
+
+    def save_settings(_):
+        lines = []
+        if _env_path.exists():
+            existing = _env_path.read_text().splitlines()
+            keys_to_update = {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"}
+            for line in existing:
+                key = line.split("=", 1)[0].strip() if "=" in line else ""
+                if key not in keys_to_update:
+                    lines.append(line)
+        lines.append(f"AWS_ACCESS_KEY_ID={aws_key_field.value}")
+        lines.append(f"AWS_SECRET_ACCESS_KEY={aws_secret_field.value}")
+        lines.append(f"AWS_REGION={aws_region_field.value}")
+        _env_path.write_text("\n".join(lines) + "\n")
+        os.environ["AWS_ACCESS_KEY_ID"] = aws_key_field.value
+        os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_field.value
+        os.environ["AWS_REGION"] = aws_region_field.value
+        import openai_service
+        openai_service._client = None
+        settings_status.value = "✅ Đã lưu!"
+        page.update()
+
+    settings_dialog = ft.AlertDialog(
+        title=ft.Text("⚙️ Cài đặt AWS"),
+        content=ft.Column([aws_key_field, aws_secret_field, aws_region_field, settings_status], tight=True, spacing=12),
+        actions=[
+            ft.TextButton("Lưu", on_click=save_settings),
+            ft.TextButton("Đóng", on_click=lambda _: page.close(settings_dialog)),
+        ],
+    )
+
+    def open_settings(_):
+        settings_status.value = ""
+        page.open(settings_dialog)
+
     # Main content layout
     main_content.controls = [
         ft.Row([
             ft.Text("TalentScan", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
             ft.Container(expand=True),
+            ft.IconButton(ft.Icons.SETTINGS, on_click=open_settings, tooltip="Cài đặt AWS"),
             ft.Text(f"v{CURRENT_VERSION}", size=11, color=ft.Colors.GREY_400),
         ]),
         ft.Text("Quét CV → Lọc PII → Upload → Scoring tự động", size=13, color=ft.Colors.GREY_600),
