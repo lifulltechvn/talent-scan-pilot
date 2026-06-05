@@ -19,6 +19,20 @@ def get_embedding(text: str) -> list[float]:
     return bedrock_get_embedding(text[:8000])
 
 
+def generate_mock_embedding(text: str) -> list[float]:
+    """Generate a deterministic mock embedding (1536-dim) for seeding without API calls."""
+    import hashlib
+    h = hashlib.sha512(text.encode()).digest()
+    import struct
+    values = []
+    while len(values) < 1536:
+        h = hashlib.sha512(h).digest()
+        values.extend(struct.unpack(f'{len(h)//4}f', h[:len(h)//4*4]))
+    vec = values[:1536]
+    norm = (sum(x*x for x in vec)) ** 0.5 or 1.0
+    return [x / norm for x in vec]
+
+
 def keyword_match_score(job_skills: list[str], candidate_skills: list[str]) -> float:
     if not job_skills:
         return 0.0
