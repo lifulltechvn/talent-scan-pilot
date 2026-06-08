@@ -1,10 +1,11 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users } from 'lucide-react';
+import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock } from 'lucide-react';
 import { useCandidate } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
+import { CandidateTimeline } from '../components/CandidateTimeline';
 import { useI18n } from '@/shared/i18n';
 
 export function CandidateDetailPage() {
@@ -135,6 +136,15 @@ export function CandidateDetailPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mt-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Clock size={15} className="text-accent" />
+          <h2 className="text-sm font-medium text-text-primary">Timeline</h2>
+        </div>
+        <CandidateTimeline candidateId={id!} />
       </div>
     </div>
   );

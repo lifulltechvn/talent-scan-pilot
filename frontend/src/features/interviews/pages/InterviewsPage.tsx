@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarCheck, Clock, CheckCircle, XCircle, AlertCircle, Bell, BellOff } from 'lucide-react';
+import { CalendarCheck, Clock, CheckCircle, XCircle, AlertCircle, Bell, BellOff, MessageSquare } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useI18n } from '@/shared/i18n';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
+import { FeedbackModal } from '../components/FeedbackModal';
 import { mockInterviews } from '@/data/mock/data/mock-interviews';
 import type { InterviewStatus } from '@/domain/models/interview';
 
@@ -27,6 +28,7 @@ export function InterviewsPage() {
   const { t } = useI18n();
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
+  const [feedbackTarget, setFeedbackTarget] = useState<{ candidateId: string; candidateName: string; jobId: string; jobTitle: string; round: number } | null>(null);
 
   useEffect(() => { const t = setTimeout(() => setLoading(false), 300); return () => clearTimeout(t); }, []);
 
@@ -119,11 +121,16 @@ export function InterviewsPage() {
                   )}
                 </div>
 
-                {/* Reminder indicator */}
-                <div className="shrink-0 pt-1">
+                {/* Actions */}
+                <div className="shrink-0 pt-1 flex flex-col items-end gap-1.5">
                   <span className={cn('flex items-center gap-1 text-[10px]', iv.reminderSent ? 'text-emerald-500' : 'text-text-muted')} title={iv.reminderSent ? t('reminderSent') : t('reminderPending')}>
                     {iv.reminderSent ? <Bell size={12} /> : <BellOff size={12} />}
                   </span>
+                  {iv.status === 'completed' && (
+                    <button onClick={() => setFeedbackTarget({ candidateId: iv.candidateId, candidateName: iv.candidateName, jobId: iv.jobId, jobTitle: iv.jobTitle, round: iv.round })} className="flex items-center gap-1 text-[10px] text-accent hover:underline">
+                      <MessageSquare size={11} /> Feedback
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -134,6 +141,14 @@ export function InterviewsPage() {
           <EmptyState icon={CalendarCheck} title={t('noInterviewsFound')} description={t('noInterviewsDescription')} />
         )}
       </div>
+
+      {feedbackTarget && (
+        <FeedbackModal
+          {...feedbackTarget}
+          onClose={() => setFeedbackTarget(null)}
+          onSaved={() => setFeedbackTarget(null)}
+        />
+      )}
     </div>
   );
 }

@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import Candidate, Job, OutreachLog, User
+from app.models import Candidate, EmailTemplate, Job, OutreachLog, User
 from app.services.email import get_email_service
 from app.services.email_templates import (
     OutreachSections, RejectionSections, ReminderSections,
@@ -122,20 +122,19 @@ async def get_preview(
             job_title = job.title
 
     if body.template_type == "outreach":
-        # Try AI-generated personalized content
-        s = _ai_generate_outreach(name, job_title, skills) or default_outreach(name, job_title, "LIFULL Tech Vietnam", skills, body.schedule_url)
+        s = await _get_template_or_default(db, "outreach", name, job_title, skills, body.schedule_url)
         subject = f"🚀 Exciting opportunity: {job_title} at LIFULL Tech Vietnam"
         return PreviewResponse(greeting=s.greeting, body=s.body, highlights=s.highlights, closing=s.closing, subject=subject)
 
     elif body.template_type == "rejection":
-        s = default_rejection(name, job_title)
+        s = await _get_template_or_default(db, "rejection", name, job_title, skills)
         subject = f"Update on your application — {job_title}"
-        return PreviewResponse(greeting=s.greeting, body=s.body, feedback=s.feedback, closing=s.closing, subject=subject)
+        return PreviewResponse(greeting=s.greeting, body=s.body, feedback="", closing=s.closing, subject=subject)
 
     elif body.template_type == "reminder":
-        s = default_reminder(name, job_title, body.interview_date or "TBD", body.interview_time or "TBD", body.interviewer)
+        s = await _get_template_or_default(db, "reminder", name, job_title, skills)
         subject = f"⏰ Reminder: Interview tomorrow — {job_title}"
-        return PreviewResponse(greeting=s.greeting, body=s.body, tips=s.tips, closing=s.closing, subject=subject)
+        return PreviewResponse(greeting=s.greeting, body=s.body, tips=s.tips if hasattr(s, 'tips') and s.tips else ["Review the job description", "Prepare questions about the role", "Test your setup if video call"], closing=s.closing, subject=subject)
 
     raise HTTPException(status_code=400, detail="Invalid template_type")
 
@@ -254,3 +253,32 @@ CLOSING: <closing line>"""
     except Exception as e:
         logging.warning(f"AI outreach generation failed: {e}")
     return None
+
+
+async def _get_template_or_default(db: AsyncSession, template_type: str, name: str, job_title: str, skills: list[str], schedule_url: str | None = None):
+    """Read custom template from DB, apply variable substitution, fallback to hardcoded default."""
+    result = await db.execute(select(EmailTemplate).where(EmailTemplate.template_type == template_type))
+    tmpl = result.scalar_one_or_none()
+
+    if tmpl:
+        # Substitute variables
+        def sub(text: str) -> str:
+            return text.replace("{name}", name).replace("{job_title}", job_title).replace("{company}", "LIFULL Tech Vietnam")
+
+        class _Sections:
+            pass
+        s = _Sections()
+        s.greeting = sub(tmpl.greeting)
+        s.body = sub(tmpl.body)
+        s.closing = sub(tmpl.closing)
+        s.highlights = tmpl.highlights or []
+        s.tips = tmpl.tips or []
+        return s
+
+    # Fallback to hardcoded defaults
+    if template_type == "outreach":
+        return default_outreach(name, job_title, "LIFULL Tech Vietnam", skills, schedule_url)
+    elif template_type == "rejection":
+        return default_rejection(name, job_title)
+    else:
+        return default_reminder(name, job_title, "TBD", "TBD")

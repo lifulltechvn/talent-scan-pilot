@@ -201,3 +201,34 @@ class AIUsageLog(Base):
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
     source: Mapped[str] = mapped_column(String(20), default="server")  # server / desktop
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class InterviewFeedback(Base):
+    __tablename__ = "interview_feedback"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    candidate_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("candidates.id"))
+    job_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("jobs.id"))
+    interviewer: Mapped[str] = mapped_column(String(100))
+    round: Mapped[int] = mapped_column(Integer, default=1)
+    rating: Mapped[int] = mapped_column(Integer)  # 1-5
+    decision: Mapped[str] = mapped_column(String(20))  # pass / fail / next_round
+    strengths: Mapped[str | None] = mapped_column(Text)
+    weaknesses: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    candidate = relationship("Candidate")
+    job = relationship("Job")
+
+
+class EmailTemplate(Base):
+    __tablename__ = "email_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    template_type: Mapped[str] = mapped_column(String(30), unique=True)  # outreach / rejection / reminder
+    greeting: Mapped[str] = mapped_column(Text, default="")
+    body: Mapped[str] = mapped_column(Text, default="")
+    closing: Mapped[str] = mapped_column(Text, default="")
+    highlights: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    tips: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())    
