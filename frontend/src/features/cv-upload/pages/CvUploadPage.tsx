@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Clock } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
 import { useJobs } from '@/features/jobs/hooks/useJobs';
 
@@ -9,7 +9,8 @@ interface UploadResult {
   page_count: number;
   is_scanned: boolean;
   pii_detected: Record<string, number>;
-  structured_data: Record<string, unknown>;
+  structured_data?: Record<string, unknown>;
+  status?: string;
 }
 
 export function CvUploadPage() {
@@ -19,6 +20,22 @@ export function CvUploadPage() {
   const [results, setResults] = useState<{ file: string; result?: UploadResult; error?: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval>[]>([]);
+
+  useEffect(() => () => pollRef.current.forEach(clearInterval), []);
+
+  const pollCandidate = (idx: number, candidateId: string) => {
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await apiClient.get(`/candidates/${candidateId}`);
+        if (data.status !== 'processing') {
+          clearInterval(interval);
+          setResults(prev => prev.map((r, i) => i === idx ? { ...r, result: { ...r.result!, structured_data: data.structured_data, status: data.status } } : r));
+        }
+      } catch { /* ignore */ }
+    }, 2000);
+    pollRef.current.push(interval);
+  };
 
   const handleFiles = (newFiles: FileList | File[]) => {
     const valid = Array.from(newFiles).filter(f => /\.(pdf|docx)$/i.test(f.name));
@@ -46,11 +63,15 @@ export function CvUploadPage() {
       try {
         const { data } = await apiClient.post<UploadResult>('/cv/upload', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120_000 });
         newResults.push({ file: file.name, result: data });
+        setResults([...newResults]);
+        if (data.status === 'processing') {
+          pollCandidate(newResults.length - 1, data.candidate_id);
+        }
       } catch (e: unknown) {
         const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Upload failed';
         newResults.push({ file: file.name, error: msg });
+        setResults([...newResults]);
       }
-      setResults([...newResults]);
     }
     setUploading(false);
     setFiles([]);
@@ -105,19 +126,25 @@ export function CvUploadPage() {
         <div className="mt-6 space-y-3">
           <h2 className="text-sm font-semibold text-text-primary">Results</h2>
           {results.map((r, i) => (
-            <div key={i} className={`p-4 rounded-lg border ${r.error ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
+            <div key={i} className={`p-4 rounded-lg border ${r.error ? 'border-red-200 bg-red-50' : r.result?.status === 'processing' ? 'border-yellow-200 bg-yellow-50' : 'border-green-200 bg-green-50'}`}>
               <div className="flex items-center gap-2 mb-1">
-                {r.error ? <AlertCircle size={14} className="text-red-500" /> : <CheckCircle size={14} className="text-green-600" />}
+                {r.error ? <AlertCircle size={14} className="text-red-500" /> : r.result?.status === 'processing' ? <Clock size={14} className="text-yellow-600 animate-pulse" /> : <CheckCircle size={14} className="text-green-600" />}
                 <span className="text-sm font-medium">{r.file}</span>
+                {r.result?.status === 'processing' && <span className="text-xs text-yellow-700 ml-auto">AI đang phân tích...</span>}
               </div>
               {r.error && <p className="text-xs text-red-600">{r.error}</p>}
-              {r.result && (
+              {r.result && r.result.status !== 'processing' && (
                 <div className="text-xs text-text-secondary space-y-0.5 mt-1">
                   <p>Candidate ID: {r.result.candidate_id.slice(0, 8)}… | Pages: {r.result.page_count} {r.result.is_scanned && '(OCR)'}</p>
-                  <p>Name: {(r.result.structured_data.name as string) || '—'} | Skills: {((r.result.structured_data.skills as string[]) || []).slice(0, 5).join(', ')}</p>
+                  <p>Name: {(r.result.structured_data?.name as string) || '—'} | Skills: {((r.result.structured_data?.skills as string[]) || []).slice(0, 5).join(', ')}</p>
                   {Object.keys(r.result.pii_detected).length > 0 && (
                     <p className="text-orange-600">🔒 PII masked: {Object.entries(r.result.pii_detected).map(([k, v]) => `${k}(${v})`).join(', ')}</p>
                   )}
+                </div>
+              )}
+              {r.result && r.result.status === 'processing' && (
+                <div className="text-xs text-text-secondary mt-1">
+                  <p>Candidate ID: {r.result.candidate_id.slice(0, 8)}… | Pages: {r.result.page_count} {r.result.is_scanned && '(OCR)'}</p>
                 </div>
               )}
             </div>
