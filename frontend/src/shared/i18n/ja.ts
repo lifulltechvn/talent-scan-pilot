@@ -27,6 +27,7 @@ export const ja: Record<TranslationKey, string> = {
   navInterviews: '面接',
   navTalentPool: 'タレントプール',
   navOutreach: 'メール送信',
+  navCvUpload: 'CVアップロード',
   navSettings: '設定',
 
   // Dashboard

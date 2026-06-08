@@ -25,6 +25,7 @@ export const en = {
   navInterviews: 'Interviews',
   navTalentPool: 'Talent Pool',
   navOutreach: 'Outreach',
+  navCvUpload: 'CV Upload',
   navSettings: 'Settings',
 
   // Dashboard

@@ -15,6 +15,7 @@ const InterviewsPage = lazy(() => import('@/features/interviews/pages/Interviews
 const TalentPoolPage = lazy(() => import('@/features/talent-pool/pages/TalentPoolPage').then(m => ({ default: m.TalentPoolPage })));
 const OutreachPage = lazy(() => import('@/features/outreach/pages/OutreachPage').then(m => ({ default: m.OutreachPage })));
 const SettingsPage = lazy(() => import('@/features/settings/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const CvUploadPage = lazy(() => import('@/features/cv-upload/pages/CvUploadPage').then(m => ({ default: m.CvUploadPage })));
 const QuizPublicPage = lazy(() => import('@/features/quiz/pages/QuizPublicPage').then(m => ({ default: m.QuizPublicPage })));
 const SchedulePublicPage = lazy(() => import('@/features/schedule/pages/SchedulePublicPage').then(m => ({ default: m.SchedulePublicPage })));
 
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
           { path: 'interviews', element: <LazyLoad><InterviewsPage /></LazyLoad> },
           { path: 'talent-pool', element: <LazyLoad><TalentPoolPage /></LazyLoad> },
           { path: 'outreach', element: <LazyLoad><OutreachPage /></LazyLoad> },
+          { path: 'cv-upload', element: <LazyLoad><CvUploadPage /></LazyLoad> },
           { path: 'settings', element: <LazyLoad><SettingsPage /></LazyLoad> },
           { path: '*', element: <Navigate to="/" replace /> },
         ],
