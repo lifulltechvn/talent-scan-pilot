@@ -125,7 +125,7 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                     await db.execute(
                         update(Candidate)
                         .where(Candidate.id == uuid.UUID(candidate_id))
-                        .values(structured_data=structured, embedding=embedding, status="parsed")
+                        .values(structured_data=structured, embedding=embedding, status="new")
                     )
                     await db.commit()
                 await engine.dispose()
