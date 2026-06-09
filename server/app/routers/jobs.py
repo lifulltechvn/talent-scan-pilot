@@ -1,7 +1,7 @@
 import json
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,62 @@ from app.models import Candidate, Job, Score, User
 from app.schemas import JobCreate, JobRead, JobUpdate
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+
+@router.post("/import")
+async def import_jd_file(
+    file: UploadFile = File(...),
+    _user: User = Depends(get_current_user),
+):
+    """Upload a JD file (PDF/DOCX), extract text, parse with AI into structured job data."""
+    from app.extractor import extract
+    from app.bedrock import invoke_claude
+    from app.config import settings
+
+    ext = "." + (file.filename or "").rsplit(".", 1)[-1].lower()
+    if ext not in {".pdf", ".docx", ".doc", ".txt"}:
+        raise HTTPException(400, "Supported formats: PDF, DOCX, TXT")
+
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(400, "File too large. Max 5MB.")
+
+    # Extract text
+    if ext == ".txt":
+        text = content.decode("utf-8", errors="ignore")
+    else:
+        result = extract(content, file.filename or "file.pdf")
+        text = result.text
+
+    if not text.strip():
+        raise HTTPException(400, "Could not extract text from file")
+
+    # Parse with AI
+    prompt = f"""Parse this job description and extract structured data. Reply in JSON only:
+{{
+  "title": "job title",
+  "description": "2-3 sentence summary",
+  "required_skills": ["skill1", "skill2", ...],
+  "location": "city or remote",
+  "salary_range": "range if mentioned or null",
+  "required_years": number or null,
+  "required_education": "bachelor/master/phd or null",
+  "deadline": "YYYY-MM-DD or null"
+}}
+
+JD text:
+{text[:3000]}"""
+
+    try:
+        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="jd_import")
+        # Extract JSON from response
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+        parsed = json.loads(raw[start:end])
+        return parsed
+    except Exception as e:
+        raise HTTPException(500, f"AI parsing failed: {e}")
+
 
 
 async def _smart_pool_match_job(job_id: str):

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, MapPin, Clock, Users, Plus, Briefcase, X } from 'lucide-react';
+import { Search, MapPin, Clock, Users, Plus, Briefcase, X, Upload } from 'lucide-react';
 import { useJobs, useCreateJob } from '../hooks/useJobs';
 import { useCandidates } from '@/features/candidates/hooks/useCandidates';
 import { useI18n } from '@/shared/i18n';
@@ -8,22 +8,33 @@ import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { getJobIcon } from '@/shared/utils/job-icon';
 import { DatePicker } from '@/shared/components/ui/DatePicker';
+import { TagInput } from '@/shared/components/ui/TagInput';
+import { apiClient } from '@/data/api/client';
+import { useMasterData } from '../hooks/useMasterData';
 
-function CreateJobModal({ onClose }: { onClose: () => void }) {
+function CreateJobModal({ onClose, initialData }: { onClose: () => void; initialData?: any }) {
   const createJob = useCreateJob();
-  const [form, setForm] = useState({ title: '', description: '', skills: '', salaryRange: '', location: '', deadline: '' });
+  const { data: masterData } = useMasterData();
+  const [form, setForm] = useState({
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    skills: (initialData?.required_skills || []) as string[],
+    salaryRange: initialData?.salary_range || '',
+    location: initialData?.location || '',
+    deadline: initialData?.deadline || '',
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createJob.mutate(
-      { title: form.title, description: form.description, requiredSkills: form.skills.split(',').map(s => s.trim()).filter(Boolean), salaryRange: form.salaryRange || undefined, location: form.location || undefined, deadline: form.deadline || undefined },
+      { title: form.title, description: form.description, requiredSkills: form.skills, salaryRange: form.salaryRange || undefined, location: form.location || undefined, deadline: form.deadline || undefined },
       { onSuccess: onClose },
     );
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <form onSubmit={handleSubmit} className="bg-bg-panel rounded-xl p-6 w-full max-w-lg shadow-xl border border-border-subtle">
+      <form onSubmit={handleSubmit} className="bg-bg-panel rounded-xl p-6 w-full max-w-lg shadow-xl border border-border-subtle max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-text-primary">Create New Job</h2>
           <button type="button" onClick={onClose} className="text-text-muted hover:text-text-primary"><X size={18} /></button>
@@ -31,10 +42,25 @@ function CreateJobModal({ onClose }: { onClose: () => void }) {
         <div className="space-y-3">
           <input required value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Job title *" className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
           <textarea required value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Job description *" rows={3} className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
-          <input value={form.skills} onChange={e => setForm(p => ({ ...p, skills: e.target.value }))} placeholder="Required skills (comma separated)" className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          <div>
+            <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Skills</label>
+            <TagInput value={form.skills} onChange={v => setForm(p => ({ ...p, skills: v }))} suggestions={masterData?.skills || []} placeholder="Type skill name..." />
+          </div>
           <div className="grid grid-cols-2 gap-3">
-            <input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} placeholder="Location" className="px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
-            <input value={form.salaryRange} onChange={e => setForm(p => ({ ...p, salaryRange: e.target.value }))} placeholder="Salary range" className="px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Location</label>
+              <select value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 bg-white">
+                <option value="">Select location</option>
+                {(masterData?.locations || []).map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Salary Range</label>
+              <select value={form.salaryRange} onChange={e => setForm(p => ({ ...p, salaryRange: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 bg-white">
+                <option value="">Select range</option>
+                {(masterData?.salary_ranges || []).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
           </div>
           <DatePicker value={form.deadline} onChange={v => setForm(p => ({ ...p, deadline: v }))} placeholder="Deadline" />
         </div>
@@ -54,7 +80,24 @@ export function JobsPage() {
   const { data: candidates } = useCandidates();
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [importedData, setImportedData] = useState<any>(null);
+  const [importLoading, setImportLoading] = useState(false);
   const { t } = useI18n();
+
+  const handleImportJD = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportLoading(true);
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const { data } = await apiClient.post('/jobs/import', form);
+      setImportedData(data);
+      setShowCreate(true);
+    } catch { }
+    setImportLoading(false);
+    e.target.value = '';
+  };
 
   if (isLoading) return <LoadingSkeleton rows={3} />;
 
@@ -73,12 +116,22 @@ export function JobsPage() {
           <h1 className="text-xl font-semibold text-text-primary">{t("jobsTitle")}</h1>
           <p className="text-[13px] text-text-tertiary mt-0.5">{jobs?.length ?? 0} open positions · {totalCandidates} total candidates</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">
-          <Plus size={14} /> New Job
-        </button>
+        <div className="flex gap-2">
+          <label className={`flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium rounded-lg border transition-colors cursor-pointer ${importLoading ? 'bg-bg-surface text-text-muted border-border-subtle cursor-wait' : 'bg-bg-surface text-text-secondary border-border-subtle hover:bg-accent/10 hover:text-accent'}`}>
+            {importLoading ? (
+              <><div className="w-3.5 h-3.5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" /> Parsing...</>
+            ) : (
+              <><Upload size={14} /> Import JD</>
+            )}
+            <input type="file" accept=".pdf,.docx,.doc,.txt" onChange={handleImportJD} disabled={importLoading} className="hidden" />
+          </label>
+          <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">
+            <Plus size={14} /> New Job
+          </button>
+        </div>
       </div>
 
-      {showCreate && <CreateJobModal onClose={() => setShowCreate(false)} />}
+      {showCreate && <CreateJobModal onClose={() => { setShowCreate(false); setImportedData(null); }} initialData={importedData} />}
 
       {/* Search */}
       <div className="relative mb-5">
