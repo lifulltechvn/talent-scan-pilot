@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit, Trash2, Briefcase, Mail, X, Send, CheckCircle, XCircle, ClipboardCheck, Sparkles, Loader2, UserPlus, Download } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit, Trash2, Briefcase, Mail, X, Send, CheckCircle, XCircle, ClipboardCheck, Sparkles, Loader2, UserPlus, Download, CalendarCheck } from 'lucide-react';
 import { useJob, useUpdateJob, useDeleteJob } from '../hooks/useJobs';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -30,6 +30,7 @@ export function JobDetailPage() {
   const [assigning, setAssigning] = useState<string | null>(null);
   const [scoreDetail, setScoreDetail] = useState<any | null>(null);
   const [scoreDetailLoading, setScoreDetailLoading] = useState(false);
+  const [bookInterview, setBookInterview] = useState<{ candidateId: string; candidateName: string } | null>(null);
 
   const handleSuggest = async () => {
     setSuggestLoading(true);
@@ -224,6 +225,9 @@ export function JobDetailPage() {
                     <button onClick={() => handleViewScore(c.id)} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title="View Score Detail">
                       <Sparkles size={15} />
                     </button>
+                    <button onClick={() => setBookInterview({ candidateId: c.id, candidateName: c.structuredData.name })} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title="Đặt lịch phỏng vấn">
+                      <CalendarCheck size={15} />
+                    </button>
                     {c.status === 'new' && (
                       <>
                         <button onClick={() => setActionModal({ candidateId: c.id, action: 'approved' })} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Approve">
@@ -414,6 +418,88 @@ export function JobDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Book Interview Modal */}
+      {bookInterview && (
+        <BookInterviewModal
+          candidateId={bookInterview.candidateId}
+          candidateName={bookInterview.candidateName}
+          jobId={id!}
+          jobTitle={job.title}
+          onClose={() => setBookInterview(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClose }: {
+  candidateId: string; candidateName: string; jobId: string; jobTitle: string; onClose: () => void;
+}) {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('10:00');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.post('/interviews', {
+        candidate_id: candidateId,
+        job_id: jobId,
+        title: `Interview: ${jobTitle}`,
+        start_time: new Date(`${date}T${startTime}`).toISOString(),
+        end_time: new Date(`${date}T${endTime}`).toISOString(),
+        notes: notes || null,
+      });
+      setDone(true);
+    } catch { /* ignore */ }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm m-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+          <h2 className="text-[15px] font-semibold text-white">Đặt lịch phỏng vấn</h2>
+          <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
+        </div>
+        {done ? (
+          <div className="p-6 text-center">
+            <CheckCircle size={36} className="mx-auto mb-3 text-emerald-500" />
+            <p className="text-[14px] font-medium text-text-primary">Đã đặt lịch thành công!</p>
+            <p className="text-[12px] text-text-muted mt-1">{candidateName} — {date} {startTime}</p>
+            <button onClick={onClose} className="mt-4 px-4 py-2 text-[13px] text-accent hover:bg-accent/10 rounded-lg">Đóng</button>
+          </div>
+        ) : (
+          <div className="p-5 space-y-4">
+            <div className="text-[13px] text-text-primary font-medium">{candidateName}</div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-[11px] font-medium text-text-muted uppercase">Ngày</label>
+                <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-text-muted uppercase">Từ</label>
+                <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-text-muted uppercase">Đến</label>
+                <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Ghi chú</label>
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Link meeting, phòng..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
+              {saving ? 'Đang tạo...' : 'Đặt lịch'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
