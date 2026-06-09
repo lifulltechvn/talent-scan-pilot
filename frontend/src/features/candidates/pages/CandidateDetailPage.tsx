@@ -56,9 +56,13 @@ export function CandidateDetailPage() {
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mb-5">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-lg font-bold">
-              {d.name.replace(/[\[\]NAME-]/g, '').trim().charAt(0) || 'C'}
-            </div>
+            {d.avatar ? (
+              <img src={`/api/v1/candidates/${id}/avatar`} alt={d.name} className="w-12 h-12 rounded-full object-cover" />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-lg font-bold">
+                {d.name.replace(/[\[\]NAME-]/g, '').trim().charAt(0) || 'C'}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-semibold text-text-primary">{d.name}</h1>

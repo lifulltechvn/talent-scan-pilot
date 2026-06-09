@@ -10,6 +10,8 @@ import { useI18n } from '@/shared/i18n';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { DatePicker } from '@/shared/components/ui/DatePicker';
+import { TagInput } from '@/shared/components/ui/TagInput';
+import { useMasterData } from '../hooks/useMasterData';
 import { apiClient } from '@/data/api/client';
 
 export function JobDetailPage() {
@@ -501,9 +503,10 @@ function QuizModal({ candidates, onClose }: { candidates: any[]; onClose: () => 
 }
 
 function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void; onSave: (data: any) => void }) {
+  const { data: masterData } = useMasterData();
   const [title, setTitle] = useState(job.title);
   const [description, setDescription] = useState(job.description || '');
-  const [skills, setSkills] = useState(job.requiredSkills.join(', '));
+  const [skillsList, setSkillsList] = useState<string[]>(job.requiredSkills || []);
   const [location, setLocation] = useState(job.location || '');
   const [salary, setSalary] = useState(job.salaryRange || '');
   const [deadline, setDeadline] = useState(job.deadline?.slice(0, 10) || '');
@@ -512,7 +515,7 @@ function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void;
     onSave({
       title,
       description,
-      requiredSkills: skills.split(',').map((s: string) => s.trim()).filter(Boolean),
+      requiredSkills: skillsList,
       salaryRange: salary || undefined,
       location: location || undefined,
       deadline: deadline || undefined,
@@ -523,7 +526,7 @@ function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void;
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
-          <h2 className="text-[15px] font-semibold text-white">{t("edit")}</h2>
+          <h2 className="text-[15px] font-semibold text-white">Edit Job</h2>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
         <div className="p-5 space-y-4">
@@ -532,15 +535,32 @@ function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void;
             <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Description</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
           </div>
-          <Field label="Skills (comma separated)" value={skills} onChange={setSkills} />
-          <Field label="Location" value={location} onChange={setLocation} placeholder="e.g. Ho Chi Minh City" />
-          <Field label="Salary Range" value={salary} onChange={setSalary} placeholder="e.g. 25-40M VND" />
+          <div>
+            <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Skills</label>
+            <TagInput value={skillsList} onChange={setSkillsList} suggestions={masterData?.skills || []} placeholder="Type skill name..." />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Location</label>
+              <select value={location} onChange={e => setLocation(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 bg-white">
+                <option value="">Select location</option>
+                {(masterData?.locations || []).map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Salary Range</label>
+              <select value={salary} onChange={e => setSalary(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 bg-white">
+                <option value="">Select range</option>
+                {(masterData?.salary_ranges || []).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
           <div>
             <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Deadline</label>
             <div className="mt-1"><DatePicker value={deadline} onChange={setDeadline} placeholder="Select deadline" /></div>
           </div>
           <div className="flex justify-end pt-2">
-            <button onClick={handleSave} className="px-5 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">{t("save")}</button>
+            <button onClick={handleSave} className="px-5 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">Save</button>
           </div>
         </div>
       </div>

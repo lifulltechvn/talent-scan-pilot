@@ -236,6 +236,21 @@ async def get_candidate_matched_jobs(
     return results
 
 
+@router.get("/{candidate_id}/avatar")
+async def get_candidate_avatar(
+    candidate_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Get candidate's avatar extracted from CV."""
+    import os
+    from fastapi.responses import FileResponse
+    avatar_path = os.path.join("/app/uploads/avatars", f"{candidate_id}.jpg")
+    if not os.path.exists(avatar_path):
+        raise HTTPException(status_code=404, detail="Avatar not found")
+    return FileResponse(avatar_path, media_type="image/jpeg")
+
+
 @router.get("/{candidate_id}/cv")
 async def download_candidate_cv(
     candidate_id: uuid.UUID,

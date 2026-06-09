@@ -21,6 +21,33 @@ logger = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=4)
 
 CV_UPLOAD_DIR = "/app/uploads/cv"
+AVATAR_DIR = "/app/uploads/avatars"
+
+
+def _extract_avatar(file_bytes: bytes, candidate_id: str) -> str | None:
+    """Extract first image from PDF as candidate avatar. Returns filename or None."""
+    try:
+        import fitz
+        os.makedirs(AVATAR_DIR, exist_ok=True)
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        for page in doc[:2]:  # check first 2 pages
+            images = page.get_images()
+            for img_ref in images:
+                xref = img_ref[0]
+                pix = fitz.Pixmap(doc, xref)
+                if pix.width < 50 or pix.height < 50:
+                    continue  # skip tiny images
+                if pix.width > 500 or pix.height > 500:
+                    continue  # skip full-page images
+                # Likely an avatar photo
+                if pix.n > 4:
+                    pix = fitz.Pixmap(fitz.csRGB, pix)
+                filename = f"{candidate_id}.jpg"
+                pix.save(os.path.join(AVATAR_DIR, filename))
+                return filename
+        return None
+    except Exception:
+        return None
 
 
 def _clean_text(text: str) -> str:
@@ -121,6 +148,12 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 text = _ocr_scanned_pdf(file_bytes)
 
             structured, embedding = _process_ai_sync(text)
+
+            # Extract avatar from PDF
+            if file_bytes:
+                avatar = _extract_avatar(file_bytes, candidate_id)
+                if avatar:
+                    structured["avatar"] = avatar
 
             # Update candidate in DB
             async def _update():
