@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Briefcase, CalendarCheck, DatabaseZap, Mail, Upload, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, CalendarCheck, Upload, Settings } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useI18n } from '@/shared/i18n';
 import type { TranslationKey } from '@/shared/i18n/en';
@@ -9,8 +9,6 @@ const navItems: { to: string; labelKey: TranslationKey; icon: typeof LayoutDashb
   { to: '/candidates', labelKey: 'navCandidates', icon: Users },
   { to: '/jobs', labelKey: 'navJobs', icon: Briefcase },
   { to: '/interviews', labelKey: 'navInterviews', icon: CalendarCheck },
-  { to: '/talent-pool', labelKey: 'navTalentPool', icon: DatabaseZap },
-  { to: '/outreach', labelKey: 'navOutreach', icon: Mail },
   { to: '/cv-upload', labelKey: 'navCvUpload', icon: Upload },
 ];
 
