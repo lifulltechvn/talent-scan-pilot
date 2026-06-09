@@ -148,7 +148,7 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
     threading.Thread(target=_run, daemon=True).start()
 
 
-async def process_cv(file_bytes: bytes, file_name: str, db: AsyncSession, file_hash: str = "", update_id: str | None = None) -> dict:
+async def process_cv(file_bytes: bytes, file_name: str, db: AsyncSession, file_hash: str = "", update_id: str | None = None, job_id=None) -> dict:
     """Fast pipeline: extract → PII → save file → save candidate → AI in background."""
     # 1. Extract text (fast, local)
     result = extract(file_bytes, file_name)
@@ -184,7 +184,7 @@ async def process_cv(file_bytes: bytes, file_name: str, db: AsyncSession, file_h
     else:
         candidate = Candidate(
             id=candidate_id,
-            job_id=None,
+            job_id=job_id,
             structured_data={"name": file_name, "status": "processing"},
             embedding=None,
             cv_file_path=stored_filename,
@@ -212,7 +212,7 @@ async def process_cv(file_bytes: bytes, file_name: str, db: AsyncSession, file_h
     }
 
 
-async def process_cv_sync(file_bytes: bytes, file_name: str, db: AsyncSession) -> dict:
+async def process_cv_sync(file_bytes: bytes, file_name: str, db: AsyncSession, job_id=None) -> dict:
     """Synchronous pipeline (waits for AI). Used when caller needs immediate result."""
     # 1. Extract text
     result = extract(file_bytes, file_name)
@@ -231,7 +231,7 @@ async def process_cv_sync(file_bytes: bytes, file_name: str, db: AsyncSession) -
 
     # 6. Save candidate
     candidate = Candidate(
-        job_id=None,
+        job_id=job_id,
         structured_data=structured,
         embedding=embedding,
         source_app_version="web",

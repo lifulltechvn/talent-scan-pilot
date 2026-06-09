@@ -1,6 +1,7 @@
 """CV Upload router: POST /api/v1/cv/upload + batch status + duplicate check."""
 import hashlib
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import select, text
@@ -20,6 +21,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 @router.post("/upload")
 async def upload_cv(
     file: UploadFile = File(...),
+    job_id: Optional[str] = Form(None),
     force: str = Form("false"),
     update_candidate_id: str = Form(None),
     db: AsyncSession = Depends(get_db),
@@ -56,9 +58,9 @@ async def upload_cv(
 
     # Update existing candidate
     if update_candidate_id:
-        return await process_cv(content, file.filename or "unknown", db, file_hash=file_hash, update_id=update_candidate_id)
+        return await process_cv(content, file.filename or "unknown", db, file_hash=file_hash, update_id=update_candidate_id, job_id=uuid.UUID(job_id) if job_id else None)
 
-    return await process_cv(content, file.filename or "unknown", db, file_hash=file_hash)
+    return await process_cv(content, file.filename or "unknown", db, file_hash=file_hash, job_id=uuid.UUID(job_id) if job_id else None)
 
 
 @router.post("/check-duplicate")
