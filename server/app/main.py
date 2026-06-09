@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.routers import ai_usage, app_version, auth, candidates, cv_batch, cv_upload, dashboard, email_templates, interviews, jobs, master_data, outreach, quiz, schedule, scoring, timeline
+from app.routers import ai_usage, auth, candidates, cv_batch, cv_upload, dashboard, email_templates, interviews, jobs, master_data, outreach, quiz, schedule, scoring, timeline
 from app.scheduler import start_scheduler
 
 
@@ -14,7 +14,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="TalentScan API", version="0.1.0", lifespan=lifespan)
 app.include_router(auth.router, prefix="/api/v1")
-app.include_router(app_version.router, prefix="/api/v1")
 app.include_router(jobs.router, prefix="/api/v1")
 app.include_router(candidates.router, prefix="/api/v1")
 app.include_router(cv_upload.router, prefix="/api/v1")
