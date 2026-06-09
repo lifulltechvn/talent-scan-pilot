@@ -35,6 +35,8 @@ class JobCreate(BaseModel):
     title: str
     description: str
     required_skills: list[str] = []
+    required_years: Optional[int] = None
+    required_education: Optional[str] = None
     salary_range: Optional[str] = None
     location: Optional[str] = None
     deadline: Optional[datetime] = None
@@ -44,6 +46,8 @@ class JobUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     required_skills: Optional[list[str]] = None
+    required_years: Optional[int] = None
+    required_education: Optional[str] = None
     salary_range: Optional[str] = None
     location: Optional[str] = None
     deadline: Optional[datetime] = None
@@ -54,6 +58,8 @@ class JobRead(BaseModel):
     title: str
     description: str
     required_skills: list
+    required_years: Optional[int]
+    required_education: Optional[str]
     salary_range: Optional[str]
     location: Optional[str]
     deadline: Optional[datetime]

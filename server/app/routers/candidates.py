@@ -4,13 +4,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from fastapi.responses import FileResponse
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import Candidate, Quiz, User
 from app.schemas import CandidateCreate, CandidateRead
+from app.services.cv_upload import CV_UPLOAD_DIR
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
 
@@ -169,15 +171,95 @@ async def get_candidate(
     )
     quiz = quiz_q.scalar_one_or_none()
 
+    # Count matched jobs from Smart Pool
+    from sqlalchemy import text as sa_text
+    mc = await db.execute(sa_text("SELECT COUNT(*) FROM job_candidates WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    matched_jobs_count = mc.scalar() or 0
+
     return {
         "id": candidate.id, "job_id": candidate.job_id,
         "structured_data": candidate.structured_data,
         "status": candidate.status, "match_score": candidate.match_score,
+        "cv_file_path": candidate.cv_file_path,
         "source_app_version": candidate.source_app_version,
         "scanned_at": candidate.scanned_at, "created_at": candidate.created_at,
         "quiz_status": quiz.status if quiz else None,
         "quiz_reason": quiz.reason if quiz else None,
+        "matched_jobs_count": matched_jobs_count,
     }
+
+
+@router.get("/{candidate_id}/matched-jobs")
+async def get_candidate_matched_jobs(
+    candidate_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return all jobs this candidate matches, ordered by combined_score."""
+    from sqlalchemy import text
+
+    rows = await db.execute(text("""
+        SELECT jc.job_id, jc.similarity_score, jc.skill_score, jc.combined_score,
+               jc.status, jc.final_score, jc.classification, jc.matched_at, jc.details,
+               j.title, j.required_skills, j.location
+        FROM job_candidates jc
+        JOIN jobs j ON j.id = jc.job_id
+        WHERE jc.candidate_id = :cid
+        ORDER BY jc.combined_score DESC
+    """), {"cid": str(candidate_id)})
+
+    # Also fetch candidate skills for matched_skills computation
+    cand = await db.execute(text("SELECT structured_data FROM candidates WHERE id = :cid"), {"cid": str(candidate_id)})
+    cand_row = cand.mappings().first()
+    cand_skills = [s.lower() for s in (cand_row["structured_data"].get("skills", []) if cand_row else [])]
+
+    results = []
+    for r in rows.mappings().all():
+        req_skills = r["required_skills"] or []
+        matched = [s for s in req_skills if s.lower() in cand_skills]
+        results.append({
+            "job_id": str(r["job_id"]),
+            "title": r["title"],
+            "location": r["location"],
+            "required_skills": req_skills,
+            "matched_skills": matched,
+            "missing_skills": [s for s in req_skills if s.lower() not in cand_skills],
+            "similarity_score": round(float(r["similarity_score"]), 4),
+            "skill_score": round(float(r["skill_score"]), 4),
+            "combined_score": round(float(r["combined_score"]), 4),
+            "status": r["status"],
+            "final_score": r["final_score"],
+            "classification": r["classification"],
+            "details": r["details"],
+            "matched_at": str(r["matched_at"]),
+        })
+    return results
+
+
+@router.get("/{candidate_id}/cv")
+async def download_candidate_cv(
+    candidate_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Download the original CV file for a candidate."""
+    result = await db.execute(select(Candidate).where(Candidate.id == candidate_id))
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    if not candidate.cv_file_path:
+        raise HTTPException(status_code=404, detail="CV file not available")
+
+    import os
+    file_path = os.path.join(CV_UPLOAD_DIR, candidate.cv_file_path)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="CV file not found on disk")
+
+    # Determine original filename from structured_data or use stored name
+    original_name = candidate.structured_data.get("name", candidate.cv_file_path) if candidate.status == "processing" else None
+    filename = original_name if original_name and "." in original_name else candidate.cv_file_path
+
+    return FileResponse(file_path, filename=filename, media_type="application/octet-stream")
 
 
 @router.patch("/{candidate_id}/status")

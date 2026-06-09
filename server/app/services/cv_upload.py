@@ -3,6 +3,7 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import re
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -18,6 +19,8 @@ from app.pii_filter import filter_pii
 logger = logging.getLogger(__name__)
 
 _executor = ThreadPoolExecutor(max_workers=4)
+
+CV_UPLOAD_DIR = "/app/uploads/cv"
 
 
 def _clean_text(text: str) -> str:
@@ -134,33 +137,66 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             loop.run_until_complete(_update())
             loop.close()
             logger.info(f"Background AI done for candidate {candidate_id[:8]}")
+
+            # Smart Pool: auto-match candidate to all jobs (separate thread + session)
+            if embedding:
+                from app.services.smart_pool import background_match_candidate
+                background_match_candidate(candidate_id)
         except Exception as e:
             logger.error(f"Background AI failed for {candidate_id[:8]}: {e}")
 
     threading.Thread(target=_run, daemon=True).start()
 
 
-async def process_cv(file_bytes: bytes, file_name: str, job_id: uuid.UUID | None, db: AsyncSession) -> dict:
-    """Fast pipeline: extract → PII → save → AI in background."""
+async def process_cv(file_bytes: bytes, file_name: str, db: AsyncSession, file_hash: str = "", update_id: str | None = None) -> dict:
+    """Fast pipeline: extract → PII → save file → save candidate → AI in background."""
     # 1. Extract text (fast, local)
     result = extract(file_bytes, file_name)
 
     # 2. PII filter (fast, regex)
     masked_text, pii_data = filter_pii(result.text)
 
-    # 3. Save candidate immediately (status=processing)
-    candidate = Candidate(
-        job_id=job_id,
-        structured_data={"name": file_name, "status": "processing"},
-        embedding=None,
-        source_app_version="web",
-        status="processing",
-    )
-    db.add(candidate)
-    await db.commit()
-    await db.refresh(candidate)
+    # 3. Save CV file to disk
+    if update_id:
+        candidate_id = uuid.UUID(update_id)
+    else:
+        candidate_id = uuid.uuid4()
+    ext = os.path.splitext(file_name)[1].lower()
+    stored_filename = f"{candidate_id}{ext}"
+    os.makedirs(CV_UPLOAD_DIR, exist_ok=True)
+    file_path = os.path.join(CV_UPLOAD_DIR, stored_filename)
+    with open(file_path, "wb") as f:
+        f.write(file_bytes)
 
-    # 4. Kick off AI parsing in background
+    # 4. Save or update candidate
+    if update_id:
+        existing = await db.execute(select(Candidate).where(Candidate.id == candidate_id))
+        candidate = existing.scalar_one_or_none()
+        if candidate:
+            candidate.cv_file_path = stored_filename
+            candidate.cv_hash = file_hash
+            candidate.status = "processing"
+            candidate.structured_data = {"name": candidate.structured_data.get("name", file_name), "status": "processing"}
+            await db.commit()
+            await db.refresh(candidate)
+        else:
+            return {"error": "Candidate not found"}
+    else:
+        candidate = Candidate(
+            id=candidate_id,
+            job_id=None,
+            structured_data={"name": file_name, "status": "processing"},
+            embedding=None,
+            cv_file_path=stored_filename,
+            cv_hash=file_hash,
+            source_app_version="web",
+            status="processing",
+        )
+        db.add(candidate)
+        await db.commit()
+        await db.refresh(candidate)
+
+    # 5. Kick off AI parsing in background
     _background_ai_task(
         str(candidate.id), masked_text,
         result.is_scanned, file_bytes if result.is_scanned else None,
@@ -176,7 +212,7 @@ async def process_cv(file_bytes: bytes, file_name: str, job_id: uuid.UUID | None
     }
 
 
-async def process_cv_sync(file_bytes: bytes, file_name: str, job_id: uuid.UUID | None, db: AsyncSession) -> dict:
+async def process_cv_sync(file_bytes: bytes, file_name: str, db: AsyncSession) -> dict:
     """Synchronous pipeline (waits for AI). Used when caller needs immediate result."""
     # 1. Extract text
     result = extract(file_bytes, file_name)
@@ -195,7 +231,7 @@ async def process_cv_sync(file_bytes: bytes, file_name: str, job_id: uuid.UUID |
 
     # 6. Save candidate
     candidate = Candidate(
-        job_id=job_id,
+        job_id=None,
         structured_data=structured,
         embedding=embedding,
         source_app_version="web",

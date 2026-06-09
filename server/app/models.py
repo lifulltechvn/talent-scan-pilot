@@ -38,6 +38,8 @@ class Job(Base):
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str] = mapped_column(Text)
     required_skills: Mapped[list] = mapped_column(JSONB, default=list)
+    required_years: Mapped[int | None] = mapped_column(nullable=True)
+    required_education: Mapped[str | None] = mapped_column(String(50), nullable=True)
     salary_range: Mapped[str | None] = mapped_column(String(255))
     location: Mapped[str | None] = mapped_column(String(255))
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -58,6 +60,8 @@ class Candidate(Base):
     embedding = mapped_column(Vector(1024), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="new")  # new / reviewed / approved / rejected / talent_pool
     match_score: Mapped[float | None] = mapped_column(Float)
+    cv_file_path: Mapped[str | None] = mapped_column(String(500))
+    cv_hash: Mapped[str | None] = mapped_column(String(32), nullable=True)
     source_app_version: Mapped[str | None] = mapped_column(String(20))
     scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -219,6 +223,25 @@ class InterviewFeedback(Base):
 
     candidate = relationship("Candidate")
     job = relationship("Job")
+
+
+class JobCandidate(Base):
+    __tablename__ = "job_candidates"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    candidate_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("candidates.id", ondelete="CASCADE"), index=True)
+    similarity_score: Mapped[float] = mapped_column(Float, default=0.0)
+    skill_score: Mapped[float] = mapped_column(Float, default=0.0)
+    combined_score: Mapped[float] = mapped_column(Float, default=0.0)
+    status: Mapped[str] = mapped_column(String(20), default="suggested")  # suggested/assigned/scored/approved/rejected
+    final_score: Mapped[float | None] = mapped_column(Float)
+    classification: Mapped[str | None] = mapped_column(String(20))
+    details: Mapped[dict | None] = mapped_column(JSONB)
+    matched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    job = relationship("Job")
+    candidate = relationship("Candidate")
 
 
 class EmailTemplate(Base):

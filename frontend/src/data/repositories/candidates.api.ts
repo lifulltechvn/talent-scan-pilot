@@ -18,6 +18,7 @@ function mapCandidate(raw: any, score?: Score | null): Candidate {
     },
     status: raw.status,
     matchScore: raw.match_score,
+    cvFilePath: raw.cv_file_path ?? null,
     score: score ?? null,
     sourceAppVersion: raw.source_app_version,
     scannedAt: raw.scanned_at ?? raw.created_at,

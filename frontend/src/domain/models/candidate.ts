@@ -43,6 +43,7 @@ export interface Candidate {
   structuredData: CandidateStructuredData;
   status: CandidateStatus;
   matchScore: number | null;
+  cvFilePath: string | null;
   score: Score | null;
   sourceAppVersion: string | null;
   scannedAt: string;

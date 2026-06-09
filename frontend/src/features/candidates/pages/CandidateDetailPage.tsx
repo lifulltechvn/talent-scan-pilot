@@ -1,17 +1,27 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock } from 'lucide-react';
-import { useCandidate } from '../hooks/useCandidates';
+import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle } from 'lucide-react';
+import { useCandidate, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { CandidateTimeline } from '../components/CandidateTimeline';
 import { useI18n } from '@/shared/i18n';
+import { apiClient } from '@/data/api/client';
 
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: candidate, isLoading } = useCandidate(id!);
+  const updateStatus = useUpdateCandidateStatus();
   const { t } = useI18n();
+
+  useEffect(() => {
+    if (candidate && candidate.status === 'new') {
+      updateStatus.mutate({ id: candidate.id, status: 'reviewed' });
+    }
+  }, [candidate?.id]);
+
   if (isLoading) return <LoadingSkeleton rows={3} />;
   if (!candidate) return <EmptyState icon={Users} title="Candidate not found" description="This candidate may have been removed or the link is invalid" action={{ label: 'Back to Candidates', onClick: () => window.history.back() }} />;
 
@@ -38,25 +48,38 @@ export function CandidateDetailPage() {
               <p className="text-[13px] text-text-tertiary">{d.totalYearsExperience}y experience · {d.languages.map(l => `${l.language} (${l.level})`).join(', ')}</p>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Score Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-        {[
-          { label: 'Final Score', value: score?.finalScore ?? 0, sub: 'Combined' },
-          { label: 'Rule Score', value: score?.ruleScore ?? 0, sub: '70% weight' },
-          { label: 'LLM Score', value: score?.llmScore ?? 0, sub: '30% weight' },
-        ].map(s => (
-          <div key={s.label} className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[12px] text-text-tertiary">{s.label}</span>
-              <span className="text-[10px] text-text-muted">{s.sub}</span>
-            </div>
-            <div className="text-2xl font-bold text-text-primary mb-1">{s.value}</div>
-            <ScoreBar score={s.value} />
+          <div className="flex items-center gap-2">
+            {candidate.status !== 'approved' && candidate.status !== 'rejected' && (
+              <>
+                <button onClick={() => updateStatus.mutate({ id: candidate.id, status: 'approved' })} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors">
+                  <CheckCircle size={14} /> Approve
+                </button>
+                <button onClick={() => updateStatus.mutate({ id: candidate.id, status: 'rejected' })} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors">
+                  <XCircle size={14} /> Reject
+                </button>
+              </>
+            )}
+            {candidate.status === 'approved' && <span className="text-[13px] font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg">✓ Approved</span>}
+            {candidate.status === 'rejected' && <span className="text-[13px] font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg">✗ Rejected</span>}
+            {candidate.cvFilePath && (
+              <button onClick={() => {
+                const token = localStorage.getItem('token');
+                fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
+                  .then(r => r.blob())
+                  .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = candidate.cvFilePath!;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  });
+              }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors cursor-pointer">
+                <Download size={14} /> Download CV
+              </button>
+            )}
           </div>
-        ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -101,7 +124,7 @@ export function CandidateDetailPage() {
                 {d.experience.map((exp, i) => (
                   <div key={i} className="ml-5 py-1.5 border-l-2 border-border-subtle pl-3 mb-1">
                     <div className="text-[13px] font-medium text-text-primary">{exp.role}</div>
-                    <div className="text-[12px] text-text-tertiary">{exp.company} · {exp.years}y</div>
+                    <div className="text-[12px] text-text-tertiary">{exp.company}{exp.years ? ` · ${exp.years}y` : exp.duration ? ` · ${exp.duration}` : ''}</div>
                   </div>
                 ))}
               </div>
@@ -114,7 +137,7 @@ export function CandidateDetailPage() {
                 </div>
                 {d.education.map((edu, i) => (
                   <div key={i} className="ml-5 py-1">
-                    <div className="text-[13px] text-text-primary">{edu.degree} in {edu.major}</div>
+                    <div className="text-[13px] text-text-primary">{edu.degree}{edu.major ? ` in ${edu.major}` : ''}</div>
                     <div className="text-[12px] text-text-tertiary">{edu.school} · {edu.year}</div>
                   </div>
                 ))}
@@ -138,6 +161,9 @@ export function CandidateDetailPage() {
         </div>
       </div>
 
+      {/* Matched Jobs (Smart Pool) */}
+      <MatchedJobsSection candidateId={id!} />
+
       {/* Timeline */}
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mt-5">
         <div className="flex items-center gap-2 mb-4">
@@ -145,6 +171,175 @@ export function CandidateDetailPage() {
           <h2 className="text-sm font-medium text-text-primary">Timeline</h2>
         </div>
         <CandidateTimeline candidateId={id!} />
+      </div>
+    </div>
+  );
+}
+
+function MatchedJobsSection({ candidateId }: { candidateId: string }) {
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiClient.get(`/candidates/${candidateId}/matched-jobs`)
+      .then(({ data }) => setJobs(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [candidateId]);
+
+  const handleAssign = async (jobId: string) => {
+    setAssigning(jobId);
+    try {
+      await apiClient.post(`/jobs/${jobId}/assign/${candidateId}`);
+      const { data } = await apiClient.get(`/candidates/${candidateId}/matched-jobs`);
+      setJobs(data);
+    } catch { /* ignore */ }
+    setAssigning(null);
+  };
+
+  if (loading) return null;
+  if (jobs.length === 0) return null;
+
+  return (
+    <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mt-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Briefcase size={15} className="text-accent" />
+        <h2 className="text-sm font-medium text-text-primary">Matched Jobs ({jobs.length})</h2>
+      </div>
+      <div className="space-y-2">
+        {jobs.map((j) => {
+          const isScored = j.status === 'scored' && j.final_score != null;
+          const mainScore = isScored ? `${j.final_score}/100` : `${Math.round(j.combined_score * 100)}%`;
+          const mainLabel = isScored ? 'Final Score' : 'Match Score';
+          return (
+            <div key={j.job_id} className="rounded-lg border border-border-subtle overflow-hidden">
+              <div
+                className="flex items-center justify-between p-3 hover:bg-accent/5 transition-colors cursor-pointer"
+                onClick={() => setExpanded(expanded === j.job_id ? null : j.job_id)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-text-primary">{j.title || j.job_title}</span>
+                  <span className="text-xs text-text-muted">{mainLabel}: {mainScore}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {j.classification && <Badge variant={j.classification}>{j.classification}</Badge>}
+                  {!isScored && <Badge variant="neutral">suggested</Badge>}
+                </div>
+              </div>
+              {expanded === j.job_id && (
+                <div className="px-3 pb-3 border-t border-border-subtle pt-3 space-y-3">
+                  {/* Score breakdown */}
+                  {isScored ? (
+                    <div className="space-y-2">
+                      {/* Final */}
+                      <div className="flex items-center justify-between p-2.5 bg-accent/5 rounded-lg border border-accent/20">
+                        <div>
+                          <div className="text-[12px] font-medium text-accent">Điểm tổng hợp</div>
+                          <div className="text-[10px] text-text-muted">= Kỹ năng×30% + Kinh nghiệm×20% + Học vấn×15% + Ngôn ngữ×10% + AI×30%</div>
+                        </div>
+                        <div className="text-xl font-bold text-accent">{j.final_score}/100</div>
+                      </div>
+                      {/* Skills */}
+                      <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
+                        <div>
+                          <div className="text-[12px] font-medium text-text-primary">Kỹ năng phù hợp</div>
+                          <div className="text-[10px] text-text-muted">Ứng viên có bao nhiêu skills mà job yêu cầu</div>
+                        </div>
+                        <div className="text-sm font-bold text-text-primary">{j.details?.rule_scoring?.skills?.score ?? '—'}/100</div>
+                      </div>
+                      {/* Experience */}
+                      <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
+                        <div>
+                          <div className="text-[12px] font-medium text-text-primary">Kinh nghiệm</div>
+                          <div className="text-[10px] text-text-muted">{j.details?.rule_scoring?.experience?.note || 'So sánh số năm kinh nghiệm với yêu cầu job'}</div>
+                        </div>
+                        <div className="text-sm font-bold text-text-primary">{j.details?.rule_scoring?.experience?.score ?? '—'}/100</div>
+                      </div>
+                      {/* Education */}
+                      <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
+                        <div>
+                          <div className="text-[12px] font-medium text-text-primary">Học vấn</div>
+                          <div className="text-[10px] text-text-muted">{j.details?.rule_scoring?.education?.note || 'So sánh bằng cấp với yêu cầu job'}</div>
+                        </div>
+                        <div className="text-sm font-bold text-text-primary">{j.details?.rule_scoring?.education?.score ?? '—'}/100</div>
+                      </div>
+                      {/* LLM */}
+                      <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
+                        <div>
+                          <div className="text-[12px] font-medium text-text-primary">Đánh giá AI</div>
+                          <div className="text-[10px] text-text-muted">AI phân tích tổng quan mức độ phù hợp của ứng viên</div>
+                        </div>
+                        <div className="text-sm font-bold text-text-primary">{j.details?.llm_score ?? '—'}/100</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
+                        <div>
+                          <div className="text-[12px] font-medium text-text-primary">Kỹ năng khớp</div>
+                          <div className="text-[10px] text-text-muted">Tỷ lệ skills ứng viên trùng với yêu cầu job</div>
+                        </div>
+                        <div className="text-sm font-bold text-text-primary">{Math.round(j.skill_score * 100)}%</div>
+                      </div>
+                      <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
+                        <div>
+                          <div className="text-[12px] font-medium text-text-primary">Độ tương đồng hồ sơ</div>
+                          <div className="text-[10px] text-text-muted">So sánh nội dung CV với mô tả job bằng AI embedding</div>
+                        </div>
+                        <div className="text-sm font-bold text-text-primary">{Math.round(j.similarity_score * 100)}%</div>
+                      </div>
+                    </div>
+                  )}
+                  {/* Matched skills */}
+                  {j.matched_skills?.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-medium text-emerald-700 uppercase">Skills phù hợp</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {j.matched_skills.map((s: string) => (
+                          <span key={s} className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Missing skills */}
+                  {j.missing_skills?.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-medium text-red-600 uppercase">Skills còn thiếu</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {j.missing_skills.map((s: string) => (
+                          <span key={s} className="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* AI summary */}
+                  {j.details?.llm_summary && (
+                    <div className="p-2.5 bg-blue-50 rounded-lg border border-blue-100">
+                      <span className="text-[10px] font-medium text-blue-700 uppercase">Nhận xét từ AI</span>
+                      <p className="text-[11px] text-blue-800 mt-0.5">{j.details.llm_summary}</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mt-1">
+                    {!isScored && (
+                      <button
+                        onClick={() => handleAssign(j.job_id)}
+                        disabled={assigning === j.job_id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                      >
+                        {assigning === j.job_id ? 'Đang chấm điểm...' : 'Assign & Chấm điểm'}
+                      </button>
+                    )}
+                    <Link to={`/jobs/${j.job_id}`} className="text-[11px] text-accent hover:underline">
+                      Xem Job →
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

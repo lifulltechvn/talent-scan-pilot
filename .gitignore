@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 *.egg-info/
 node_modules/
+dist/
 
 # Desktop app build artifacts
 app/dist/
@@ -25,6 +26,10 @@ server/releases/*.zip
 server/releases/*.dmg
 server/releases/*.exe
 
+# Uploads
+server/uploads/
+
 # Misc
 version_report.md
 bin/
+.codegraph/

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit, Trash2, Briefcase, Mail, X, Send, CheckCircle, XCircle, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit, Trash2, Briefcase, Mail, X, Send, CheckCircle, XCircle, ClipboardCheck, Sparkles, Loader2, UserPlus } from 'lucide-react';
 import { useJob, useUpdateJob, useDeleteJob } from '../hooks/useJobs';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -25,6 +25,40 @@ export function JobDetailPage() {
   const updateJob = useUpdateJob();
   const deleteJob = useDeleteJob();
   const [actionModal, setActionModal] = useState<{ candidateId: string; action: 'approved' | 'rejected'; sendEmail?: boolean } | null>(null);
+  const [suggestions, setSuggestions] = useState<any[] | null>(null);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [assigning, setAssigning] = useState<string | null>(null);
+  const [scoreDetail, setScoreDetail] = useState<any | null>(null);
+  const [scoreDetailLoading, setScoreDetailLoading] = useState(false);
+
+  const handleSuggest = async () => {
+    setSuggestLoading(true);
+    try {
+      const { data } = await apiClient.get(`/jobs/${id}/suggest`);
+      setSuggestions(data);
+    } catch { /* ignore */ }
+    setSuggestLoading(false);
+  };
+
+  const handleAssign = async (candidateId: string) => {
+    setAssigning(candidateId);
+    try {
+      await apiClient.post(`/jobs/${id}/assign/${candidateId}`);
+      setSuggestions(prev => prev?.filter(s => s.id !== candidateId) ?? null);
+      // Refresh candidates list to show newly assigned candidate
+      window.location.reload();
+    } catch { /* ignore */ }
+    setAssigning(null);
+  };
+
+  const handleViewScore = async (candidateId: string) => {
+    setScoreDetailLoading(true);
+    try {
+      const { data } = await apiClient.get(`/jobs/${id}/candidates/${candidateId}/score-detail`);
+      setScoreDetail(data);
+    } catch { setScoreDetail(null); }
+    setScoreDetailLoading(false);
+  };
 
   if (loadingJ || loadingC) return <LoadingSkeleton rows={3} />;
   if (!job) return <EmptyState icon={Briefcase} title="Job not found" description="This job may have been removed or the link is invalid" action={{ label: 'Back to Jobs', onClick: () => window.history.back() }} />;
@@ -58,6 +92,9 @@ export function JobDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <button onClick={handleSuggest} disabled={suggestLoading} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50">
+              {suggestLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Suggest
+            </button>
             <button onClick={() => setOutreachModal(true)} className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">
               <Mail size={14} /> Outreach
             </button>
@@ -103,6 +140,53 @@ export function JobDetailPage() {
         </div>
       </div>
 
+      {/* Suggestions */}
+      {suggestions && suggestions.length > 0 && (
+        <div className="bg-bg-panel border border-emerald-200 rounded-xl overflow-hidden mb-5">
+          <div className="px-4 py-3 border-b border-emerald-100 bg-emerald-50 flex items-center justify-between">
+            <h2 className="text-sm font-medium text-emerald-800 flex items-center gap-2">
+              <Sparkles size={14} /> Suggested Candidates ({suggestions.length})
+            </h2>
+            <button onClick={() => setSuggestions(null)} className="text-text-muted hover:text-text-primary text-xs">Dismiss</button>
+          </div>
+          <div className="divide-y divide-border-subtle">
+            {suggestions.map((s, i) => (
+              <div key={s.id} className="px-4 py-3 flex items-center gap-3">
+                <span className="text-xs text-text-muted w-5">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-text-primary truncate">{s.name}</div>
+                  <div className="text-[11px] text-text-tertiary mt-0.5">
+                    {s.experience_years}y exp · Score: {Math.round(s.combined_score * 100)}%
+                    {s.matched_skills.length > 0 && <span className="text-emerald-600"> · Match: {s.matched_skills.join(', ')}</span>}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1 max-w-[200px]">
+                  {s.skills.slice(0, 4).map((sk: string) => (
+                    <span key={sk} className={`text-[10px] px-1.5 py-0.5 rounded ${s.matched_skills.includes(sk.toLowerCase()) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{sk}</span>
+                  ))}
+                </div>
+                {s.status === 'suggested' ? (
+                  <button
+                    onClick={() => handleAssign(s.id)}
+                    disabled={assigning === s.id}
+                    className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50 shrink-0"
+                  >
+                    {assigning === s.id ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} Assign
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { updateStatus.mutate({ id: s.id, status: 'approved' }); setSuggestions(prev => prev?.filter(x => x.id !== s.id) ?? null); }}
+                    className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shrink-0"
+                  >
+                    <CheckCircle size={12} /> Apply
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Candidates Table */}
       <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-border-subtle">
@@ -133,18 +217,21 @@ export function JobDetailPage() {
                 <td className="px-4 py-3"><Badge variant={c.score?.classification ?? 'neutral'}>{c.score?.classification ?? '—'}</Badge></td>
                 <td className="px-4 py-3"><span className="text-[12px] text-text-tertiary capitalize">{c.status}</span></td>
                 <td className="px-4 py-3 text-right">
-                  {c.status === 'new' ? (
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => setActionModal({ candidateId: c.id, action: 'approved' })} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Approve">
-                        <CheckCircle size={15} />
-                      </button>
-                      <button onClick={() => setActionModal({ candidateId: c.id, action: 'rejected' })} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Reject">
-                        <XCircle size={15} />
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-[11px] text-text-muted">—</span>
-                  )}
+                  <div className="flex items-center justify-end gap-1">
+                    <button onClick={() => handleViewScore(c.id)} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title="View Score Detail">
+                      <Sparkles size={15} />
+                    </button>
+                    {c.status === 'new' && (
+                      <>
+                        <button onClick={() => setActionModal({ candidateId: c.id, action: 'approved' })} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Approve">
+                          <CheckCircle size={15} />
+                        </button>
+                        <button onClick={() => setActionModal({ candidateId: c.id, action: 'rejected' })} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Reject">
+                          <XCircle size={15} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -200,6 +287,129 @@ export function JobDetailPage() {
             setActionModal(null);
           }}
         />
+      )}
+
+      {/* Score Detail Modal */}
+      {(scoreDetail || scoreDetailLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setScoreDetail(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-white" />
+                <h2 className="text-[15px] font-semibold text-white">Score Detail — {scoreDetail?.job_title ?? '...'}</h2>
+              </div>
+              <button onClick={() => setScoreDetail(null)} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
+            </div>
+            {scoreDetailLoading ? (
+              <div className="p-8 text-center text-[13px] text-text-muted">Loading...</div>
+            ) : scoreDetail ? (
+              <div className="p-5 space-y-4">
+                {/* Main score */}
+                <div className="text-center p-4 bg-accent/5 rounded-xl border border-accent/20">
+                  <div className="text-[11px] text-text-muted uppercase tracking-wider">
+                    {scoreDetail.final_score != null ? 'Điểm tổng hợp' : 'Điểm khớp sơ bộ'}
+                  </div>
+                  <div className="text-3xl font-bold text-accent mt-1">
+                    {scoreDetail.final_score != null ? `${scoreDetail.final_score}/100` : `${Math.round(scoreDetail.combined_score * 100)}%`}
+                  </div>
+                  {scoreDetail.classification && <Badge variant={scoreDetail.classification}>{scoreDetail.classification}</Badge>}
+                  {!scoreDetail.final_score && <span className="text-[11px] text-text-muted block mt-1">Ấn Assign để chạy chấm điểm chi tiết</span>}
+                </div>
+
+                {/* Breakdown - only when scored */}
+                {scoreDetail.final_score != null && scoreDetail.details && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
+                      <div>
+                        <div className="text-[12px] font-medium text-text-primary">Kỹ năng phù hợp</div>
+                        <div className="text-[10px] text-text-muted">Ứng viên có bao nhiêu skills mà job yêu cầu</div>
+                      </div>
+                      <div className="text-sm font-bold text-text-primary">{scoreDetail.details.rule_scoring?.skills?.score ?? '—'}/100</div>
+                    </div>
+                    <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
+                      <div>
+                        <div className="text-[12px] font-medium text-text-primary">Kinh nghiệm</div>
+                        <div className="text-[10px] text-text-muted">{scoreDetail.details.rule_scoring?.experience?.note || 'So sánh số năm kinh nghiệm với yêu cầu'}</div>
+                      </div>
+                      <div className="text-sm font-bold text-text-primary">{scoreDetail.details.rule_scoring?.experience?.score ?? '—'}/100</div>
+                    </div>
+                    <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
+                      <div>
+                        <div className="text-[12px] font-medium text-text-primary">Học vấn</div>
+                        <div className="text-[10px] text-text-muted">{scoreDetail.details.rule_scoring?.education?.note || 'So sánh bằng cấp với yêu cầu'}</div>
+                      </div>
+                      <div className="text-sm font-bold text-text-primary">{scoreDetail.details.rule_scoring?.education?.score ?? '—'}/100</div>
+                    </div>
+                    <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
+                      <div>
+                        <div className="text-[12px] font-medium text-text-primary">Đánh giá AI</div>
+                        <div className="text-[10px] text-text-muted">AI phân tích tổng quan mức độ phù hợp</div>
+                      </div>
+                      <div className="text-sm font-bold text-text-primary">{scoreDetail.details.llm_score ?? '—'}/100</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pre-scoring breakdown */}
+                {scoreDetail.final_score == null && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
+                      <div>
+                        <div className="text-[12px] font-medium text-text-primary">Kỹ năng khớp</div>
+                        <div className="text-[10px] text-text-muted">Tỷ lệ skills ứng viên trùng với yêu cầu job</div>
+                      </div>
+                      <div className="text-sm font-bold text-text-primary">{Math.round(scoreDetail.skill_score * 100)}%</div>
+                    </div>
+                    <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
+                      <div>
+                        <div className="text-[12px] font-medium text-text-primary">Độ tương đồng hồ sơ</div>
+                        <div className="text-[10px] text-text-muted">So sánh nội dung CV với mô tả job bằng AI embedding</div>
+                      </div>
+                      <div className="text-sm font-bold text-text-primary">{Math.round(scoreDetail.similarity_score * 100)}%</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Matched skills */}
+                <div>
+                  <span className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">Skills phù hợp ({scoreDetail.matched_skills.length}/{scoreDetail.required_skills.length})</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {scoreDetail.matched_skills.map((s: string) => (
+                      <span key={s} className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md font-medium">{s}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Missing skills */}
+                {scoreDetail.missing_skills.length > 0 && (
+                  <div>
+                    <span className="text-[11px] font-medium text-red-600 uppercase tracking-wider">Skills còn thiếu ({scoreDetail.missing_skills.length})</span>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {scoreDetail.missing_skills.map((s: string) => (
+                        <span key={s} className="text-[11px] bg-red-50 text-red-600 px-2 py-0.5 rounded-md font-medium">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* AI Assessment */}
+                {scoreDetail.details?.llm_summary && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <span className="text-[10px] font-medium text-blue-700 uppercase">Nhận xét từ AI</span>
+                    <p className="text-[12px] text-blue-800 mt-1">{scoreDetail.details.llm_summary}</p>
+                  </div>
+                )}
+
+                {/* Candidate info */}
+                {scoreDetail.candidate_experience_years && (
+                  <div className="text-[11px] text-text-tertiary border-t border-border-subtle pt-3">
+                    Kinh nghiệm ứng viên: {scoreDetail.candidate_experience_years} năm
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
       )}
     </div>
   );

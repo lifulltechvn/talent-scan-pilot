@@ -3,6 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { LoadingPage } from '@/shared/components/ui/LoadingSkeleton';
+import { UploadProgressWidget } from '@/shared/components/ui/UploadProgressWidget';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export function AppLayout() {
@@ -27,6 +28,7 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <UploadProgressWidget />
     </div>
   );
 }
