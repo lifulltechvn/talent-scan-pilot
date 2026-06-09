@@ -1,229 +1,229 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { Users, Briefcase, Trophy, TrendingUp, ArrowUpRight, Clock } from 'lucide-react';
-import { useCandidates } from '@/features/candidates/hooks/useCandidates';
-import { useJobs } from '@/features/jobs/hooks/useJobs';
-import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
+import { Users, Briefcase, Trophy, CalendarCheck, AlertTriangle, Clock, FileText, Plus, ArrowRight } from 'lucide-react';
+import { apiClient } from '@/data/api/client';
 import { Badge } from '@/shared/components/ui/Badge';
-import { ScoreBar } from '@/shared/components/ui/ScoreBar';
-import { ActionItemsPanel } from '../components/ActionItemsPanel';
-import { useI18n } from '@/shared/i18n';
 
-const PIE_COLORS = ['#f59e0b', '#64748b', '#6366f1'];
+interface DashboardData {
+  stats: {
+    total_candidates: number;
+    new_this_week: number;
+    active_jobs: number;
+    gold_count: number;
+    interviews_today: number;
+    need_feedback: number;
+    need_review: number;
+    pending_duplicates: number;
+  };
+  today_interviews: any[];
+  recent_candidates: any[];
+  jobs_overview: any[];
+  activity: any[];
+}
+
+const activityIcons: Record<string, string> = {
+  candidate_added: '📄',
+  interview_created: '📅',
+  job_created: '💼',
+};
 
 export function DashboardPage() {
-  const { data: candidates, isLoading: loadingC } = useCandidates();
-  const { data: jobs, isLoading: loadingJ } = useJobs();
-  const { t } = useI18n();
+  const [data, setData] = useState<DashboardData | null>(null);
 
-  if (loadingC || loadingJ) return <LoadingSkeleton rows={5} />;
+  useEffect(() => {
+    apiClient.get('/dashboard/overview').then(({ data }) => setData(data)).catch(() => {});
+  }, []);
 
-  const gold = candidates?.filter(c => c.score?.classification === 'gold') ?? [];
-  const silver = candidates?.filter(c => c.score?.classification === 'silver') ?? [];
-  const pool = candidates?.filter(c => c.score?.classification === 'talent_pool') ?? [];
+  if (!data) return <div className="p-8 text-center text-text-muted">Loading...</div>;
 
-  const pieData = [
-    { name: 'Gold', value: gold.length },
-    { name: 'Silver', value: silver.length },
-    { name: 'Talent Pool', value: pool.length },
-  ];
-
-  const scoreRanges = [
-    { range: '0-30', count: candidates?.filter(c => (c.score?.finalScore ?? 0) < 30).length ?? 0, fill: '#ef4444' },
-    { range: '30-50', count: candidates?.filter(c => { const s = c.score?.finalScore ?? 0; return s >= 30 && s < 50; }).length ?? 0, fill: '#f59e0b' },
-    { range: '50-80', count: candidates?.filter(c => { const s = c.score?.finalScore ?? 0; return s >= 50 && s < 80; }).length ?? 0, fill: '#3b82f6' },
-    { range: '80-100', count: candidates?.filter(c => (c.score?.finalScore ?? 0) >= 80).length ?? 0, fill: '#10b981' },
-  ];
-
-  // Mock weekly trend data
-  const trendData = [
-    { day: 'Mon', cvs: 3 }, { day: 'Tue', cvs: 5 }, { day: 'Wed', cvs: 2 },
-    { day: 'Thu', cvs: 8 }, { day: 'Fri', cvs: 4 }, { day: 'Sat', cvs: 1 }, { day: 'Sun', cvs: 0 },
-  ];
-
-  const stats = [
-    { label: t('totalCVs'), value: candidates?.length ?? 0, icon: Users, color: 'bg-accent/10 text-accent', trend: '+12%' },
-    { label: t('goldCandidates'), value: gold.length, icon: Trophy, color: 'bg-amber-50 text-amber-600', trend: '+5%' },
-    { label: t('activeJobs'), value: jobs?.length ?? 0, icon: Briefcase, color: 'bg-blue-50 text-blue-600', trend: '+2' },
-    { label: t('avgScore'), value: Math.round((candidates?.reduce((sum, c) => sum + (c.score?.finalScore ?? 0), 0) ?? 0) / (candidates?.length || 1)), icon: TrendingUp, color: 'bg-emerald-50 text-emerald-600', trend: '+3pts' },
-  ];
+  const { stats } = data;
+  const greeting = new Date().getHours() < 12 ? 'Chào buổi sáng' : new Date().getHours() < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">{t('dashboardTitle')}</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{t('dashboardSubtitle')}</p>
+          <h1 className="text-xl font-semibold text-text-primary">{greeting}! 👋</h1>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{new Date().toLocaleDateString('vi', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
-        <div className="flex gap-2">
-          <Link to="/jobs" className="text-[13px] font-medium text-accent hover:text-accent-hover transition-colors flex items-center gap-1">
-            View Jobs <ArrowUpRight size={14} />
-          </Link>
-        </div>
+        <Link to="/cv-upload" className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover">
+          <Plus size={14} /> Upload CV
+        </Link>
       </div>
 
-      {/* Action Items — Today's Tasks */}
-      <ActionItemsPanel />
+      {/* Stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <StatCard icon={FileText} label="CV mới tuần này" value={stats.new_this_week} color="text-blue-600" bg="bg-blue-50" />
+        <StatCard icon={Briefcase} label="Jobs đang tuyển" value={stats.active_jobs} color="text-accent" bg="bg-orange-50" />
+        <StatCard icon={Trophy} label="Ứng viên Gold" value={stats.gold_count} color="text-amber-600" bg="bg-amber-50" />
+        <StatCard icon={CalendarCheck} label="Phỏng vấn hôm nay" value={stats.interviews_today} color="text-emerald-600" bg="bg-emerald-50" />
+        <StatCard icon={AlertTriangle} label="Cần hành động" value={stats.need_review + stats.need_feedback + stats.pending_duplicates} color="text-red-600" bg="bg-red-50" />
+      </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-        {stats.map(s => (
-          <div key={s.label} className="bg-bg-panel border border-border-subtle rounded-xl p-4 hover:border-border-default transition-colors">
-            <div className="flex items-center justify-between mb-3">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.color}`}>
-                <s.icon size={18} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Left column */}
+        <div className="lg:col-span-2 space-y-5">
+          {/* Action items */}
+          {(stats.need_review > 0 || stats.need_feedback > 0 || stats.pending_duplicates > 0) && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <h2 className="text-sm font-medium text-amber-800 mb-3 flex items-center gap-2"><AlertTriangle size={14} /> Cần hành động</h2>
+              <div className="space-y-2">
+                {stats.need_review > 0 && (
+                  <Link to="/candidates" className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-amber-100 hover:border-accent/30">
+                    <span className="text-[13px] text-text-primary">📋 {stats.need_review} ứng viên chưa review</span>
+                    <ArrowRight size={14} className="text-text-muted" />
+                  </Link>
+                )}
+                {stats.need_feedback > 0 && (
+                  <Link to="/interviews" className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-amber-100 hover:border-accent/30">
+                    <span className="text-[13px] text-text-primary">⭐ {stats.need_feedback} phỏng vấn cần feedback</span>
+                    <ArrowRight size={14} className="text-text-muted" />
+                  </Link>
+                )}
+                {stats.pending_duplicates > 0 && (
+                  <Link to="/cv-upload" className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-amber-100 hover:border-accent/30">
+                    <span className="text-[13px] text-text-primary">⚠️ {stats.pending_duplicates} CV trùng cần xử lý</span>
+                    <ArrowRight size={14} className="text-text-muted" />
+                  </Link>
+                )}
               </div>
-              <span className="text-[11px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">{s.trend}</span>
             </div>
-            <div className="text-2xl font-bold text-text-primary">{s.value}</div>
-            <div className="text-[12px] text-text-tertiary mt-0.5">{s.label}</div>
-          </div>
-        ))}
-      </div>
+          )}
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
-        {/* Classification Pie */}
-        <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-          <h2 className="text-sm font-medium text-text-primary mb-1">{t('classification')}</h2>
-          <p className="text-[11px] text-text-muted mb-3">{t('candidateDistribution')}</p>
-          <div className="flex items-center justify-center">
-            <ResponsiveContainer width={180} height={180}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value" strokeWidth={0}>
-                  {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
-                </Pie>
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7ef' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex justify-center gap-4 mt-2">
-            {pieData.map((d, i) => (
-              <div key={d.name} className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i] }} />
-                <span className="text-[11px] text-text-tertiary">{d.name} ({d.value})</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Score Distribution Bar */}
-        <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-          <h2 className="text-sm font-medium text-text-primary mb-1">{t('scoreDistribution')}</h2>
-          <p className="text-[11px] text-text-muted mb-3">{t('candidatesByScoreRange')}</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={scoreRanges} barSize={32}>
-              <XAxis dataKey="range" tick={{ fontSize: 11, fill: '#6b7194' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#6b7194' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7ef' }} />
-              <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                {scoreRanges.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Weekly Trend */}
-        <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-          <h2 className="text-sm font-medium text-text-primary mb-1">{t('weeklyTrend')}</h2>
-          <p className="text-[11px] text-text-muted mb-3">{t('cvsScannedThisWeek')}</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={trendData}>
-              <defs>
-                <linearGradient id="colorCvs" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ED6103" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#ED6103" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#6b7194' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#6b7194' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7ef' }} />
-              <Area type="monotone" dataKey="cvs" stroke="#ED6103" strokeWidth={2} fill="url(#colorCvs)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Recent Candidates */}
-        <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-medium text-text-primary">{t('recentCandidates')}</h2>
-              <p className="text-[11px] text-text-muted mt-0.5">{t('latestScannedCVs')}</p>
+          {/* Recent candidates */}
+          <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
+              <h2 className="text-sm font-medium text-text-primary">Ứng viên gần đây</h2>
+              <Link to="/candidates" className="text-[11px] text-accent hover:underline">Xem tất cả →</Link>
             </div>
-            <Link to="/candidates" className="text-[12px] text-accent hover:text-accent-hover flex items-center gap-0.5">
-              {t('viewAll')} <ArrowUpRight size={12} />
-            </Link>
-          </div>
-          <div className="space-y-1">
-            {candidates?.slice(0, 5).map(c => (
-              <Link key={c.id} to={`/candidates/${c.id}`} className="flex items-center justify-between py-2.5 px-2 rounded-lg hover:bg-bg-surface transition-colors -mx-2">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent text-[11px] font-bold shrink-0">
-                    {c.structuredData.name.replace(/[\[\]NAME-]/g, '').trim().charAt(0) || 'C'}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-text-primary truncate">{c.structuredData.name}</div>
-                    <div className="text-[11px] text-text-muted truncate">{c.structuredData.skills.slice(0, 3).join(' · ')}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
-                  <ScoreBar score={c.score?.finalScore ?? 0} />
-                  <Badge variant={c.score?.classification ?? 'neutral'}>{c.score?.classification ?? '—'}</Badge>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Active Jobs */}
-        <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-medium text-text-primary">{t('activeJobs')}</h2>
-              <p className="text-[11px] text-text-muted mt-0.5">{t('navJobs')}</p>
-            </div>
-            <Link to="/jobs" className="text-[12px] text-accent hover:text-accent-hover flex items-center gap-0.5">
-              {t('viewAll')} <ArrowUpRight size={12} />
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {jobs?.map(j => {
-              const jobCandidates = candidates?.filter(c => c.jobId === j.id) ?? [];
-              const goldCount = jobCandidates.filter(c => c.score?.classification === 'gold').length;
-              return (
-                <Link key={j.id} to={`/jobs/${j.id}`} className="block p-3 rounded-lg border border-border-subtle hover:border-accent/30 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[13px] font-medium text-text-primary">{j.title}</span>
-                    <div className="flex items-center gap-1 text-[11px] text-text-muted">
-                      <Clock size={11} />
-                      {j.deadline?.slice(5, 10)}
+            <div className="divide-y divide-border-subtle">
+              {data.recent_candidates.map(c => (
+                <Link key={c.id} to={`/candidates/${c.id}`} className="flex items-center justify-between px-4 py-3 hover:bg-bg-surface/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent text-[11px] font-bold">
+                      {(c.name || '?').charAt(0)}
+                    </div>
+                    <div>
+                      <div className="text-[13px] font-medium text-text-primary">{c.name}</div>
+                      <div className="text-[11px] text-text-muted">{c.job_title || 'Chưa match job'}</div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-wrap gap-1">
-                      {j.requiredSkills.slice(0, 3).map(s => (
-                        <span key={s} className="text-[10px] bg-bg-surface text-text-secondary px-1.5 py-0.5 rounded">{s}</span>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px]">
-                      <span className="text-text-tertiary">{j.candidateCount} CVs</span>
-                      {goldCount > 0 && <span className="text-amber-600 font-medium">{goldCount} gold</span>}
-                    </div>
-                  </div>
-                  {/* Progress bar */}
-                  <div className="mt-2.5 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden flex">
-                    {goldCount > 0 && <div className="h-full bg-amber-400" style={{ width: `${(goldCount / Math.max(j.candidateCount, 1)) * 100}%` }} />}
-                    <div className="h-full bg-slate-300" style={{ width: `${((jobCandidates.length - goldCount) / Math.max(j.candidateCount, 1)) * 100}%` }} />
+                  <div className="flex items-center gap-2">
+                    {c.score && <span className="text-[12px] font-medium text-text-secondary">{c.score}/100</span>}
+                    {c.classification && <Badge variant={c.classification}>{c.classification}</Badge>}
+                    <span className="text-[11px] text-text-muted capitalize">{c.status}</span>
                   </div>
                 </Link>
-              );
-            })}
+              ))}
+              {data.recent_candidates.length === 0 && (
+                <div className="px-4 py-6 text-center text-[13px] text-text-muted">Chưa có ứng viên</div>
+              )}
+            </div>
+          </div>
+
+          {/* Jobs overview */}
+          <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
+              <h2 className="text-sm font-medium text-text-primary">Jobs đang tuyển</h2>
+              <Link to="/jobs" className="text-[11px] text-accent hover:underline">Xem tất cả →</Link>
+            </div>
+            <div className="divide-y divide-border-subtle">
+              {data.jobs_overview.map(j => (
+                <Link key={j.id} to={`/jobs/${j.id}`} className="flex items-center justify-between px-4 py-3 hover:bg-bg-surface/50 transition-colors">
+                  <div>
+                    <div className="text-[13px] font-medium text-text-primary">{j.title}</div>
+                    {j.deadline && <div className="text-[10px] text-text-muted">Deadline: {new Date(j.deadline).toLocaleDateString('vi')}</div>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-[13px] font-medium text-text-primary">{j.candidate_count}</div>
+                      <div className="text-[10px] text-text-muted">ứng viên</div>
+                    </div>
+                    {j.gold > 0 && (
+                      <div className="text-right">
+                        <div className="text-[13px] font-bold text-amber-600">{j.gold}</div>
+                        <div className="text-[10px] text-text-muted">gold</div>
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              ))}
+              {data.jobs_overview.length === 0 && (
+                <div className="px-4 py-6 text-center text-[13px] text-text-muted">Chưa có job</div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right column */}
+        <div className="space-y-5">
+          {/* Today's interviews */}
+          <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
+            <h2 className="text-sm font-medium text-text-primary mb-3 flex items-center gap-2">
+              <CalendarCheck size={14} className="text-accent" /> Phỏng vấn hôm nay
+            </h2>
+            {data.today_interviews.length === 0 ? (
+              <p className="text-[12px] text-text-muted py-2">Không có lịch phỏng vấn</p>
+            ) : (
+              <div className="space-y-2">
+                {data.today_interviews.map(i => (
+                  <Link key={i.id} to="/interviews" className="block p-2.5 bg-bg-surface rounded-lg hover:bg-accent/5 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] font-medium text-text-primary">{i.candidate_name}</span>
+                      <span className="text-[10px] text-accent font-medium">
+                        {new Date(i.start_time).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-text-muted mt-0.5">{i.job_title || i.title}</div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Activity feed */}
+          <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
+            <h2 className="text-sm font-medium text-text-primary mb-3 flex items-center gap-2">
+              <Clock size={14} className="text-text-muted" /> Hoạt động gần đây
+            </h2>
+            <div className="space-y-2.5">
+              {data.activity.map((a, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="text-[12px] shrink-0">{activityIcons[a.type] || '•'}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] text-text-secondary truncate">{a.detail}</div>
+                    <div className="text-[10px] text-text-muted">{formatTimeAgo(a.created_at)}</div>
+                  </div>
+                </div>
+              ))}
+              {data.activity.length === 0 && <p className="text-[12px] text-text-muted">Chưa có hoạt động</p>}
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function StatCard({ icon: Icon, label, value, color, bg }: { icon: any; label: string; value: number; color: string; bg: string }) {
+  return (
+    <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
+      <div className={`w-8 h-8 ${bg} rounded-lg flex items-center justify-center mb-2`}>
+        <Icon size={16} className={color} />
+      </div>
+      <div className="text-2xl font-bold text-text-primary">{value}</div>
+      <div className="text-[11px] text-text-muted mt-0.5">{label}</div>
+    </div>
+  );
+}
+
+function formatTimeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  return `${days} ngày trước`;
 }
