@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Users, Trophy, Medal, DatabaseZap, LayoutList, Columns3, GitCompareArrows } from 'lucide-react';
+import { Search, Users, Trophy, Medal, DatabaseZap, LayoutList, Columns3, GitCompareArrows, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useCandidates } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
@@ -9,9 +9,8 @@ import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { KanbanBoard } from '../components/KanbanBoard';
 import { useI18n } from '@/shared/i18n';
-import type { Classification } from '@/domain/models/candidate';
 
-type Filter = 'all' | Classification;
+type Filter = 'all' | 'new' | 'reviewed' | 'approved' | 'rejected';
 type ViewMode = 'list' | 'kanban';
 
 export function CandidatesPage() {
@@ -34,18 +33,20 @@ export function CandidatesPage() {
   if (isLoading) return <LoadingSkeleton rows={5} />;
 
   const filtered = (candidates ?? [])
-    .filter(c => filter === 'all' || c.score?.classification === filter)
+    .filter(c => filter === 'all' || c.status === filter)
     .filter(c => !search || c.structuredData.skills.some(s => s.toLowerCase().includes(search.toLowerCase())) || c.structuredData.name.toLowerCase().includes(search.toLowerCase()));
 
-  const gold = candidates?.filter(c => c.score?.classification === 'gold').length ?? 0;
-  const silver = candidates?.filter(c => c.score?.classification === 'silver').length ?? 0;
-  const pool = candidates?.filter(c => c.score?.classification === 'talent_pool').length ?? 0;
+  const newCount = candidates?.filter(c => c.status === 'new').length ?? 0;
+  const reviewedCount = candidates?.filter(c => c.status === 'reviewed').length ?? 0;
+  const approvedCount = candidates?.filter(c => c.status === 'approved').length ?? 0;
+  const rejectedCount = candidates?.filter(c => c.status === 'rejected').length ?? 0;
 
   const filters: { value: Filter; label: string; count: number; icon: typeof Trophy }[] = [
     { value: 'all', label: t('all'), count: candidates?.length ?? 0, icon: Users },
-    { value: 'gold', label: t('gold'), count: gold, icon: Trophy },
-    { value: 'silver', label: t('silver'), count: silver, icon: Medal },
-    { value: 'talent_pool', label: t('pool'), count: pool, icon: DatabaseZap },
+    { value: 'new', label: 'New', count: newCount, icon: Users },
+    { value: 'reviewed', label: 'Reviewed', count: reviewedCount, icon: Users },
+    { value: 'approved', label: 'Approved', count: approvedCount, icon: CheckCircle as any },
+    { value: 'rejected', label: 'Rejected', count: rejectedCount, icon: XCircle as any },
   ];
 
   return (
@@ -53,7 +54,7 @@ export function CandidatesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">{t('candidatesTitle')}</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{candidates?.length ?? 0} total · {gold} gold · {silver} silver</p>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{candidates?.length ?? 0} total · {newCount} new · {approvedCount} approved</p>
         </div>
         {/* View toggle + Compare button */}
         <div className="flex items-center gap-2">

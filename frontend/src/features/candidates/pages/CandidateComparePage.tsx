@@ -43,9 +43,9 @@ export function CandidateComparePage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <Link to="/candidates" className="w-8 h-8 rounded-lg bg-bg-surface border border-border-subtle flex items-center justify-center hover:bg-bg-panel transition-colors">
+        <button onClick={() => window.history.back()} className="w-8 h-8 rounded-lg bg-bg-surface border border-border-subtle flex items-center justify-center hover:bg-bg-panel transition-colors">
           <ArrowLeft size={16} className="text-text-muted" />
-        </Link>
+        </button>
         <div>
           <h1 className="text-xl font-semibold text-text-primary">{t('compareTitle')}</h1>
           <p className="text-[13px] text-text-tertiary mt-0.5">{t('compareCandidatesSelected', { count: candidates.length })}</p>

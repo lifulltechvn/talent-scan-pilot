@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle } from 'lucide-react';
-import { useCandidate, useUpdateCandidateStatus } from '../hooks/useCandidates';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCandidate, useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
@@ -13,8 +13,16 @@ import { apiClient } from '@/data/api/client';
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: candidate, isLoading } = useCandidate(id!);
+  const { data: allCandidates } = useCandidates();
   const updateStatus = useUpdateCandidateStatus();
+  const navigate = useNavigate();
   const { t } = useI18n();
+
+  // Find prev/next candidates
+  const candidateIds = allCandidates?.map(c => c.id) ?? [];
+  const currentIdx = candidateIds.indexOf(id!);
+  const prevId = currentIdx > 0 ? candidateIds[currentIdx - 1] : null;
+  const nextId = currentIdx < candidateIds.length - 1 ? candidateIds[currentIdx + 1] : null;
 
   useEffect(() => {
     if (candidate && candidate.status === 'new') {
@@ -29,9 +37,20 @@ export function CandidateDetailPage() {
 
   return (
     <div>
-      <Link to="/candidates" className="text-[13px] text-text-tertiary hover:text-accent flex items-center gap-1 mb-4">
-        <ArrowLeft size={14} /> Back to Candidates
-      </Link>
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => window.history.back()} className="text-[13px] text-text-tertiary hover:text-accent flex items-center gap-1">
+          <ArrowLeft size={14} /> Back
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] text-text-muted">{currentIdx + 1} / {candidateIds.length}</span>
+          <button onClick={() => prevId && navigate(`/candidates/${prevId}`)} disabled={!prevId} className="w-7 h-7 rounded-lg border border-border-subtle flex items-center justify-center hover:bg-bg-surface disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+            <ChevronLeft size={14} className="text-text-secondary" />
+          </button>
+          <button onClick={() => nextId && navigate(`/candidates/${nextId}`)} disabled={!nextId} className="w-7 h-7 rounded-lg border border-border-subtle flex items-center justify-center hover:bg-bg-surface disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+            <ChevronRight size={14} className="text-text-secondary" />
+          </button>
+        </div>
+      </div>
 
       {/* Header Card */}
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mb-5">
@@ -44,6 +63,12 @@ export function CandidateDetailPage() {
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-semibold text-text-primary">{d.name}</h1>
                 <Badge variant={score?.classification ?? 'neutral'}>{score?.classification ?? '—'}</Badge>
+                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                  candidate.status === 'approved' ? 'bg-emerald-50 text-emerald-700' :
+                  candidate.status === 'rejected' ? 'bg-red-50 text-red-700' :
+                  candidate.status === 'new' ? 'bg-blue-50 text-blue-700' :
+                  'bg-bg-surface text-text-muted'
+                }`}>{candidate.status}</span>
               </div>
               <p className="text-[13px] text-text-tertiary">{d.totalYearsExperience}y experience · {d.languages.map(l => `${l.language} (${l.level})`).join(', ')}</p>
             </div>
@@ -138,9 +163,43 @@ export function CandidateDetailPage() {
                 {d.education.map((edu, i) => (
                   <div key={i} className="ml-5 py-1">
                     <div className="text-[13px] text-text-primary">{edu.degree}{edu.major ? ` in ${edu.major}` : ''}</div>
-                    <div className="text-[12px] text-text-tertiary">{edu.school} · {edu.year}</div>
+                    <div className="text-[12px] text-text-tertiary">{edu.school}{edu.year ? ` · ${edu.year}` : ''}</div>
                   </div>
                 ))}
+              </div>
+            )}
+            {d.certifications?.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Award size={13} className="text-text-muted" />
+                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Certifications</span>
+                </div>
+                {d.certifications.map((cert: any, i: number) => (
+                  <div key={i} className="ml-5 py-1">
+                    <div className="text-[13px] text-text-primary">{cert.name}</div>
+                    <div className="text-[12px] text-text-tertiary">{cert.issuer}{cert.year ? ` · ${cert.year}` : ''}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {d.hometown && (
+              <div className="flex items-center gap-1.5">
+                <MapPin size={13} className="text-text-muted" />
+                <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider mr-2">Location</span>
+                <span className="text-[13px] text-text-primary">{d.hometown}</span>
+              </div>
+            )}
+            {d.activities?.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Heart size={13} className="text-text-muted" />
+                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Activities</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 ml-5">
+                  {d.activities.map((a: string, i: number) => (
+                    <span key={i} className="text-[11px] bg-bg-surface text-text-secondary px-2 py-0.5 rounded">{a}</span>
+                  ))}
+                </div>
               </div>
             )}
             <div className="flex items-center gap-1.5">
