@@ -10,6 +10,34 @@ import { CandidateTimeline } from '../components/CandidateTimeline';
 import { useI18n } from '@/shared/i18n';
 import { apiClient } from '@/data/api/client';
 
+function CandidateAvatar({ candidateId, avatar, name }: { candidateId: string; avatar: string | null; name: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (!avatar) return;
+    apiClient.get(`/candidates/${candidateId}/avatar`, { responseType: 'blob' })
+      .then(({ data }) => setSrc(URL.createObjectURL(data)))
+      .catch(() => {});
+    return () => { if (src) URL.revokeObjectURL(src); };
+  }, [candidateId, avatar]);
+
+  if (src) return (
+    <>
+      <img src={src} alt={name} onClick={() => setExpanded(true)} className="w-20 h-20 rounded-xl object-cover border-2 border-white shadow-md cursor-pointer hover:scale-105 transition-transform shrink-0" />
+      {expanded && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setExpanded(false)}>
+          <img src={src} alt={name} className="max-w-[80vw] max-h-[80vh] rounded-2xl shadow-2xl" />
+        </div>
+      )}
+    </>
+  );
+  return (
+    <div className="w-20 h-20 rounded-xl bg-white/80 border-2 border-white shadow-md flex items-center justify-center text-accent text-2xl font-bold shrink-0">
+      {name.replace(/[\[\]NAME-]/g, '').trim().charAt(0) || 'C'}
+    </div>
+  );
+}
+
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: candidate, isLoading } = useCandidate(id!);
@@ -52,66 +80,12 @@ export function CandidateDetailPage() {
         </div>
       </div>
 
-      {/* Header Card */}
-      <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mb-5">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {d.avatar ? (
-              <img src={`/api/v1/candidates/${id}/avatar`} alt={d.name} className="w-12 h-12 rounded-full object-cover" />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent text-lg font-bold">
-                {d.name.replace(/[\[\]NAME-]/g, '').trim().charAt(0) || 'C'}
-              </div>
-            )}
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold text-text-primary">{d.name}</h1>
-                <Badge variant={score?.classification ?? 'neutral'}>{score?.classification ?? '—'}</Badge>
-                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                  candidate.status === 'approved' ? 'bg-emerald-50 text-emerald-700' :
-                  candidate.status === 'rejected' ? 'bg-red-50 text-red-700' :
-                  candidate.status === 'new' ? 'bg-blue-50 text-blue-700' :
-                  'bg-bg-surface text-text-muted'
-                }`}>{candidate.status}</span>
-              </div>
-              <p className="text-[13px] text-text-tertiary">{d.totalYearsExperience}y experience · {d.languages.map(l => `${l.language} (${l.level})`).join(', ')}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {candidate.status !== 'approved' && candidate.status !== 'rejected' && (
-              <>
-                <button onClick={() => updateStatus.mutate({ id: candidate.id, status: 'approved' })} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors">
-                  <CheckCircle size={14} /> Approve
-                </button>
-                <button onClick={() => updateStatus.mutate({ id: candidate.id, status: 'rejected' })} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors">
-                  <XCircle size={14} /> Reject
-                </button>
-              </>
-            )}
-            {candidate.status === 'approved' && <span className="text-[13px] font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg">✓ Approved</span>}
-            {candidate.status === 'rejected' && <span className="text-[13px] font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg">✗ Rejected</span>}
-            {candidate.cvFilePath && (
-              <button onClick={() => {
-                const token = localStorage.getItem('token');
-                fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
-                  .then(r => r.blob())
-                  .then(blob => {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = candidate.cvFilePath!;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  });
-              }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors cursor-pointer">
-                <Download size={14} /> Download CV
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Sidebar Layout */}
+      <div className="flex flex-col lg:flex-row gap-5">
+        {/* Left: Main content */}
+        <div className="flex-1 min-w-0">
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-5">
         {/* AI Insight */}
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
@@ -235,6 +209,72 @@ export function CandidateDetailPage() {
         </div>
         <CandidateTimeline candidateId={id!} />
       </div>
+
+        </div>{/* end left */}
+
+        {/* Right: Profile Card (Sidebar) */}
+        <div className="w-full lg:w-72 shrink-0">
+          <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 sticky top-4">
+            <div className="flex flex-col items-center text-center mb-4">
+              <CandidateAvatar candidateId={id!} avatar={d.avatar} name={d.name} />
+              <h2 className="text-[15px] font-semibold text-text-primary mt-3">{d.name}</h2>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <Badge variant={score?.classification ?? 'neutral'}>{score?.classification ?? '—'}</Badge>
+                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                  candidate.status === 'approved' ? 'bg-emerald-50 text-emerald-700' :
+                  candidate.status === 'rejected' ? 'bg-red-50 text-red-700' :
+                  candidate.status === 'new' ? 'bg-blue-50 text-blue-700' :
+                  'bg-bg-surface text-text-muted'
+                }`}>{candidate.status}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-[12px] text-text-secondary border-t border-border-subtle pt-3 mb-4">
+              <div className="flex items-center gap-2"><Briefcase size={12} className="text-text-muted" /> {d.totalYearsExperience}y experience</div>
+              {d.hometown && <div className="flex items-center gap-2"><MapPin size={12} className="text-text-muted" /> {d.hometown}</div>}
+              <div className="flex items-center gap-2"><Languages size={12} className="text-text-muted" /> {d.languages.map(l => l.language).join(', ')}</div>
+            </div>
+
+            {/* Score summary */}
+            <div className="border-t border-border-subtle pt-3 mb-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-text-primary">{score?.finalScore ?? 0}</div>
+                <div className="text-[11px] text-text-muted">Final Score</div>
+              </div>
+              <div className="flex justify-center gap-4 mt-2 text-[11px]">
+                <div className="text-center"><div className="font-medium text-text-primary">{score?.ruleScore ?? 0}</div><div className="text-text-muted">Rule</div></div>
+                <div className="text-center"><div className="font-medium text-text-primary">{score?.llmScore ?? 0}</div><div className="text-text-muted">LLM</div></div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-2">
+              {candidate.status !== 'approved' && candidate.status !== 'rejected' && (
+                <>
+                  <button onClick={() => updateStatus.mutate({ id: candidate.id, status: 'approved' })} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors">
+                    <CheckCircle size={14} /> Approve
+                  </button>
+                  <button onClick={() => updateStatus.mutate({ id: candidate.id, status: 'rejected' })} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                    <XCircle size={14} /> Reject
+                  </button>
+                </>
+              )}
+              {candidate.status === 'approved' && <div className="text-center text-[13px] font-medium text-emerald-600 bg-emerald-50 py-2 rounded-lg">✓ Approved</div>}
+              {candidate.status === 'rejected' && <div className="text-center text-[13px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">✗ Rejected</div>}
+              {candidate.cvFilePath && (
+                <button onClick={() => {
+                  const token = localStorage.getItem('token');
+                  fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
+                    .then(r => r.blob())
+                    .then(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = candidate.cvFilePath!; a.click(); URL.revokeObjectURL(url); });
+                }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
+                  <Download size={14} /> Download CV
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>{/* end sidebar layout */}
     </div>
   );
 }

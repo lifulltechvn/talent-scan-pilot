@@ -36,13 +36,19 @@ def _extract_avatar(file_bytes: bytes, candidate_id: str) -> str | None:
                 xref = img_ref[0]
                 pix = fitz.Pixmap(doc, xref)
                 if pix.width < 50 or pix.height < 50:
-                    continue  # skip tiny images
-                if pix.width > 500 or pix.height > 500:
-                    continue  # skip full-page images
-                # Likely an avatar photo
+                    continue  # skip tiny images (icons, bullets)
+                # Likely a photo if aspect ratio is portrait-ish or square
+                ratio = pix.width / max(pix.height, 1)
+                if ratio > 3 or ratio < 0.3:
+                    continue  # skip extreme aspect ratios (banners, lines)
                 if pix.n > 4:
                     pix = fitz.Pixmap(fitz.csRGB, pix)
                 filename = f"{candidate_id}.jpg"
+                # Resize if too large
+                if pix.width > 300 or pix.height > 300:
+                    scale = 300 / max(pix.width, pix.height)
+                    mat = fitz.Matrix(scale, scale)
+                    pix = fitz.Pixmap(pix, 0) if pix.alpha else pix
                 pix.save(os.path.join(AVATAR_DIR, filename))
                 return filename
         return None
