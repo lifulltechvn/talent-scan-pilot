@@ -324,3 +324,50 @@ async def update_candidate_status(
     candidate.status = new_status
     await db.commit()
     return {"id": candidate.id, "status": new_status}
+
+
+@router.post("/{candidate_id}/notes")
+async def add_note(
+    candidate_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Add a note/comment to a candidate."""
+    from app.models import AuditLog
+    note_text = body.get("text", "").strip()
+    if not note_text:
+        raise HTTPException(400, "Note text is required")
+
+    log = AuditLog(
+        user_id=user.id,
+        action="note_added",
+        entity_type="candidate",
+        entity_id=str(candidate_id),
+        details={"text": note_text, "author": user.full_name},
+    )
+    db.add(log)
+    await db.commit()
+    return {"id": str(log.id), "text": note_text, "author": user.full_name, "created_at": log.created_at}
+
+
+@router.get("/{candidate_id}/notes")
+async def get_notes(
+    candidate_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Get all notes for a candidate."""
+    from app.models import AuditLog
+    result = await db.execute(
+        select(AuditLog).where(
+            AuditLog.entity_type == "candidate",
+            AuditLog.entity_id == str(candidate_id),
+            AuditLog.action == "note_added",
+        ).order_by(AuditLog.created_at.desc())
+    )
+    notes = result.scalars().all()
+    return [
+        {"id": str(n.id), "text": n.details.get("text", ""), "author": n.details.get("author", ""), "created_at": n.created_at}
+        for n in notes
+    ]

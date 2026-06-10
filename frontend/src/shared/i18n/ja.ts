@@ -23,6 +23,7 @@ export const ja: Record<TranslationKey, string> = {
   // Sidebar
   navDashboard: 'ダッシュボード',
   navCandidates: '候補者',
+  navPipeline: 'パイプライン',
   navJobs: '求人',
   navInterviews: '面接',
   navTalentPool: 'タレントプール',

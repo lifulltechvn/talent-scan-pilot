@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit, Trash2, Briefcase, Mail, X, Send, CheckCircle, XCircle, ClipboardCheck, Sparkles, Loader2, UserPlus, Download, CalendarCheck } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit, Trash2, Briefcase, Mail, X, Send, CheckCircle, XCircle, ClipboardCheck, Sparkles, Loader2, UserPlus, Download, CalendarCheck, Brain } from 'lucide-react';
 import { useJob, useUpdateJob, useDeleteJob } from '../hooks/useJobs';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -13,6 +13,47 @@ import { DatePicker } from '@/shared/components/ui/DatePicker';
 import { TagInput } from '@/shared/components/ui/TagInput';
 import { useMasterData } from '../hooks/useMasterData';
 import { apiClient } from '@/data/api/client';
+
+function AiSummaryDisplay({ summary }: { summary: string }) {
+  try {
+    const parsed = JSON.parse(summary);
+    if (typeof parsed === 'object' && parsed.summary) {
+      return (
+        <div className="mt-2 space-y-2">
+          <p className="text-[12px] text-blue-800">{parsed.summary}</p>
+          {parsed.strengths?.length > 0 && (
+            <div>
+              <span className="text-[10px] font-medium text-emerald-700">✓ Điểm mạnh:</span>
+              <ul className="mt-0.5 space-y-0.5">
+                {parsed.strengths.map((s: string, i: number) => (
+                  <li key={i} className="text-[11px] text-emerald-800 pl-3">• {s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {parsed.concerns?.length > 0 && (
+            <div>
+              <span className="text-[10px] font-medium text-amber-700">⚠ Lưu ý:</span>
+              <ul className="mt-0.5 space-y-0.5">
+                {parsed.concerns.map((c: string, i: number) => (
+                  <li key={i} className="text-[11px] text-amber-800 pl-3">• {c}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {parsed.suggestion && (
+            <div>
+              <span className="text-[10px] font-medium text-purple-700">💡 Gợi ý phỏng vấn:</span>
+              <p className="text-[11px] text-purple-800 pl-3 mt-0.5">{parsed.suggestion}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+  } catch {}
+  // Fallback: plain text with line breaks
+  return <p className="text-[12px] text-blue-800 mt-1 whitespace-pre-line">{summary}</p>;
+}
 
 export function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +74,10 @@ export function JobDetailPage() {
   const [scoreDetail, setScoreDetail] = useState<any | null>(null);
   const [scoreDetailLoading, setScoreDetailLoading] = useState(false);
   const [bookInterview, setBookInterview] = useState<{ candidateId: string; candidateName: string } | null>(null);
+  const [compareData, setCompareData] = useState<any | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [aiRecommend, setAiRecommend] = useState<string | null>(null);
+  const [aiRecommendLoading, setAiRecommendLoading] = useState(false);
 
   const handleSuggest = async () => {
     setSuggestLoading(true);
@@ -61,6 +106,24 @@ export function JobDetailPage() {
       setScoreDetail(data);
     } catch { setScoreDetail(null); }
     setScoreDetailLoading(false);
+  };
+
+  const handleCompare = async () => {
+    setCompareLoading(true);
+    try {
+      const { data } = await apiClient.get(`/jobs/${id}/compare?limit=5`);
+      setCompareData(data);
+    } catch {}
+    setCompareLoading(false);
+  };
+
+  const handleAiRecommend = async () => {
+    setAiRecommendLoading(true);
+    try {
+      const { data } = await apiClient.get(`/jobs/${id}/ai-recommend`);
+      setAiRecommend(data.recommendation);
+    } catch {}
+    setAiRecommendLoading(false);
   };
 
   if (loadingJ || loadingC) return <LoadingSkeleton rows={3} />;
@@ -95,6 +158,12 @@ export function JobDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <button onClick={handleCompare} disabled={compareLoading || candidates.length < 2} className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 text-[13px] font-medium rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50">
+              {compareLoading ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />} Compare
+            </button>
+            <button onClick={handleAiRecommend} disabled={aiRecommendLoading || candidates.length < 2} className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 text-[13px] font-medium rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50">
+              {aiRecommendLoading ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />} AI Recommend
+            </button>
             <button onClick={handleSuggest} disabled={suggestLoading} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50">
               {suggestLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Suggest
             </button>
@@ -190,6 +259,62 @@ export function JobDetailPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* AI Recommendation */}
+      {aiRecommend && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-5 mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Brain size={16} className="text-purple-600" />
+              <h3 className="text-sm font-semibold text-purple-800">AI Recommendation</h3>
+            </div>
+            <button onClick={() => setAiRecommend(null)} className="text-purple-400 hover:text-purple-600"><X size={14} /></button>
+          </div>
+          <div className="text-sm text-purple-900 whitespace-pre-line">{aiRecommend}</div>
+        </div>
+      )}
+
+      {/* Compare Table */}
+      {compareData && (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mb-5 overflow-x-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-text-primary">Compare Top {compareData.candidates.length} Candidates</h3>
+            <button onClick={() => setCompareData(null)} className="text-text-muted hover:text-text-primary"><X size={14} /></button>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border-subtle">
+                <th className="py-2 text-left text-text-muted font-medium">Candidate</th>
+                <th className="py-2 text-center text-text-muted font-medium">Score</th>
+                <th className="py-2 text-center text-text-muted font-medium">Exp</th>
+                <th className="py-2 text-center text-text-muted font-medium">Salary</th>
+                <th className="py-2 text-left text-text-muted font-medium">Matched Skills</th>
+                <th className="py-2 text-left text-text-muted font-medium">Missing</th>
+              </tr>
+            </thead>
+            <tbody>
+              {compareData.candidates.map((c: any) => (
+                <tr key={c.id} className="border-b border-border-subtle/50">
+                  <td className="py-2 font-medium text-text-primary">
+                    <Link to={`/candidates/${c.id}`} className="hover:text-accent">{c.name}</Link>
+                  </td>
+                  <td className="py-2 text-center">
+                    <span className={`font-bold ${c.final_score >= 80 ? 'text-emerald-600' : c.final_score >= 50 ? 'text-amber-600' : 'text-red-500'}`}>{c.final_score}</span>
+                  </td>
+                  <td className="py-2 text-center text-text-secondary">{c.experience_years}y</td>
+                  <td className="py-2 text-center text-text-secondary">{c.expected_salary || '—'}</td>
+                  <td className="py-2">
+                    <div className="flex flex-wrap gap-0.5">{c.matched_skills.map((s: string) => <span key={s} className="px-1 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[10px]">{s}</span>)}</div>
+                  </td>
+                  <td className="py-2">
+                    <div className="flex flex-wrap gap-0.5">{c.missing_skills.map((s: string) => <span key={s} className="px-1 py-0.5 bg-red-50 text-red-600 rounded text-[10px] line-through">{s}</span>)}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -408,7 +533,7 @@ export function JobDetailPage() {
                 {scoreDetail.details?.llm_summary && (
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
                     <span className="text-[10px] font-medium text-blue-700 uppercase">Nhận xét từ AI</span>
-                    <p className="text-[12px] text-blue-800 mt-1">{scoreDetail.details.llm_summary}</p>
+                    <AiSummaryDisplay summary={scoreDetail.details.llm_summary} />
                   </div>
                 )}
 

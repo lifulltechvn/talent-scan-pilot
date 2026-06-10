@@ -29,9 +29,13 @@ const activityIcons: Record<string, string> = {
 
 export function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [funnel, setFunnel] = useState<any>(null);
+  const [weeklyStats, setWeeklyStats] = useState<any>(null);
 
   useEffect(() => {
     apiClient.get('/dashboard/overview').then(({ data }) => setData(data)).catch(() => {});
+    apiClient.get('/dashboard/hiring-funnel').then(({ data }) => setFunnel(data)).catch(() => {});
+    apiClient.get('/dashboard/weekly-stats').then(({ data }) => setWeeklyStats(data)).catch(() => {});
   }, []);
 
   if (!data) return <div className="p-8 text-center text-text-muted">Loading...</div>;
@@ -59,6 +63,60 @@ export function DashboardPage() {
         <StatCard icon={Trophy} label="Ứng viên Gold" value={stats.gold_count} color="text-amber-600" bg="bg-amber-50" />
         <StatCard icon={CalendarCheck} label="Phỏng vấn hôm nay" value={stats.interviews_today} color="text-emerald-600" bg="bg-emerald-50" />
         <StatCard icon={AlertTriangle} label="Cần hành động" value={stats.need_review + stats.need_feedback + stats.pending_duplicates} color="text-red-600" bg="bg-red-50" />
+      </div>
+
+      {/* Hiring Funnel & Weekly Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Hiring Funnel */}
+        {funnel && (
+          <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+            <h2 className="text-sm font-medium text-text-primary mb-4">Hiring Funnel</h2>
+            <div className="space-y-2">
+              {funnel.funnel.map((stage: any, i: number) => {
+                const maxCount = funnel.funnel[0]?.count || 1;
+                const pct = maxCount ? Math.round((stage.count / maxCount) * 100) : 0;
+                return (
+                  <div key={stage.stage} className="flex items-center gap-3">
+                    <span className="text-[11px] text-text-muted w-24 shrink-0">{stage.stage}</span>
+                    <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-accent/70 transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[12px] font-medium text-text-primary w-8 text-right">{stage.count}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-4 mt-4 pt-3 border-t border-border-subtle text-[11px] text-text-muted">
+              <span>Approval: <strong className="text-emerald-600">{funnel.approval_rate}%</strong></span>
+              <span>Rejection: <strong className="text-red-500">{funnel.rejection_rate}%</strong></span>
+              <span>Interview: <strong className="text-blue-600">{funnel.interview_rate}%</strong></span>
+            </div>
+          </div>
+        )}
+
+        {/* Weekly Stats */}
+        {weeklyStats && (
+          <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+            <h2 className="text-sm font-medium text-text-primary mb-4">Thống kê 4 tuần</h2>
+            <div className="space-y-3">
+              {weeklyStats.weeks.map((w: any) => (
+                <div key={w.week} className="flex items-center gap-3">
+                  <span className="text-[11px] text-text-muted w-16 shrink-0">{w.start}</span>
+                  <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 h-4 bg-blue-50 rounded-full overflow-hidden relative">
+                      <div className="h-full rounded-full bg-blue-400" style={{ width: `${Math.min(w.uploads * 5, 100)}%` }} />
+                      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-medium text-blue-900">{w.uploads} CVs</span>
+                    </div>
+                    <div className="flex items-center gap-1 w-16 shrink-0">
+                      <Trophy size={11} className="text-amber-500" />
+                      <span className="text-[11px] font-medium text-amber-700">{w.gold} gold</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

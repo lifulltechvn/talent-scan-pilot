@@ -21,6 +21,7 @@ export const en = {
   // Sidebar
   navDashboard: 'Dashboard',
   navCandidates: 'Candidates',
+  navPipeline: 'Pipeline',
   navJobs: 'Jobs',
   navInterviews: 'Interviews',
   navTalentPool: 'Talent Pool',

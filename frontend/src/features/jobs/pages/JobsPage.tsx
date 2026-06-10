@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, MapPin, Clock, Users, Plus, Briefcase, X, Upload } from 'lucide-react';
+import { Search, MapPin, Clock, Users, Plus, Briefcase, X, Upload, Sparkles } from 'lucide-react';
 import { useJobs, useCreateJob } from '../hooks/useJobs';
 import { useCandidates } from '@/features/candidates/hooks/useCandidates';
 import { useI18n } from '@/shared/i18n';
@@ -15,6 +15,7 @@ import { useMasterData } from '../hooks/useMasterData';
 function CreateJobModal({ onClose, initialData }: { onClose: () => void; initialData?: any }) {
   const createJob = useCreateJob();
   const { data: masterData } = useMasterData();
+  const [generating, setGenerating] = useState(false);
   const [form, setForm] = useState({
     title: initialData?.title || '',
     description: initialData?.description || '',
@@ -23,6 +24,22 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
     location: initialData?.location || '',
     deadline: initialData?.deadline || '',
   });
+
+  const handleAIGenerate = async () => {
+    if (!form.title) return;
+    setGenerating(true);
+    try {
+      const { data } = await apiClient.post('/jobs/generate-jd', { title: form.title, keywords: form.skills.join(', ') });
+      setForm(p => ({
+        ...p,
+        description: data.description || p.description,
+        skills: data.required_skills || p.skills,
+        salaryRange: data.salary_range || p.salaryRange,
+        location: data.location || p.location,
+      }));
+    } catch {}
+    setGenerating(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +57,12 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
           <button type="button" onClick={onClose} className="text-text-muted hover:text-text-primary"><X size={18} /></button>
         </div>
         <div className="space-y-3">
-          <input required value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Job title *" className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          <div className="flex gap-2">
+            <input required value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Job title *" className="flex-1 px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <button type="button" onClick={handleAIGenerate} disabled={!form.title || generating} className="px-3 py-2 bg-purple-50 text-purple-700 text-xs font-medium rounded-lg hover:bg-purple-100 disabled:opacity-50 shrink-0 flex items-center gap-1">
+              {generating ? <><div className="w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" /> AI...</> : <><Sparkles size={12} /> AI Generate</>}
+            </button>
+          </div>
           <textarea required value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Job description *" rows={3} className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
           <div>
             <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Skills</label>

@@ -23,6 +23,7 @@ export const vi: Record<TranslationKey, string> = {
   // Sidebar
   navDashboard: 'Tổng quan',
   navCandidates: 'Ứng viên',
+  navPipeline: 'Pipeline',
   navJobs: 'Tin tuyển dụng',
   navInterviews: 'Phỏng vấn',
   navTalentPool: 'Talent Pool',

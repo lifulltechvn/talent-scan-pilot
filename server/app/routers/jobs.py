@@ -68,6 +68,44 @@ JD text:
         raise HTTPException(500, f"AI parsing failed: {e}")
 
 
+@router.post("/generate-jd")
+async def generate_job_description(
+    data: dict,
+    _user: User = Depends(get_current_user),
+):
+    """Generate a full JD from title + optional keywords using AI."""
+    from app.bedrock import invoke_claude
+    from app.config import settings
+
+    title = data.get("title", "")
+    keywords = data.get("keywords", "")
+    if not title:
+        raise HTTPException(400, "Title is required")
+
+    prompt = f"""Generate a professional job description for the position: "{title}"
+{f'Additional context/keywords: {keywords}' if keywords else ''}
+
+Reply in JSON format:
+{{
+  "title": "{title}",
+  "description": "3-4 sentences describing the role, responsibilities, and team",
+  "required_skills": ["skill1", "skill2", ...up to 8 relevant technical skills],
+  "required_years": number (minimum years of experience),
+  "required_education": "bachelor" or "master" or null,
+  "salary_range": "estimated salary range in USD",
+  "location": "suggested location or Remote"
+}}
+
+Be specific and realistic. Skills should be concrete technologies/tools."""
+
+    try:
+        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="jd_generate")
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+        return json.loads(raw[start:end])
+    except Exception as e:
+        raise HTTPException(500, f"AI generation failed: {e}")
+
 
 async def _smart_pool_match_job(job_id: str):
     """Background task: match job against all candidates with embeddings."""
@@ -357,3 +395,110 @@ async def assign_candidate_to_job(
             "error": str(e),
             "assigned": True,
         }
+
+
+@router.get("/{job_id}/compare")
+async def compare_top_candidates(
+    job_id: uuid.UUID,
+    limit: int = 5,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Compare top scored candidates for a job side-by-side."""
+    from sqlalchemy import text
+
+    result = await db.execute(select(Job).where(Job.id == job_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(404, "Job not found")
+
+    rows = await db.execute(text("""
+        SELECT jc.candidate_id, jc.final_score, jc.classification, jc.skill_score, jc.similarity_score,
+               jc.details, c.structured_data
+        FROM job_candidates jc
+        JOIN candidates c ON c.id = jc.candidate_id
+        WHERE jc.job_id = :jid AND jc.final_score IS NOT NULL
+        ORDER BY jc.final_score DESC
+        LIMIT :lim
+    """), {"jid": str(job_id), "lim": limit})
+
+    candidates = []
+    for r in rows.mappings().all():
+        sd = r["structured_data"]
+        details = r["details"] or {}
+        rule = details.get("rule_scoring", {})
+        candidates.append({
+            "id": str(r["candidate_id"]),
+            "name": sd.get("name", "Unknown"),
+            "final_score": r["final_score"],
+            "classification": r["classification"],
+            "skills": sd.get("skills", []),
+            "experience_years": sd.get("experience_years", 0),
+            "education_level": sd.get("education_level", ""),
+            "expected_salary": sd.get("expectedSalary", ""),
+            "skill_score": round(float(r["skill_score"]) * 100, 1),
+            "similarity_score": round(float(r["similarity_score"]) * 100, 1),
+            "rule_breakdown": {
+                "skills": rule.get("skills", {}).get("score", 0),
+                "experience": rule.get("experience", {}).get("score", 0),
+                "education": rule.get("education", {}).get("score", 0),
+                "language": rule.get("language", {}).get("score", 0),
+            },
+            "matched_skills": rule.get("skills", {}).get("matched", []),
+            "missing_skills": rule.get("skills", {}).get("missing", []),
+            "llm_summary": details.get("llm_summary", ""),
+        })
+
+    return {"job_title": job.title, "required_skills": job.required_skills, "candidates": candidates}
+
+
+@router.get("/{job_id}/ai-recommend")
+async def ai_recommend_candidates(
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """AI recommends which candidates to interview with reasoning."""
+    from app.bedrock import invoke_claude
+    from app.config import settings
+    from sqlalchemy import text
+
+    result = await db.execute(select(Job).where(Job.id == job_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(404, "Job not found")
+
+    rows = await db.execute(text("""
+        SELECT jc.final_score, jc.classification, c.structured_data
+        FROM job_candidates jc
+        JOIN candidates c ON c.id = jc.candidate_id
+        WHERE jc.job_id = :jid AND jc.final_score IS NOT NULL
+        ORDER BY jc.final_score DESC LIMIT 10
+    """), {"jid": str(job_id)})
+    candidates = rows.mappings().all()
+
+    if not candidates:
+        return {"recommendation": "No scored candidates yet. Run scoring first.", "candidates": []}
+
+    # Build summary for AI
+    cand_summaries = []
+    for i, c in enumerate(candidates):
+        sd = c["structured_data"]
+        cand_summaries.append(f"{i+1}. {sd.get('name','?')} — Score: {c['final_score']}, Skills: {sd.get('skills',[][:5])}, Exp: {sd.get('experience_years',0)}y, Class: {c['classification']}")
+
+    prompt = f"""You are an HR advisor. For the job "{job.title}" (required skills: {job.required_skills}), here are the top candidates:
+
+{chr(10).join(cand_summaries)}
+
+Give a brief recommendation:
+1. Which 2-3 candidates should be interviewed first and why (1 sentence each)?
+2. Any candidates to skip and why?
+3. One interview focus suggestion.
+
+Be concise and actionable. Reply in Vietnamese."""
+
+    try:
+        recommendation = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="recommendation")
+        return {"recommendation": recommendation, "total_candidates": len(candidates)}
+    except Exception as e:
+        return {"recommendation": f"AI unavailable: {e}", "total_candidates": len(candidates)}

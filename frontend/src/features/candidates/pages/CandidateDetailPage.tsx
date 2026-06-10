@@ -10,6 +10,43 @@ import { ScoreExplanation } from '@/shared/components/ui/ScoreExplanation';
 import { CandidateTimeline } from '../components/CandidateTimeline';
 import { useI18n } from '@/shared/i18n';
 import { apiClient } from '@/data/api/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { MessageSquare } from 'lucide-react';
+
+function CandidateNotes({ candidateId }: { candidateId: string }) {
+  const [text, setText] = useState('');
+  const queryClient = useQueryClient();
+  const { data: notes = [] } = useQuery<{ id: string; text: string; author: string; created_at: string }[]>({
+    queryKey: ['notes', candidateId],
+    queryFn: () => apiClient.get(`/candidates/${candidateId}/notes`).then(r => r.data),
+  });
+  const addNote = useMutation({
+    mutationFn: (noteText: string) => apiClient.post(`/candidates/${candidateId}/notes`, { text: noteText }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['notes', candidateId] }); setText(''); },
+  });
+
+  return (
+    <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <MessageSquare size={15} className="text-accent" />
+        <h2 className="text-sm font-medium text-text-primary">Notes</h2>
+      </div>
+      <div className="flex gap-2 mb-3">
+        <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && text.trim() && addNote.mutate(text)} placeholder="Add a note..." className="flex-1 px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+        <button onClick={() => text.trim() && addNote.mutate(text)} disabled={!text.trim()} className="px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg disabled:opacity-50">Add</button>
+      </div>
+      <div className="space-y-2 max-h-40 overflow-y-auto">
+        {notes.map(n => (
+          <div key={n.id} className="text-xs bg-bg-surface rounded-lg px-3 py-2">
+            <span className="text-text-primary">{n.text}</span>
+            <div className="text-text-muted mt-0.5">{n.author} · {new Date(n.created_at).toLocaleDateString()}</div>
+          </div>
+        ))}
+        {notes.length === 0 && <p className="text-xs text-text-muted">No notes yet</p>}
+      </div>
+    </div>
+  );
+}
 
 function CandidateAvatar({ candidateId, avatar, name }: { candidateId: string; avatar: string | null; name: string }) {
   const [src, setSrc] = useState<string | null>(null);
@@ -210,6 +247,9 @@ export function CandidateDetailPage() {
         </div>
         <CandidateTimeline candidateId={id!} />
       </div>
+
+      {/* Notes */}
+      <CandidateNotes candidateId={id!} />
 
         </div>{/* end left */}
 

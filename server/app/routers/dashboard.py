@@ -108,3 +108,49 @@ async def get_overview(
             for r in activity.mappings().all()
         ],
     }
+
+
+@router.get("/hiring-funnel")
+async def get_hiring_funnel(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Hiring funnel stats: conversion rates between stages."""
+    total = (await db.execute(select(func.count()).select_from(Candidate).where(Candidate.status != 'processing'))).scalar() or 0
+    reviewed = (await db.execute(select(func.count()).select_from(Candidate).where(Candidate.status.in_(['reviewed', 'approved', 'rejected'])))).scalar() or 0
+    approved = (await db.execute(select(func.count()).select_from(Candidate).where(Candidate.status == 'approved'))).scalar() or 0
+    rejected = (await db.execute(select(func.count()).select_from(Candidate).where(Candidate.status == 'rejected'))).scalar() or 0
+    interviewed = (await db.execute(text("SELECT count(DISTINCT candidate_id) FROM interviews"))).scalar() or 0
+    hired = (await db.execute(text("SELECT count(DISTINCT candidate_id) FROM interviews WHERE feedback_decision = 'pass'"))).scalar() or 0
+
+    return {
+        "funnel": [
+            {"stage": "Total CVs", "count": total},
+            {"stage": "Reviewed", "count": reviewed},
+            {"stage": "Approved", "count": approved},
+            {"stage": "Interviewed", "count": interviewed},
+            {"stage": "Hired", "count": hired},
+        ],
+        "rejection_rate": round(rejected / total * 100, 1) if total else 0,
+        "approval_rate": round(approved / total * 100, 1) if total else 0,
+        "interview_rate": round(interviewed / approved * 100, 1) if approved else 0,
+    }
+
+
+@router.get("/weekly-stats")
+async def get_weekly_stats(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Weekly recruitment stats for the last 4 weeks."""
+    now = datetime.now(timezone.utc)
+    weeks = []
+    for i in range(4):
+        end = now - timedelta(weeks=i)
+        start = end - timedelta(weeks=1)
+        uploads = (await db.execute(select(func.count()).select_from(Candidate).where(Candidate.created_at >= start, Candidate.created_at < end, Candidate.status != 'processing'))).scalar() or 0
+        gold = (await db.execute(text("SELECT count(*) FROM job_candidates WHERE classification = 'gold' AND matched_at >= :s AND matched_at < :e"), {"s": start, "e": end})).scalar() or 0
+        weeks.append({"week": f"W-{i}", "start": start.strftime("%m/%d"), "uploads": uploads, "gold": gold})
+
+    weeks.reverse()
+    return {"weeks": weeks}
