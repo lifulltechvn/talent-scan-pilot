@@ -108,3 +108,83 @@ async def get_candidate_score(
     if not score:
         raise HTTPException(404, "Score not found. Run match first.")
     return score
+
+
+@router.get("/candidates/{candidate_id}/explanation")
+async def get_score_explanation(
+    candidate_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return detailed AI score explanation with breakdown, strengths, concerns, and suggestion."""
+    import json as json_lib
+
+    result = await db.execute(select(Score).where(Score.candidate_id == candidate_id))
+    score = result.scalar_one_or_none()
+    if not score:
+        raise HTTPException(404, "Score not found")
+
+    candidate = await db.get(Candidate, candidate_id)
+    details = score.details or {}
+    rule_scoring = details.get("rule_scoring", {})
+    matching = details.get("matching", {})
+
+    # Parse LLM summary (may be JSON or plain string)
+    llm_summary_raw = details.get("llm_summary", "")
+    llm_parsed = {"summary": llm_summary_raw, "strengths": [], "concerns": [], "suggestion": ""}
+    try:
+        parsed = json_lib.loads(llm_summary_raw)
+        if isinstance(parsed, dict):
+            llm_parsed = parsed
+    except (json_lib.JSONDecodeError, TypeError):
+        pass
+
+    # Build explanation
+    skills_info = rule_scoring.get("skills", {})
+    exp_info = rule_scoring.get("experience", {})
+    edu_info = rule_scoring.get("education", {})
+    lang_info = rule_scoring.get("language", {})
+    weights = rule_scoring.get("weights", {"skills": 0.3, "cosine": 0.25, "experience": 0.2, "education": 0.15, "language": 0.1})
+
+    return {
+        "candidate_id": str(candidate_id),
+        "candidate_name": candidate.structured_data.get("name", "Unknown") if candidate else "Unknown",
+        "final_score": score.final_score,
+        "rule_score": score.rule_score,
+        "llm_score": score.llm_score,
+        "classification": score.classification,
+        "breakdown": {
+            "skills": {
+                "score": skills_info.get("score", 0),
+                "weight": weights.get("skills", 0.3),
+                "matched": skills_info.get("matched", []),
+                "missing": skills_info.get("missing", []),
+            },
+            "cosine_similarity": {
+                "score": round((matching.get("cosine_score", 0) or 0) * 100, 1),
+                "weight": weights.get("cosine", 0.25),
+            },
+            "experience": {
+                "score": exp_info.get("score", 0),
+                "weight": weights.get("experience", 0.2),
+                "note": exp_info.get("note", ""),
+            },
+            "education": {
+                "score": edu_info.get("score", 0),
+                "weight": weights.get("education", 0.15),
+                "note": edu_info.get("note", ""),
+            },
+            "language": {
+                "score": lang_info.get("score", 0),
+                "weight": weights.get("language", 0.1),
+            },
+        },
+        "ai_assessment": {
+            "score": score.llm_score,
+            "summary": llm_parsed.get("summary", llm_summary_raw),
+            "strengths": llm_parsed.get("strengths", []),
+            "concerns": llm_parsed.get("concerns", []),
+            "suggestion": llm_parsed.get("suggestion", ""),
+        },
+        "formula": "Final = Rule Score × 70% + AI Score × 30%",
+    }

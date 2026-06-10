@@ -93,6 +93,7 @@ def upgrade() -> None:
         sa.Column("classification", sa.String(20), nullable=True),
         sa.Column("details", JSONB, nullable=True),
         sa.Column("matched_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.UniqueConstraint("job_id", "candidate_id", name="uq_job_candidates_job_candidate"),
     )
 
     # Audit Logs

@@ -1,6 +1,7 @@
 """
 Scoring engine: Rule-based 70% + Claude Haiku LLM evaluation 30%.
 """
+import json
 import logging
 
 from app.bedrock import invoke_claude
@@ -72,20 +73,41 @@ Candidate:
 Score 0-100 based on: career progression, skill depth, red flags, culture fit.
 Reply in exactly this format:
 SCORE: <number>
-SUMMARY: <one sentence>"""
+SUMMARY: <one sentence>
+STRENGTHS: <comma-separated list>
+CONCERNS: <comma-separated list>
+SUGGESTION: <one actionable recommendation for the interviewer>"""
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=200, feature="scoring")
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="scoring")
         lines = result.strip().split("\n")
         score = 60.0
         summary = result.strip()
+        strengths = ""
+        concerns = ""
+        suggestion = ""
         for line in lines:
             if line.startswith("SCORE:"):
                 score = float(line.replace("SCORE:", "").strip())
                 score = max(0, min(100, score))
             elif line.startswith("SUMMARY:"):
                 summary = line.replace("SUMMARY:", "").strip()
-        return score, summary
+            elif line.startswith("STRENGTHS:"):
+                strengths = line.replace("STRENGTHS:", "").strip()
+            elif line.startswith("CONCERNS:"):
+                concerns = line.replace("CONCERNS:", "").strip()
+            elif line.startswith("SUGGESTION:"):
+                suggestion = line.replace("SUGGESTION:", "").strip()
+        # Pack extra info into summary as structured format
+        full_summary = summary
+        if strengths or concerns or suggestion:
+            full_summary = json.dumps({
+                "summary": summary,
+                "strengths": [s.strip() for s in strengths.split(",") if s.strip()],
+                "concerns": [c.strip() for c in concerns.split(",") if c.strip()],
+                "suggestion": suggestion,
+            }, ensure_ascii=False)
+        return score, full_summary
     except Exception as e:
         logger.warning(f"LLM evaluation failed: {e}")
         return 60.0, f"LLM evaluation unavailable: {e}"

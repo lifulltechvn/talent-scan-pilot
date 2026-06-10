@@ -125,14 +125,44 @@ async def create_candidate(
 async def list_candidates(
     job_id: Optional[uuid.UUID] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
+    search: Optional[str] = Query(None, description="Search by name or skills"),
+    classification: Optional[str] = Query(None, description="gold/silver/talent_pool"),
+    min_score: Optional[float] = Query(None),
+    max_score: Optional[float] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    q = select(Candidate).order_by(Candidate.created_at.desc())
+    q = select(Candidate).where(Candidate.status != "processing").order_by(Candidate.created_at.desc())
     if job_id:
         q = q.where(Candidate.job_id == job_id)
     if status_filter:
         q = q.where(Candidate.status == status_filter)
+    if search:
+        search_like = f"%{search.lower()}%"
+        q = q.where(
+            Candidate.structured_data["name"].astext.ilike(search_like)
+            | Candidate.structured_data["skills"].astext.ilike(search_like)
+        )
+    if classification:
+        from app.models import Score
+        q = q.join(Score, Score.candidate_id == Candidate.id).where(Score.classification == classification)
+    if min_score is not None:
+        from app.models import Score
+        if "score" not in str(q):
+            q = q.join(Score, Score.candidate_id == Candidate.id)
+        q = q.where(Score.final_score >= min_score)
+    if max_score is not None:
+        from app.models import Score
+        if "score" not in str(q):
+            q = q.join(Score, Score.candidate_id == Candidate.id)
+        q = q.where(Score.final_score <= max_score)
+
+    # Pagination
+    offset = (page - 1) * page_size
+    q = q.offset(offset).limit(page_size)
+
     result = await db.execute(q)
     candidates = result.scalars().all()
 

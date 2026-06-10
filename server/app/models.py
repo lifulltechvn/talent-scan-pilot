@@ -254,4 +254,56 @@ class EmailTemplate(Base):
     closing: Mapped[str] = mapped_column(Text, default="")
     highlights: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     tips: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())    
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class CvBatch(Base):
+    __tablename__ = "cv_batches"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    total_files: Mapped[int] = mapped_column(Integer, default=0)
+    processed: Mapped[int] = mapped_column(Integer, default=0)
+    duplicates: Mapped[int] = mapped_column(Integer, default=0)
+    errors: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(20), default="processing")
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    items = relationship("CvBatchItem", back_populates="batch")
+
+
+class CvBatchItem(Base):
+    __tablename__ = "cv_batch_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    batch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cv_batches.id", ondelete="CASCADE"))
+    file_name: Mapped[str] = mapped_column(String(500))
+    file_path: Mapped[str] = mapped_column(String(500))
+    file_hash: Mapped[str | None] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    candidate_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("candidates.id"))
+    duplicate_of: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("candidates.id"))
+    error: Mapped[str | None] = mapped_column(Text)
+
+    batch = relationship("CvBatch", back_populates="items")
+
+
+class Interview(Base):
+    __tablename__ = "interviews"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    candidate_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("candidates.id", ondelete="CASCADE"))
+    job_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"))
+    title: Mapped[str] = mapped_column(String(255))
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    notes: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="scheduled")
+    feedback_score: Mapped[int | None] = mapped_column(Integer)
+    feedback_notes: Mapped[str | None] = mapped_column(Text)
+    feedback_decision: Mapped[str | None] = mapped_column(String(20))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    candidate = relationship("Candidate")
+    job = relationship("Job")

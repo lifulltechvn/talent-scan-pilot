@@ -6,6 +6,7 @@ import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
+import { ScoreExplanation } from '@/shared/components/ui/ScoreExplanation';
 import { CandidateTimeline } from '../components/CandidateTimeline';
 import { useI18n } from '@/shared/i18n';
 import { apiClient } from '@/data/api/client';
@@ -235,16 +236,9 @@ export function CandidateDetailPage() {
               <div className="flex items-center gap-2"><Languages size={12} className="text-text-muted" /> {d.languages.map(l => l.language).join(', ')}</div>
             </div>
 
-            {/* Score summary */}
+            {/* Score Explanation */}
             <div className="border-t border-border-subtle pt-3 mb-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-text-primary">{score?.finalScore ?? 0}</div>
-                <div className="text-[11px] text-text-muted">Final Score</div>
-              </div>
-              <div className="flex justify-center gap-4 mt-2 text-[11px]">
-                <div className="text-center"><div className="font-medium text-text-primary">{score?.ruleScore ?? 0}</div><div className="text-text-muted">Rule</div></div>
-                <div className="text-center"><div className="font-medium text-text-primary">{score?.llmScore ?? 0}</div><div className="text-text-muted">LLM</div></div>
-              </div>
+              <ScoreExplanation candidateId={candidate.id} />
             </div>
 
             {/* Actions */}

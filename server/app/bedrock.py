@@ -1,13 +1,42 @@
 import json
 import logging
+import time
 
 import boto3
+from botocore.exceptions import ClientError
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 _client = None
+
+
+def _retry(func, max_retries=3, backoff=1.0):
+    """Decorator: retry on throttling/timeout/server errors."""
+    import functools
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        for attempt in range(max_retries):
+            try:
+                return func(*args, **kwargs)
+            except ClientError as e:
+                error_code = e.response["Error"]["Code"]
+                if error_code in ("ThrottlingException", "ServiceUnavailableException", "ModelTimeoutException") and attempt < max_retries - 1:
+                    wait = backoff * (2 ** attempt)
+                    logger.warning(f"Bedrock {error_code}, retry {attempt + 1}/{max_retries} in {wait}s")
+                    time.sleep(wait)
+                else:
+                    raise
+            except Exception as e:
+                if "timeout" in str(e).lower() and attempt < max_retries - 1:
+                    wait = backoff * (2 ** attempt)
+                    logger.warning(f"Bedrock timeout, retry {attempt + 1}/{max_retries} in {wait}s")
+                    time.sleep(wait)
+                else:
+                    raise
+    return wrapper
 
 # Pricing per 1K tokens (USD) — updated June 2025
 PRICING = {
@@ -86,7 +115,11 @@ def invoke_claude(prompt: str, *, model: str | None = None, max_tokens: int = 40
     if system:
         body["system"] = system
 
-    response = client.invoke_model(modelId=model_id, body=json.dumps(body))
+    @_retry
+    def _call():
+        return client.invoke_model(modelId=model_id, body=json.dumps(body))
+
+    response = _call()
     result = json.loads(response["body"].read())
 
     # Extract token usage
@@ -114,7 +147,11 @@ def invoke_claude_with_tools(prompt: str, tools: list, *, model: str | None = No
     if system:
         body["system"] = system
 
-    response = client.invoke_model(modelId=model_id, body=json.dumps(body))
+    @_retry
+    def _call():
+        return client.invoke_model(modelId=model_id, body=json.dumps(body))
+
+    response = _call()
     result = json.loads(response["body"].read())
 
     # Extract token usage
@@ -135,7 +172,11 @@ def get_embedding(text: str) -> list[float]:
     model_id = settings.BEDROCK_MODEL_EMBEDDING
     body = {"inputText": text, "dimensions": 1024, "normalize": True}
 
-    response = client.invoke_model(modelId=model_id, body=json.dumps(body))
+    @_retry
+    def _call():
+        return client.invoke_model(modelId=model_id, body=json.dumps(body))
+
+    response = _call()
     result = json.loads(response["body"].read())
 
     # Titan returns inputTextTokenCount
