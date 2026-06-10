@@ -229,7 +229,37 @@ def upgrade() -> None:
     )
 
 
+    # CV Batches
+    op.create_table(
+        "cv_batches",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("total_files", sa.Integer, server_default="0"),
+        sa.Column("processed", sa.Integer, server_default="0"),
+        sa.Column("duplicates", sa.Integer, server_default="0"),
+        sa.Column("errors", sa.Integer, server_default="0"),
+        sa.Column("status", sa.String(20), server_default=sa.text("'processing'")),
+        sa.Column("created_by", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+    )
+
+    # CV Batch Items
+    op.create_table(
+        "cv_batch_items",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("batch_id", UUID(as_uuid=True), sa.ForeignKey("cv_batches.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("file_name", sa.String(500), nullable=False),
+        sa.Column("file_path", sa.String(500), nullable=False),
+        sa.Column("file_hash", sa.String(32), nullable=True),
+        sa.Column("status", sa.String(20), server_default=sa.text("'pending'")),
+        sa.Column("candidate_id", UUID(as_uuid=True), sa.ForeignKey("candidates.id"), nullable=True),
+        sa.Column("duplicate_of", UUID(as_uuid=True), sa.ForeignKey("candidates.id"), nullable=True),
+        sa.Column("error", sa.Text, nullable=True),
+    )
+
+
 def downgrade() -> None:
+    op.drop_table("cv_batch_items")
+    op.drop_table("cv_batches")
     op.drop_table("email_templates")
     op.drop_table("interview_feedback")
     op.drop_table("ai_usage_logs")
