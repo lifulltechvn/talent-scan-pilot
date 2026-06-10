@@ -1,46 +1,158 @@
 # TalentScan — AI CV Screening System
 
-Hệ thống tuyển dụng AI: quét CV, ẩn danh PII, parse & normalize, matching JD, scoring ứng viên.
+Hệ thống tuyển dụng AI: upload CV → parse & ẩn danh PII → auto-matching Jobs → scoring → interview scheduling.
 
-Gồm 3 phần:
+## Tech Stack
 
-- **Server** (Docker) — FastAPI + PostgreSQL + Nginx: API, matching, scoring, dashboard
-- **Frontend** (Docker) — React SPA: dashboard cho HR
-- **Desktop App** (native) — Flet GUI: quét CV trên máy HR, trích xuất text từ PDF/DOCX
+- **Backend:** FastAPI + SQLAlchemy 2.0 (async) + Alembic
+- **Database:** PostgreSQL 16 + pgvector (vector search 1024-dim)
+- **AI:** AWS Bedrock (Claude Sonnet/Haiku + Titan Embed V2)
+- **Auth:** JWT (python-jose HS256) + bcrypt
+- **Infra:** Docker Compose (4 containers: Nginx + FastAPI + PostgreSQL + React)
+- **Frontend:** React 19 + Vite + TypeScript + Tailwind CSS v4 + TanStack Query v5
+
+---
 
 ## Yêu cầu
 
 - Docker & Docker Compose
-- Python 3.11–3.13 (cho Desktop App)
+- AWS credentials (cho AI features: parse CV, scoring, embedding)
 
 ---
 
-## Khởi động
-
-### 1. Server + Frontend (Docker)
+## Setup lần đầu
 
 ```bash
+# 1. Clone & config
+git clone <repo-url>
 cd talent-scan-pilot
-cp .env.example .env                          # Lần đầu
-docker compose up -d                          # Start tất cả
-docker compose exec api alembic upgrade head  # Tạo DB tables (lần đầu)
+cp .env.example .env
+# Sửa .env: thêm AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+
+# 2. Start services
+docker compose up -d
+
+# 3. Tạo database tables
+docker compose exec api alembic upgrade head
+
+# 4. (Optional) Seed data test
+docker compose exec api python seed.py
 ```
 
-### 2. Desktop App (native trên máy)
+Truy cập: http://localhost
+
+**Test account:** `hr@test.com` / `test1234`
+
+---
+
+## Cấu trúc Project
+
+```
+talent-scan-pilot/
+├── docker-compose.yml              # 4 services: db, api, frontend, nginx
+├── .env                            # Biến môi trường (không commit)
+├── .env.example                    # Template env
+├── reset-db.sh                     # Script reset DB giữ users
+├── nginx/nginx.conf                # Reverse proxy
+├── server/                         # Backend — FastAPI
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── seed.py                     # Seed test data
+│   ├── alembic/                    # DB migrations
+│   └── app/
+│       ├── main.py                 # FastAPI entrypoint
+│       ├── config.py               # Settings từ .env
+│       ├── database.py             # Async SQLAlchemy session
+│       ├── models.py               # ORM models
+│       ├── auth.py                 # JWT + bcrypt
+│       ├── schemas.py              # Pydantic schemas
+│       ├── deps.py                 # Auth dependency
+│       ├── bedrock.py              # AWS Bedrock client (AI)
+│       ├── extractor.py            # PDF/DOCX text extraction
+│       ├── pii_filter.py           # PII anonymization (regex)
+│       ├── scheduler.py            # APScheduler (reminders)
+│       ├── routers/
+│       │   ├── auth.py             # Login/register/refresh
+│       │   ├── candidates.py       # CRUD + matched-jobs
+│       │   ├── jobs.py             # CRUD + suggest/assign/score
+│       │   ├── cv_upload.py        # Single CV upload
+│       │   ├── cv_batch.py         # Batch CV upload (200 files)
+│       │   ├── interviews.py       # Interview calendar CRUD + feedback
+│       │   ├── scoring.py          # Score endpoints
+│       │   ├── dashboard.py        # Dashboard overview API
+│       │   ├── quiz.py             # Quiz verify ứng viên
+│       │   ├── schedule.py         # Public booking slots
+│       │   ├── outreach.py         # Email outreach
+│       │   └── ...
+│       └── services/
+│           ├── cv_upload.py        # CV processing pipeline
+│           ├── cv_batch_worker.py  # Background batch processor
+│           ├── smart_pool.py       # pgvector auto-matching
+│           ├── scoring.py          # Rule + LLM scoring
+│           └── matching.py         # Embedding similarity
+└── frontend/                       # Web Dashboard — React
+    ├── Dockerfile
+    ├── vite.config.ts
+    └── src/
+        ├── app/                    # Router + providers
+        ├── domain/models/          # TypeScript interfaces
+        ├── data/                   # API client, repositories
+        ├── features/
+        │   ├── auth/               # Login page
+        │   ├── dashboard/          # Tổng quan
+        │   ├── candidates/         # Danh sách & chi tiết ứng viên
+        │   ├── jobs/               # Tin tuyển dụng & scoring detail
+        │   ├── interviews/         # Calendar phỏng vấn
+        │   ├── cv-upload/          # Upload CV (single & batch)
+        │   └── ...
+        └── shared/                 # Layout, UI components, utils
+```
+
+---
+
+## Luồng hoạt động chính
+
+```
+Upload CV → Extract text → PII filter → AI Parse → Embedding
+                                                        ↓
+                                              Smart Pool auto-match
+                                                        ↓
+Job Detail → Suggest → Assign → Full Scoring (Rule 70% + AI 30%)
+                                                        ↓
+                                        Gold / Silver / Talent Pool
+                                                        ↓
+                                HR review → Approve → Book Interview
+                                                        ↓
+                                              Feedback → Hire / Reject
+```
+
+---
+
+## Commands thường dùng
 
 ```bash
-cd app
-python3.13 -m venv .venv        # Tạo venv (lần đầu)
-source .venv/bin/activate       # macOS/Linux
-# .venv\Scripts\activate        # Windows
-pip install -r requirements.txt # Cài dependencies (lần đầu)
-python main.py                  # Chạy app
+# Start/stop
+docker compose up -d              # Start tất cả
+docker compose stop               # Dừng (giữ data)
+docker compose down               # Dừng + xóa containers
+docker compose down -v            # ⚠️ Xóa tất cả kể cả data
+
+# Logs
+docker compose logs api -f        # Xem log API realtime
+docker compose logs frontend -f   # Xem log frontend
+
+# Database
+docker compose exec api alembic upgrade head    # Chạy migrations
+docker compose exec db psql -U talent -d talentscan  # Truy cập DB
+./reset-db.sh                     # Reset DB, giữ users
+
+# Frontend
+docker compose exec frontend npm install <pkg>  # Cài package mới
+
+# Restart sau khi sửa code
+docker compose restart api        # Backend (auto-reload có sẵn)
+docker compose restart frontend   # Frontend (HMR có sẵn)
 ```
-
-App mở cửa sổ native → nhấn **"📂 Chọn file CV"** → chọn PDF/DOCX → xem kết quả trích xuất.
-
-- **Digital PDF/DOCX** → trích xuất text ngay (PyMuPDF / python-docx)
-- **Scanned PDF** (ảnh, không có text) → đánh dấu "cần OCR" (GPT-4o Vision — sẽ tích hợp ở W6)
 
 ---
 
@@ -49,114 +161,36 @@ App mở cửa sổ native → nhấn **"📂 Chọn file CV"** → chọn PDF/D
 | URL | Mô tả |
 |-----|-------|
 | http://localhost | Web Dashboard (qua Nginx) |
-| http://localhost:8000/docs | Swagger UI — test API trên trình duyệt |
-| http://localhost:5173 | Frontend dev (direct) |
-
-**Test account:** `hr@test.com` / `test1234`
+| http://localhost:8000/docs | Swagger UI — test API |
+| http://localhost:5173 | Frontend dev (direct, bypass nginx) |
 
 ---
 
-## Dừng / Khởi động lại
+## Environment Variables
 
-```bash
-docker compose stop     # Dừng (giữ data)
-docker compose start    # Khởi động lại
-docker compose down     # Dừng + xóa containers (data vẫn giữ trong volume)
-docker compose down -v  # ⚠️ Xóa tất cả kể cả data
-```
-
----
-
-## Cấu trúc project
-
-```
-talent-scan-pilot/
-├── docker-compose.yml          # 4 services: db, api, frontend, nginx
-├── .env                        # Biến môi trường (không commit)
-├── nginx/nginx.conf            # Reverse proxy
-├── server/                     # Backend — FastAPI (Docker)
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── releases/               # App binaries cho client download (.zip)
-│   ├── alembic/                # DB migrations
-│   └── app/
-│       ├── main.py             # FastAPI entrypoint
-│       ├── config.py           # Settings từ .env
-│       ├── database.py         # Async SQLAlchemy session
-│       ├── models.py           # User, Job, Candidate, Score, AuditLog
-│       ├── auth.py             # JWT + bcrypt
-│       ├── schemas.py          # Pydantic schemas
-│       ├── deps.py             # Auth dependency
-│       └── routers/
-│           ├── auth.py         # Auth endpoints
-│           └── app_version.py  # App version + download endpoints
-├── frontend/                   # Web Dashboard — React (Docker)
-│   ├── Dockerfile
-│   ├── vite.config.ts
-│   └── src/
-│       ├── app/                # Router + providers
-│       ├── domain/models/      # Candidate, Job, Score, User, Interview, TalentPool
-│       ├── data/               # API client, mock data, DI
-│       ├── features/           # auth, dashboard, candidates, jobs, interviews, talent-pool
-│       └── shared/             # Layout, UI components, utils
-└── app/                        # Desktop App — Flet GUI (native)
-    ├── requirements.txt        # flet, PyMuPDF, python-docx, pydantic
-    ├── main.py                 # Flet GUI: file picker, progress, results
-    ├── extractor.py            # Text extraction: PDF (PyMuPDF) + DOCX (python-docx)
-    └── updater.py              # Auto-updater: check version, download, replace
-```
+| Variable | Mô tả | Bắt buộc |
+|----------|--------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | ✅ |
+| `SECRET_KEY` | JWT signing key | ✅ |
+| `AWS_ACCESS_KEY_ID` | AWS credentials cho Bedrock | ✅ (cho AI) |
+| `AWS_SECRET_ACCESS_KEY` | AWS credentials | ✅ (cho AI) |
+| `AWS_REGION` | AWS region | ✅ |
+| `MAIL_SERVER` | SMTP server | Optional |
+| `MAIL_USERNAME` | SMTP username | Optional |
+| `MAIL_PASSWORD` | SMTP password | Optional |
 
 ---
 
-## Build & Release Desktop App
+## Scoring System
 
-### Build (macOS)
+**Final Score** = Rule Score × 70% + LLM Score × 30%
 
-```bash
-cd app
-source .venv/bin/activate
-pip install pyinstaller        # Lần đầu
-flet pack main.py \
-  --name "TalentScan" \
-  --product-name "TalentScan" \
-  --product-version "1.0.5" \
-  --bundle-id "com.lifull.talentscan" \
-  -y
-```
+| Thành phần | Trọng số | Mô tả |
+|---|---|---|
+| Skills | 30% | % skill ứng viên khớp với job |
+| Experience | 20% | Số năm kinh nghiệm vs yêu cầu |
+| Education | 15% | Trình độ học vấn vs yêu cầu |
+| Language | 10% | Có ngoại ngữ |
+| LLM (AI) | 30% | AI phân tích tổng quan |
 
-Output: `app/dist/TalentScan.app`
-
-### Đưa lên server để client download
-
-```bash
-cd app/dist
-zip -r ../../server/releases/TalentScan-v1.0.5-macos.zip TalentScan.app
-```
-
-Cập nhật `APP_VERSION` trong `.env` cho khớp version mới.
-
-### API phân phối
-
-| Endpoint | Mô tả |
-|----------|--------|
-| `GET /api/v1/app/version` | Trả version mới nhất + download URLs |
-| `GET /api/v1/app/download/{filename}` | Download file release |
-
-### Flow release version mới
-
-1. Sửa `CURRENT_VERSION` trong `app/updater.py`
-2. Build app bằng `flet pack`
-3. Nén zip vào `server/releases/`
-4. Cập nhật `APP_VERSION` trong `.env`
-5. Restart server → client tự detect và cập nhật
-
----
-
-## Tech Stack
-
-- **Backend:** FastAPI + SQLAlchemy 2.0 (async) + Alembic
-- **Database:** PostgreSQL 16 + pgvector (vector search 1536-dim)
-- **Auth:** JWT (python-jose HS256) + bcrypt
-- **Infra:** Docker Compose (4 containers: Nginx + FastAPI + PostgreSQL + Frontend)
-- **Frontend:** React 19 + Vite + TypeScript + Tailwind CSS v4 + TanStack Query v5
-- **Desktop App:** Python + Flet (Flutter-based GUI) + PyMuPDF + python-docx
+**Classification:** Gold (≥80) · Silver (≥50) · Talent Pool (<50)
