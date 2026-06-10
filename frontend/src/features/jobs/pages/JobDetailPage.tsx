@@ -220,7 +220,10 @@ export function JobDetailPage() {
                   </Link>
                 </td>
                 <td className="px-4 py-3"><ScoreBar score={c.score?.finalScore ?? 0} /></td>
-                <td className="px-4 py-3"><Badge variant={c.score?.classification ?? 'neutral'}>{c.score?.classification ?? '—'}</Badge></td>
+                <td className="px-4 py-3">
+                  <Badge variant={c.score?.classification ?? 'neutral'}>{c.score?.classification ?? '—'}</Badge>
+                  {c.score?.details?.auto_scored && <span className="ml-1 text-[10px] text-amber-500" title="Auto-scored">⚡</span>}
+                </td>
                 <td className="px-4 py-3"><span className="text-[12px] text-text-tertiary capitalize">{c.status}</span></td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
