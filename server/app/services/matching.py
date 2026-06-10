@@ -20,16 +20,13 @@ def get_embedding(text: str) -> list[float]:
 
 
 def generate_mock_embedding(text: str) -> list[float]:
-    """Generate a deterministic mock embedding (1536-dim) for seeding without API calls."""
+    """Generate a deterministic mock embedding (1024-dim) for seeding without API calls."""
     import hashlib
-    h = hashlib.sha512(text.encode()).digest()
-    import struct
-    values = []
-    while len(values) < 1536:
-        h = hashlib.sha512(h).digest()
-        values.extend(struct.unpack(f'{len(h)//4}f', h[:len(h)//4*4]))
-    vec = values[:1536]
-    norm = (sum(x*x for x in vec)) ** 0.5 or 1.0
+    import random
+    seed = int(hashlib.md5(text.encode()).hexdigest(), 16) % (2**32)
+    rng = random.Random(seed)
+    vec = [rng.gauss(0, 1) for _ in range(1024)]
+    norm = (sum(x * x for x in vec)) ** 0.5 or 1.0
     return [x / norm for x in vec]
 
 
