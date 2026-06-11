@@ -271,6 +271,11 @@ def upgrade() -> None:
         sa.Column("feedback_score", sa.Integer, nullable=True),
         sa.Column("feedback_notes", sa.Text, nullable=True),
         sa.Column("feedback_decision", sa.String(20), nullable=True),
+        sa.Column("round", sa.Integer, server_default="1"),
+        sa.Column("proposed_salary", sa.String(100), nullable=True),
+        sa.Column("meeting_link", sa.String(500), nullable=True),
+        sa.Column("interview_type", sa.String(20), server_default=sa.text("'online'")),
+        sa.Column("reminder_30min_sent", sa.Boolean, server_default="false"),
         sa.Column("created_by", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
     )

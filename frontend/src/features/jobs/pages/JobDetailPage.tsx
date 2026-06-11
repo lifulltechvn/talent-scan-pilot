@@ -570,6 +570,10 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [notes, setNotes] = useState('');
+  const [round, setRound] = useState(1);
+  const [proposedSalary, setProposedSalary] = useState('');
+  const [meetingLink, setMeetingLink] = useState('');
+  const [interviewType, setInterviewType] = useState('online');
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -579,10 +583,14 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
       await apiClient.post('/interviews', {
         candidate_id: candidateId,
         job_id: jobId,
-        title: `Interview: ${jobTitle}`,
+        title: `Round ${round}: ${jobTitle}`,
         start_time: new Date(`${date}T${startTime}`).toISOString(),
         end_time: new Date(`${date}T${endTime}`).toISOString(),
         notes: notes || null,
+        round,
+        proposed_salary: proposedSalary || null,
+        meeting_link: meetingLink || null,
+        interview_type: interviewType,
       });
       setDone(true);
     } catch { /* ignore */ }
@@ -591,7 +599,7 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm m-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
           <h2 className="text-[15px] font-semibold text-white">Đặt lịch phỏng vấn</h2>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
@@ -600,12 +608,31 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
           <div className="p-6 text-center">
             <CheckCircle size={36} className="mx-auto mb-3 text-emerald-500" />
             <p className="text-[14px] font-medium text-text-primary">Đã đặt lịch thành công!</p>
-            <p className="text-[12px] text-text-muted mt-1">{candidateName} — {date} {startTime}</p>
+            <p className="text-[12px] text-text-muted mt-1">{candidateName} — Round {round} — {date} {startTime}</p>
             <button onClick={onClose} className="mt-4 px-4 py-2 text-[13px] text-accent hover:bg-accent/10 rounded-lg">Đóng</button>
           </div>
         ) : (
-          <div className="p-5 space-y-4">
+          <div className="p-5 space-y-3">
             <div className="text-[13px] text-text-primary font-medium">{candidateName}</div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] font-medium text-text-muted uppercase">Vòng phỏng vấn</label>
+                <select value={round} onChange={e => setRound(Number(e.target.value))} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px] bg-white">
+                  <option value={1}>Round 1</option>
+                  <option value={2}>Round 2</option>
+                  <option value={3}>Round 3</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-text-muted uppercase">Hình thức</label>
+                <select value={interviewType} onChange={e => setInterviewType(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px] bg-white">
+                  <option value="online">Online</option>
+                  <option value="onsite">Onsite</option>
+                </select>
+              </div>
+            </div>
+
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="text-[11px] font-medium text-text-muted uppercase">Ngày</label>
@@ -620,12 +647,24 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
                 <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
               </div>
             </div>
+
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Meeting Link</label>
+              <input value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Mức lương đề xuất</label>
+              <input value={proposedSalary} onChange={e => setProposedSalary(e.target.value)} placeholder="1500-2000 USD" className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+
             <div>
               <label className="text-[11px] font-medium text-text-muted uppercase">Ghi chú</label>
-              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Link meeting, phòng..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Yêu cầu đặc biệt, người phỏng vấn..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
+
             <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
-              {saving ? 'Đang tạo...' : 'Đặt lịch'}
+              {saving ? 'Đang tạo...' : `Đặt lịch Round ${round}`}
             </button>
           </div>
         )}

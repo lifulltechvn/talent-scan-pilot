@@ -21,6 +21,10 @@ class InterviewCreate(BaseModel):
     start_time: str  # ISO
     end_time: str    # ISO
     notes: str | None = None
+    round: int = 1
+    proposed_salary: str | None = None
+    meeting_link: str | None = None
+    interview_type: str = "online"  # online / onsite
 
 
 class InterviewUpdate(BaseModel):
@@ -29,6 +33,10 @@ class InterviewUpdate(BaseModel):
     end_time: str | None = None
     notes: str | None = None
     status: str | None = None
+    round: int | None = None
+    proposed_salary: str | None = None
+    meeting_link: str | None = None
+    interview_type: str | None = None
 
 
 class FeedbackCreate(BaseModel):
@@ -62,6 +70,10 @@ async def list_interviews(
             "end_time": r["end_time"].isoformat(),
             "notes": r["notes"],
             "status": r["status"],
+            "round": r["round"],
+            "proposed_salary": r["proposed_salary"],
+            "meeting_link": r["meeting_link"],
+            "interview_type": r["interview_type"],
             "feedback_score": r["feedback_score"],
             "feedback_notes": r["feedback_notes"],
             "feedback_decision": r["feedback_decision"],
@@ -80,16 +92,18 @@ async def create_interview(
     from datetime import datetime as dt
     interview_id = uuid.uuid4()
     await db.execute(text("""
-        INSERT INTO interviews (id, candidate_id, job_id, title, start_time, end_time, notes, created_by)
-        VALUES (:id, :cid, :jid, :title, :start, :end, :notes, :uid)
+        INSERT INTO interviews (id, candidate_id, job_id, title, start_time, end_time, notes, round, proposed_salary, meeting_link, interview_type, created_by)
+        VALUES (:id, :cid, :jid, :title, :start, :end, :notes, :round, :salary, :link, :type, :uid)
     """), {
         "id": str(interview_id), "cid": body.candidate_id,
         "jid": body.job_id, "title": body.title,
         "start": dt.fromisoformat(body.start_time), "end": dt.fromisoformat(body.end_time),
-        "notes": body.notes, "uid": str(user.id),
+        "notes": body.notes, "round": body.round,
+        "salary": body.proposed_salary, "link": body.meeting_link,
+        "type": body.interview_type, "uid": str(user.id),
     })
     await db.commit()
-    return {"id": str(interview_id), "status": "scheduled"}
+    return {"id": str(interview_id), "status": "scheduled", "round": body.round}
 
 
 @router.put("/{interview_id}")

@@ -13,6 +13,10 @@ interface Interview {
   end_time: string;
   notes: string | null;
   status: string;
+  round: number;
+  proposed_salary: string | null;
+  meeting_link: string | null;
+  interview_type: string;
   feedback_score: number | null;
   feedback_notes: string | null;
   feedback_decision: string | null;
@@ -42,9 +46,10 @@ function fmtDay(d: Date) { return d.toLocaleDateString('vi', { weekday: 'short',
 
 export function InterviewsPage() {
   const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState<{ date: string; time: string } | false>(false);
   const [showDetail, setShowDetail] = useState<Interview | null>(null);
   const [showFeedback, setShowFeedback] = useState<Interview | null>(null);
+  const [bookNextRound, setBookNextRound] = useState<Interview | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -84,7 +89,7 @@ export function InterviewsPage() {
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-semibold text-text-primary">Interviews</h1>
-          <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover">
+          <button onClick={() => setShowCreate({ date: new Date().toISOString().slice(0, 10), time: '09:00' })} className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover">
             <Plus size={14} /> Tạo lịch
           </button>
         </div>
@@ -121,7 +126,7 @@ export function InterviewsPage() {
                   {weekDates.map(d => {
                     const events = getEventsForSlot(d, hour);
                     return (
-                      <td key={fmt(d) + hour} className="border-b border-r border-border-subtle/50 p-0.5 align-top relative">
+                      <td key={fmt(d) + hour} onClick={() => setShowCreate({ date: fmt(d), time: `${String(hour).padStart(2, '0')}:00` })} className="border-b border-r border-border-subtle/50 p-0.5 align-top relative cursor-pointer hover:bg-accent/5">
                         {events.map(ev => (
                           <div
                             key={ev.id}
@@ -131,7 +136,7 @@ export function InterviewsPage() {
                             }`}
                           >
                             <div className="font-medium truncate">{ev.candidate_name}</div>
-                            <div className="truncate opacity-70">{ev.job_title || ev.title}</div>
+                            <div className="truncate opacity-70">R{ev.round || 1} · {ev.interview_type || 'online'} · {ev.job_title || ev.title}</div>
                           </div>
                         ))}
                       </td>
@@ -183,22 +188,42 @@ export function InterviewsPage() {
             </div>
           </div>
         )}
+
+        {/* Need next round scheduling */}
+        {interviews.filter(i => i.feedback_decision === 'next_round' && !interviews.some(j => j.candidate_id === i.candidate_id && j.round > i.round)).length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <h2 className="text-sm font-medium text-blue-800 mb-3">🔄 Cần đặt lịch vòng tiếp</h2>
+            <div className="space-y-2">
+              {interviews.filter(i => i.feedback_decision === 'next_round' && !interviews.some(j => j.candidate_id === i.candidate_id && j.round > i.round)).map(i => (
+                <div key={i.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-blue-100">
+                  <div>
+                    <div className="text-[12px] font-medium text-text-primary">{i.candidate_name}</div>
+                    <div className="text-[10px] text-text-muted">Round {i.round || 1} passed — {i.job_title}</div>
+                  </div>
+                  <button onClick={() => setBookNextRound(i)} className="text-[11px] text-blue-600 font-medium hover:underline">Đặt lịch Round {(i.round || 1) + 1}</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modals */}
-      {showCreate && <CreateModal candidates={candidates} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); fetchInterviews(); }} />}
+      {showCreate && <CreateModal candidates={candidates} defaultDate={showCreate.date} defaultTime={showCreate.time} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); fetchInterviews(); }} />}
       {showDetail && <DetailModal interview={showDetail} onClose={() => setShowDetail(null)} onFeedback={() => { setShowFeedback(showDetail); setShowDetail(null); }} onDeleted={() => { setShowDetail(null); fetchInterviews(); }} />}
-      {showFeedback && <FeedbackModal interview={showFeedback} onClose={() => setShowFeedback(null)} onSaved={() => { setShowFeedback(null); fetchInterviews(); }} />}
+      {showFeedback && <FeedbackModal interview={showFeedback} onClose={() => setShowFeedback(null)} onSaved={(decision) => { setShowFeedback(null); fetchInterviews(); if (decision === 'next_round') setBookNextRound(showFeedback); }} />}
+      {bookNextRound && <BookNextRoundModal interview={bookNextRound} onClose={() => setBookNextRound(null)} onCreated={() => { setBookNextRound(null); fetchInterviews(); }} />}
     </div>
   );
 }
 
-function CreateModal({ candidates, onClose, onCreated }: { candidates: Candidate[]; onClose: () => void; onCreated: () => void }) {
+function CreateModal({ candidates, defaultDate, defaultTime, onClose, onCreated }: { candidates: Candidate[]; defaultDate: string; defaultTime: string; onClose: () => void; onCreated: () => void }) {
   const [candidateId, setCandidateId] = useState('');
   const [title, setTitle] = useState('Interview');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
+  const [date, setDate] = useState(defaultDate || new Date().toISOString().slice(0, 10));
+  const [startTime, setStartTime] = useState(defaultTime || '09:00');
+  const endHour = Math.min(parseInt(defaultTime || '09') + 1, 23);
+  const [endTime, setEndTime] = useState(`${String(endHour).padStart(2, '0')}:00`);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -279,9 +304,16 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
           <p className="text-[12px] text-text-muted mt-0.5">{interview.candidate_name} · {interview.job_title || ''}</p>
         </div>
         <div className="p-5 space-y-3">
+          <div className="flex items-center gap-2 text-[12px] text-text-muted">
+            <span className="px-2 py-0.5 bg-accent/10 text-accent rounded font-medium">Round {interview.round || 1}</span>
+            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded capitalize">{interview.interview_type || 'online'}</span>
+            <span className={`px-2 py-0.5 rounded ${interview.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{interview.status}</span>
+          </div>
           <div className="text-[13px] text-text-secondary">
             <strong>Thời gian:</strong> {new Date(interview.start_time).toLocaleString('vi')} — {new Date(interview.end_time).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}
           </div>
+          {interview.meeting_link && <div className="text-[13px] text-text-secondary"><strong>Meeting:</strong> <a href={interview.meeting_link} target="_blank" className="text-accent hover:underline">{interview.meeting_link}</a></div>}
+          {interview.proposed_salary && <div className="text-[13px] text-text-secondary"><strong>Lương đề xuất:</strong> {interview.proposed_salary}</div>}
           {interview.notes && <div className="text-[13px] text-text-secondary"><strong>Ghi chú:</strong> {interview.notes}</div>}
           {interview.feedback_score && (
             <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
@@ -311,7 +343,7 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
   );
 }
 
-function FeedbackModal({ interview, onClose, onSaved }: { interview: Interview; onClose: () => void; onSaved: () => void }) {
+function FeedbackModal({ interview, onClose, onSaved }: { interview: Interview; onClose: () => void; onSaved: (decision: string) => void }) {
   const [score, setScore] = useState(3);
   const [notes, setNotes] = useState('');
   const [decision, setDecision] = useState('pass');
@@ -321,7 +353,7 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: Interview; 
     setSaving(true);
     try {
       await apiClient.post(`/interviews/${interview.id}/feedback`, { score, notes: notes || null, decision });
-      onSaved();
+      onSaved(decision);
     } catch { /* ignore */ }
     setSaving(false);
   };
@@ -360,6 +392,92 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: Interview; 
           </div>
           <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
             {saving ? 'Đang lưu...' : 'Lưu feedback'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Interview; onClose: () => void; onCreated: () => void }) {
+  const nextRound = (interview.round || 1) + 1;
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('10:00');
+  const [meetingLink, setMeetingLink] = useState(interview.meeting_link || '');
+  const [interviewType, setInterviewType] = useState(interview.interview_type || 'online');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.post('/interviews', {
+        candidate_id: interview.candidate_id,
+        job_id: interview.job_id,
+        title: `Round ${nextRound}: ${interview.job_title || 'Interview'}`,
+        start_time: new Date(`${date}T${startTime}`).toISOString(),
+        end_time: new Date(`${date}T${endTime}`).toISOString(),
+        notes: notes || null,
+        round: nextRound,
+        meeting_link: meetingLink || null,
+        interview_type: interviewType,
+        proposed_salary: interview.proposed_salary,
+      });
+      onCreated();
+    } catch { /* ignore */ }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 bg-emerald-600 rounded-t-2xl">
+          <h2 className="text-[15px] font-semibold text-white">🔄 Đặt lịch Round {nextRound}</h2>
+          <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="text-[13px] text-text-primary font-medium">{interview.candidate_name} — {interview.job_title}</div>
+          <div className="text-[11px] text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg">✅ Round {interview.round || 1} passed — scheduling Round {nextRound}</div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Hình thức</label>
+              <select value={interviewType} onChange={e => setInterviewType(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px] bg-white">
+                <option value="online">Online</option>
+                <option value="onsite">Onsite</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Ngày</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Từ</label>
+              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Đến</label>
+              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-text-muted uppercase">Meeting Link</label>
+            <input value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-text-muted uppercase">Ghi chú</label>
+            <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Focus vòng này: technical deep-dive..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+          </div>
+
+          <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-emerald-600 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40">
+            {saving ? 'Đang tạo...' : `Đặt lịch Round ${nextRound}`}
           </button>
         </div>
       </div>
