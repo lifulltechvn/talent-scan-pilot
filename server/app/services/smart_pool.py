@@ -21,10 +21,11 @@ async def match_candidate_to_all_jobs(candidate_id: str, db: AsyncSession):
     result = await db.execute(select(Job).where(Job.embedding.isnot(None)))
     jobs = result.scalars().all()
 
-    cand_skills = {s.lower() for s in (candidate.structured_data.get("skills") or [])}
+    cand_skills = {s.lower() for s in normalize_skills(candidate.structured_data.get("skills") or [])}
 
     for job in jobs:
-        job_skills = {s.lower() for s in (job.required_skills or [])}
+        from app.skill_normalizer import normalize_skills
+        job_skills = {s.lower() for s in normalize_skills(job.required_skills or [])}
         # Compute similarity using pgvector
         sim_result = await db.execute(text("""
             SELECT 1 - (embedding <=> CAST(:job_embedding AS vector)) AS similarity
@@ -87,7 +88,8 @@ async def match_job_to_all_candidates(job_id: str, db: AsyncSession):
     candidates = result.mappings().all()
 
     for c in candidates:
-        cand_skills = {s.lower() for s in (c["structured_data"].get("skills") or [])}
+        from app.skill_normalizer import normalize_skills as _ns
+        cand_skills = {s.lower() for s in _ns(c["structured_data"].get("skills") or [])}
         similarity = float(c["similarity"])
         overlap = job_skills & cand_skills
         skill_score = len(overlap) / len(job_skills) if job_skills else 0.0

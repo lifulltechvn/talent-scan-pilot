@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Users, Trophy, Medal, DatabaseZap, LayoutList, Columns3, GitCompareArrows, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Users, Trophy, Medal, DatabaseZap, LayoutList, Columns3, GitCompareArrows, CheckCircle, XCircle, Download } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useCandidates } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
@@ -56,8 +56,19 @@ export function CandidatesPage() {
           <h1 className="text-xl font-semibold text-text-primary">{t('candidatesTitle')}</h1>
           <p className="text-[13px] text-text-tertiary mt-0.5">{candidates?.length ?? 0} total · {newCount} new · {approvedCount} approved</p>
         </div>
-        {/* View toggle + Compare button */}
+        {/* View toggle + Compare button + Export */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const token = localStorage.getItem('token');
+              fetch('/api/v1/candidates/export?format=excel', { headers: { Authorization: `Bearer ${token}` } })
+                .then(r => r.blob())
+                .then(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'candidates.xlsx'; a.click(); URL.revokeObjectURL(url); });
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-surface border border-border-subtle text-text-secondary text-[12px] font-medium rounded-lg hover:bg-accent/10 hover:text-accent transition-colors"
+          >
+            <Download size={13} /> Export
+          </button>
           {selected.size >= 2 && (
             <button
               onClick={() => navigate(`/candidates/compare?ids=${[...selected].join(',')}`)}

@@ -142,7 +142,7 @@ async def _process_item(session_factory, batch_id: str, row):
 
 
 async def _update_batch_counts(db, batch_id: str):
-    """Update batch progress counts."""
+    """Update batch progress counts and notify via WebSocket."""
     await db.execute(text("""
         UPDATE cv_batches SET
             processed = (SELECT count(*) FROM cv_batch_items WHERE batch_id = :bid AND status IN ('done', 'duplicate', 'skipped', 'error')),
@@ -150,6 +150,22 @@ async def _update_batch_counts(db, batch_id: str):
             errors = (SELECT count(*) FROM cv_batch_items WHERE batch_id = :bid AND status = 'error')
         WHERE id = :bid
     """), {"bid": batch_id})
+
+    # Get current counts for WebSocket notification
+    result = await db.execute(text(
+        "SELECT total_files, processed, duplicates, errors, status FROM cv_batches WHERE id = :bid"
+    ), {"bid": batch_id})
+    row = result.mappings().first()
+    if row:
+        from app.ws_manager import notify_progress
+        notify_progress(batch_id, {
+            "type": "progress",
+            "total": row["total_files"],
+            "processed": row["processed"],
+            "duplicates": row["duplicates"],
+            "errors": row["errors"],
+            "status": row["status"],
+        })
 
 
 def process_single_item(item_id: str, file_path: str, file_name: str, file_hash: str, force: bool = False, update_id: str | None = None):

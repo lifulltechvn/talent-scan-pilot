@@ -21,10 +21,46 @@ def extract_pdf(file_bytes: bytes, file_name: str) -> ExtractionResult:
     pages_text = [page.get_text() for page in doc]
     text = "\n".join(pages_text).strip()
     page_count = len(doc)
+    is_scanned = len(text) < 50
+
+    # OCR fallback for scanned PDFs: extract images and use AI vision
+    if is_scanned and page_count > 0:
+        try:
+            import base64
+            from app.bedrock import invoke_claude
+            from app.config import settings
+
+            # Get first page as image
+            page = doc[0]
+            pix = page.get_pixmap(dpi=200)
+            img_bytes = pix.tobytes("png")
+            img_b64 = base64.b64encode(img_bytes).decode()
+
+            # Use Claude Sonnet vision for OCR
+            from app.bedrock import get_bedrock_client
+            import json
+            client = get_bedrock_client()
+            body = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 4096,
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_b64}},
+                        {"type": "text", "text": "Extract ALL text from this CV/resume image. Return the raw text content only, preserving structure."}
+                    ]
+                }]
+            }
+            response = client.invoke_model(modelId=settings.BEDROCK_MODEL_SONNET, body=json.dumps(body))
+            result = json.loads(response["body"].read())
+            text = result["content"][0]["text"]
+        except Exception:
+            pass  # Fallback: return empty text, let caller handle
+
     doc.close()
     return ExtractionResult(
         text=text, file_name=file_name, file_type="pdf",
-        is_scanned=len(text) < 50, page_count=page_count,
+        is_scanned=is_scanned, page_count=page_count,
     )
 
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useCandidate, useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -305,6 +305,12 @@ export function CandidateDetailPage() {
                   <Download size={14} /> Download CV
                 </button>
               )}
+              <button onClick={() => {
+                if (!confirm('⚠️ This will permanently delete ALL data for this candidate (CV, scores, notes). This cannot be undone. Continue?')) return;
+                apiClient.delete(`/candidates/${candidate.id}/erase`).then(() => navigate('/candidates'));
+              }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-red-400 border border-red-200 rounded-lg hover:bg-red-50 transition-colors mt-2">
+                <Trash2 size={14} /> GDPR Erase
+              </button>
             </div>
           </div>
         </div>

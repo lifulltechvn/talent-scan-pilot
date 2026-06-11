@@ -198,6 +198,12 @@ async def process_cv(file_bytes: bytes, file_name: str, db: AsyncSession, file_h
     # 2. PII filter (fast, regex)
     masked_text, pii_data = filter_pii(result.text)
 
+    # 2b. Injection guard
+    from app.injection_guard import guard
+    masked_text, injection_warnings = guard(masked_text, "CV_CONTENT")
+    if injection_warnings:
+        logger.warning(f"Injection patterns detected in {file_name}: {injection_warnings}")
+
     # 3. Save CV file to disk
     if update_id:
         candidate_id = uuid.UUID(update_id)

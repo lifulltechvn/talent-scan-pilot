@@ -11,10 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 def score_skills(job_skills: list[str], candidate_skills: list[str]) -> tuple[float, dict]:
+    from app.skill_normalizer import normalize_skills
     if not job_skills:
         return 50.0, {"matched": [], "missing": [], "note": "No skills required"}
-    job_set = {s.lower().strip() for s in job_skills}
-    cand_set = {s.lower().strip() for s in candidate_skills}
+    job_set = {s.lower().strip() for s in normalize_skills(job_skills)}
+    cand_set = {s.lower().strip() for s in normalize_skills(candidate_skills)}
     matched = job_set & cand_set
     missing = job_set - cand_set
     score = (len(matched) / len(job_set)) * 100

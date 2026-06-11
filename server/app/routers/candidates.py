@@ -185,6 +185,78 @@ async def list_candidates(
     return out
 
 
+@router.get("/export")
+async def export_candidates(
+    format: str = Query("csv", regex="^(csv|excel)$"),
+    job_id: Optional[uuid.UUID] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Export candidates to CSV or Excel."""
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+    from sqlalchemy import text as sql_text
+
+    query = """
+        SELECT c.structured_data->>'name' as name,
+               c.structured_data->>'skills' as skills,
+               c.structured_data->>'experience_years' as experience_years,
+               c.structured_data->>'education_level' as education,
+               c.structured_data->>'expectedSalary' as salary,
+               c.status,
+               jc.final_score, jc.classification,
+               j.title as job_title,
+               c.created_at
+        FROM candidates c
+        LEFT JOIN job_candidates jc ON jc.candidate_id = c.id
+        LEFT JOIN jobs j ON j.id = jc.job_id
+        WHERE c.status != 'processing'
+    """
+    params = {}
+    if job_id:
+        query += " AND jc.job_id = :jid"
+        params["jid"] = str(job_id)
+    query += " ORDER BY jc.final_score DESC NULLS LAST"
+
+    result = await db.execute(sql_text(query), params)
+    rows = result.mappings().all()
+
+    headers = ["Name", "Skills", "Experience (yrs)", "Education", "Expected Salary", "Status", "Score", "Classification", "Job", "Applied Date"]
+
+    if format == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(headers)
+        for r in rows:
+            writer.writerow([
+                r["name"], r["skills"], r["experience_years"], r["education"],
+                r["salary"], r["status"], r["final_score"] or "", r["classification"] or "",
+                r["job_title"] or "", str(r["created_at"])[:10] if r["created_at"] else "",
+            ])
+        output.seek(0)
+        return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=candidates.csv"})
+    else:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Candidates"
+        ws.append(headers)
+        for r in rows:
+            ws.append([
+                r["name"], r["skills"], r["experience_years"], r["education"],
+                r["salary"], r["status"], r["final_score"] or "", r["classification"] or "",
+                r["job_title"] or "", str(r["created_at"])[:10] if r["created_at"] else "",
+            ])
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return StreamingResponse(iter([output.getvalue()]), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=candidates.xlsx"})
+
+
 @router.get("/{candidate_id}")
 async def get_candidate(
     candidate_id: uuid.UUID,
@@ -371,3 +443,48 @@ async def get_notes(
         {"id": str(n.id), "text": n.details.get("text", ""), "author": n.details.get("author", ""), "created_at": n.created_at}
         for n in notes
     ]
+
+
+@router.delete("/{candidate_id}/erase")
+async def gdpr_erase_candidate(
+    candidate_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """GDPR erasure: permanently delete all candidate data including CV file."""
+    from sqlalchemy import text as sql_text
+    import os
+
+    candidate = (await db.execute(select(Candidate).where(Candidate.id == candidate_id))).scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(404, "Candidate not found")
+
+    # Delete CV file from disk
+    if candidate.cv_file_path and os.path.exists(candidate.cv_file_path):
+        os.remove(candidate.cv_file_path)
+
+    # Cascade delete related data
+    await db.execute(sql_text("UPDATE cv_batch_items SET duplicate_of = NULL WHERE duplicate_of = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM cv_batch_items WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM quiz_responses WHERE question_id IN (SELECT id FROM quiz_questions WHERE quiz_id IN (SELECT id FROM quizzes WHERE candidate_id = :cid))"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM quiz_questions WHERE quiz_id IN (SELECT id FROM quizzes WHERE candidate_id = :cid)"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM quizzes WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM scores WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM job_candidates WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM schedule_bookings WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM outreach_logs WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM interview_feedback WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM interviews WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM audit_logs WHERE entity_type = 'candidate' AND entity_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM candidates WHERE id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM schedule_bookings WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM outreach_logs WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM interview_feedback WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM interviews WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM audit_logs WHERE entity_type = 'candidate' AND entity_id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(sql_text("DELETE FROM candidates WHERE id = :cid"), {"cid": str(candidate_id)})
+
+    await db.commit()
+    return {"status": "erased", "candidate_id": str(candidate_id)}
+
+
