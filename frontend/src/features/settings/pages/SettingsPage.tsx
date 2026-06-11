@@ -12,6 +12,42 @@ interface Template {
   tips: string[] | null;
 }
 
+function ChangePasswordForm() {
+  const [current, setCurrent] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+    if (newPw !== confirm) { setMsg({ type: 'err', text: 'New passwords do not match' }); return; }
+    if (newPw.length < 6) { setMsg({ type: 'err', text: 'Password must be at least 6 characters' }); return; }
+    setLoading(true);
+    try {
+      await apiClient.post('/auth/change-password', { current_password: current, new_password: newPw });
+      setMsg({ type: 'ok', text: 'Password changed successfully!' });
+      setCurrent(''); setNewPw(''); setConfirm('');
+    } catch (err: any) {
+      setMsg({ type: 'err', text: err.response?.data?.detail || 'Failed to change password' });
+    }
+    setLoading(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2 max-w-sm">
+      <input type="password" value={current} onChange={e => setCurrent(e.target.value)} placeholder="Current password" required className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+      <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="New password" required className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+      <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Confirm new password" required className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+      <button type="submit" disabled={loading} className="px-4 py-1.5 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover disabled:opacity-50">
+        {loading ? 'Changing...' : 'Change Password'}
+      </button>
+      {msg && <p className={`text-xs ${msg.type === 'ok' ? 'text-emerald-600' : 'text-red-500'}`}>{msg.text}</p>}
+    </form>
+  );
+}
+
 export function SettingsPage() {
   const { t } = useI18n();
   const [tab, setTab] = useState<'general' | 'templates'>('general');
@@ -55,6 +91,9 @@ export function SettingsPage() {
 
       {tab === 'general' && (
         <div className="space-y-4">
+          <Section icon={Shield} title="Change Password" description="Update your account password">
+            <ChangePasswordForm />
+          </Section>
           <Section icon={Mail} title="Email" description="SMTP configuration">
             <Row label="Provider" value="SMTP (Mailtrap)" />
             <Row label="From" value="hr@lftalentscan.com" />

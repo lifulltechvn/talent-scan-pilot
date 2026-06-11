@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import select
@@ -62,3 +63,23 @@ async def refresh(body: TokenRefresh, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserRead)
 async def me(user: User = Depends(get_current_user)):
     return user
+
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+async def change_password(
+    body: ChangePassword,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not verify_password(body.current_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    user.hashed_password = hash_password(body.new_password)
+    await db.commit()
+    return {"message": "Password changed successfully"}
