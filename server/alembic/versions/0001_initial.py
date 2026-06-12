@@ -113,7 +113,7 @@ def upgrade() -> None:
         "quizzes",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("candidate_id", UUID(as_uuid=True), sa.ForeignKey("candidates.id"), nullable=False),
-        sa.Column("job_id", UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=False),
+        sa.Column("job_id", UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=True),
         sa.Column("token", sa.String(255), unique=True, index=True, nullable=False),
         sa.Column("reason", sa.String(50), nullable=False),
         sa.Column("status", sa.String(20), server_default=sa.text("'pending'")),
