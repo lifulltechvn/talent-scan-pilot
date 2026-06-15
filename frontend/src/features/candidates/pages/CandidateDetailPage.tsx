@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone } from 'lucide-react';
 import { useCandidate, useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -193,7 +193,7 @@ export function CandidateDetailPage() {
                 {d.certifications.map((cert: any, i: number) => (
                   <div key={i} className="ml-5 py-1">
                     <div className="text-[13px] text-text-primary">{cert.name}</div>
-                    <div className="text-[12px] text-text-tertiary">{cert.issuer}{cert.year ? ` · ${cert.year}` : ''}</div>
+                    <div className="text-[12px] text-text-tertiary">{cert.issuer}{cert.year && cert.year !== '<UNKNOWN>' ? ` · ${cert.year}` : ''}</div>
                   </div>
                 ))}
               </div>
@@ -222,7 +222,7 @@ export function CandidateDetailPage() {
               <Languages size={13} className="text-text-muted" />
               <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider mr-2">{t("languages")}</span>
               {d.languages.map(l => (
-                <span key={l.language} className="text-[11px] bg-bg-surface text-text-secondary px-2 py-0.5 rounded">{l.language} ({l.level})</span>
+                <span key={l.language} className="text-[11px] bg-bg-surface text-text-secondary px-2 py-0.5 rounded">{l.language}{l.level && l.level !== '<UNKNOWN>' ? ` (${l.level})` : ''}</span>
               ))}
             </div>
             {d.expectedSalary && (
@@ -274,6 +274,8 @@ export function CandidateDetailPage() {
               <div className="flex items-center gap-2"><Briefcase size={12} className="text-text-muted" /> {d.totalYearsExperience}y experience</div>
               {d.hometown && <div className="flex items-center gap-2"><MapPin size={12} className="text-text-muted" /> {d.hometown}</div>}
               <div className="flex items-center gap-2"><Languages size={12} className="text-text-muted" /> {d.languages.map(l => l.language).join(', ')}</div>
+              {d.email && d.email !== '<UNKNOWN>' && <div className="flex items-center gap-2"><Mail size={12} className="text-text-muted" /> <span className="truncate">{d.email}</span></div>}
+              {d.phone && d.phone !== '<UNKNOWN>' && <div className="flex items-center gap-2"><Phone size={12} className="text-text-muted" /> {d.phone}</div>}
             </div>
 
             {/* Score Explanation */}

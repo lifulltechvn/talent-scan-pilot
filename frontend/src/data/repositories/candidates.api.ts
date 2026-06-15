@@ -19,6 +19,8 @@ function mapCandidate(raw: any, score?: Score | null): Candidate {
       hometown: raw.structured_data?.hometown ?? null,
       activities: raw.structured_data?.activities ?? [],
       avatar: raw.structured_data?.avatar ?? null,
+      email: raw.structured_data?.email ?? null,
+      phone: raw.structured_data?.phone ?? null,
     },
     status: raw.status,
     matchScore: raw.match_score,

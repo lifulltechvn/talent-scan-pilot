@@ -143,8 +143,9 @@ def _process_ai_sync(masked_text: str) -> tuple[dict, list[float] | None]:
     return structured, embedding
 
 
-def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, file_bytes: bytes | None):
-    """Background: run AI parsing + embedding, then update candidate in DB."""
+def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, file_bytes: bytes | None, pii_data: dict | None = None):
+    """Background: run AI parsing + embedding, then update candidate in DB.
+    Note: PII (email/phone) is injected AFTER AI parsing — AI never sees real PII."""
     import threading
 
     def _run():
@@ -154,6 +155,13 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 text = _ocr_scanned_pdf(file_bytes)
 
             structured, embedding = _process_ai_sync(text)
+
+            # Inject real PII back AFTER AI parsing (AI only saw masked text)
+            if pii_data:
+                if pii_data.get("email"):
+                    structured["email"] = pii_data["email"][0]
+                if pii_data.get("phone"):
+                    structured["phone"] = pii_data["phone"][0]
 
             # Extract avatar from PDF
             if file_bytes:
@@ -244,10 +252,11 @@ async def process_cv(file_bytes: bytes, file_name: str, db: AsyncSession, file_h
         await db.commit()
         await db.refresh(candidate)
 
-    # 5. Kick off AI parsing in background
+    # 5. Kick off AI parsing in background (pii_data injected after AI, never sent to AI)
     _background_ai_task(
         str(candidate.id), masked_text,
-        result.is_scanned, file_bytes if result.is_scanned else None,
+        result.is_scanned, file_bytes,
+        pii_data=pii_data,
     )
 
     return {

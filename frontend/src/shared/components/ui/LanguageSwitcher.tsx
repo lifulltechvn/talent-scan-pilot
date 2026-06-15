@@ -22,10 +22,11 @@ export function LanguageSwitcher() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[12px] font-medium text-text-secondary hover:bg-bg-surface transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-text-secondary hover:bg-bg-surface transition-colors"
       >
-        <Globe size={14} />
-        {LOCALE_LABELS[locale].slice(0, 2).toUpperCase()}
+        <Globe size={13} className="shrink-0" />
+        <span className="hidden sm:inline">{LOCALE_LABELS[locale]}</span>
+        <span className="sm:hidden">{locale.toUpperCase()}</span>
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 bg-bg-panel border border-border-subtle rounded-lg shadow-lg py-1 z-50 min-w-[120px]">

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useUploadStore, clearCompleted } from '@/shared/upload-store';
 import { useBatchStore, clearBatch } from '@/shared/batch-store';
 import { CheckCircle, AlertCircle, Loader2, Clock, X, FileText } from 'lucide-react';
@@ -5,6 +6,14 @@ import { CheckCircle, AlertCircle, Loader2, Clock, X, FileText } from 'lucide-re
 export function UploadProgressWidget() {
   const items = useUploadStore();
   const batch = useBatchStore();
+
+  // Auto-dismiss after 5s when done
+  useEffect(() => {
+    if (batch?.status === 'done') {
+      const t = setTimeout(clearBatch, 5000);
+      return () => clearTimeout(t);
+    }
+  }, [batch?.status]);
 
   if (items.length === 0 && !batch) return null;
 

@@ -88,7 +88,7 @@ async def create_interview(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Create a new interview event."""
+    """Create a new interview event. Email sent separately via /send-invitation."""
     from datetime import datetime as dt
     interview_id = uuid.uuid4()
     await db.execute(text("""
@@ -104,6 +104,105 @@ async def create_interview(
     })
     await db.commit()
     return {"id": str(interview_id), "status": "scheduled", "round": body.round}
+
+
+class InterviewEmailPreview(BaseModel):
+    candidate_id: str
+    round: int = 1
+    start_time: str
+    end_time: str
+    title: str = "Interview"
+    meeting_link: str | None = None
+
+
+@router.post("/email-preview")
+async def get_interview_email_preview(
+    body: InterviewEmailPreview,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Generate email preview based on round number."""
+    from app.models import Candidate
+    candidate = await db.get(Candidate, body.candidate_id)
+    name = candidate.structured_data.get("name", "Candidate") if candidate else "Candidate"
+    email = candidate.structured_data.get("email", "") if candidate else ""
+    from datetime import datetime as dt
+    start = dt.fromisoformat(body.start_time)
+    end = dt.fromisoformat(body.end_time)
+    date_str = start.strftime("%A, %B %d, %Y")
+    time_str = f"{start.strftime('%I:%M %p')} — {end.strftime('%I:%M %p')}"
+
+    if body.round == 1:
+        subject = f"📅 Interview Invitation — {body.title}"
+        greeting = f"Hi {name}! 👋"
+        email_body = f"We're pleased to invite you for an interview for the {body.title} position.\n\nPlease find the details below:"
+        closing = "Looking forward to meeting you! If you need to reschedule, please reply to this email."
+    elif body.round == 2:
+        subject = f"🎉 Next Round — {body.title}"
+        greeting = f"Congratulations {name}! 🎉"
+        email_body = f"Great news! You've passed the first round. We'd like to invite you to the next stage of our interview process for {body.title}."
+        closing = "Keep up the great work! Let us know if the time doesn't work for you."
+    else:
+        subject = f"⭐ Final Round — {body.title}"
+        greeting = f"Hi {name},"
+        email_body = f"You're in the final stage! We'd like to schedule a final discussion for the {body.title} position."
+        closing = "Almost there! We're excited to have this conversation with you."
+
+    return {
+        "to_email": email,
+        "subject": subject,
+        "greeting": greeting,
+        "body": email_body,
+        "date": date_str,
+        "time": time_str,
+        "meeting_link": body.meeting_link,
+        "closing": closing,
+    }
+
+
+class SendInvitationRequest(BaseModel):
+    candidate_id: str
+    to_email: str
+    subject: str
+    greeting: str
+    body: str
+    date: str
+    time: str
+    meeting_link: str | None = None
+    closing: str
+
+
+@router.post("/send-invitation", status_code=201)
+async def send_invitation_email(
+    body: SendInvitationRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Send interview invitation email (HR-edited content)."""
+    from app.services.email import get_email_service
+    from app.services.email_templates import _base, _button, ACCENT
+
+    meeting_block = f'<p style="font-size:14px;color:#374151;margin:8px 0;">🔗 <a href="{body.meeting_link}" style="color:{ACCENT}">{body.meeting_link}</a></p>' if body.meeting_link else ""
+
+    html_content = f"""\
+<h2 style="margin:0 0 8px;font-size:20px;color:#111827;">{body.greeting}</h2>
+<p style="font-size:14px;color:#4b5563;line-height:1.6;margin:0 0 16px;">{body.body}</p>
+<div style="background:#ecfdf5;border-left:4px solid #10b981;border-radius:0 8px 8px 0;padding:16px 20px;margin:20px 0;">
+  <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#059669;">Interview Details</p>
+  <p style="margin:8px 0 0;font-size:14px;color:#374151;">📅 {body.date}</p>
+  <p style="margin:4px 0 0;font-size:14px;color:#374151;">🕐 {body.time}</p>
+  {meeting_block}
+</div>
+<p style="font-size:14px;color:#4b5563;line-height:1.6;margin:20px 0;">{body.closing}</p>
+<p style="font-size:14px;color:#4b5563;margin:24px 0 0;">Best regards,<br><span style="font-weight:600;color:#111827;">HR Team</span></p>"""
+
+    html = _base(html_content)
+
+    try:
+        get_email_service().send(to=body.to_email, subject=body.subject, html_body=html)
+        return {"status": "sent"}
+    except Exception as e:
+        raise HTTPException(502, f"Email delivery failed: {e}")
 
 
 @router.put("/{interview_id}")

@@ -226,30 +226,75 @@ function CreateModal({ candidates, defaultDate, defaultTime, onClose, onCreated 
   const [endTime, setEndTime] = useState(`${String(endHour).padStart(2, '0')}:00`);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [emailPreview, setEmailPreview] = useState<any>(null);
 
   const handleSave = async () => {
     if (!candidateId) return;
     setSaving(true);
     try {
+      const startIso = new Date(`${date}T${startTime}`).toISOString();
+      const endIso = new Date(`${date}T${endTime}`).toISOString();
       await apiClient.post('/interviews', {
         candidate_id: candidateId,
         title,
-        start_time: new Date(`${date}T${startTime}`).toISOString(),
-        end_time: new Date(`${date}T${endTime}`).toISOString(),
+        start_time: startIso,
+        end_time: endIso,
         notes: notes || null,
       });
-      onCreated();
-    } catch { /* ignore */ }
+      // Get email preview
+      const { data } = await apiClient.post('/interviews/email-preview', {
+        candidate_id: candidateId, round: 1, start_time: startIso, end_time: endIso, title,
+      });
+      setEmailPreview(data);
+    } catch { onCreated(); }
     setSaving(false);
   };
 
+  const handleSendEmail = async () => {
+    if (!emailPreview) return;
+    try {
+      await apiClient.post('/interviews/send-invitation', emailPreview);
+    } catch { }
+    onCreated();
+  };
+
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={emailPreview ? onCreated : onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
-          <h2 className="text-[15px] font-semibold text-white">Tạo lịch phỏng vấn</h2>
-          <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
+          <h2 className="text-[15px] font-semibold text-white">{emailPreview ? 'Gửi email mời phỏng vấn' : 'Tạo lịch phỏng vấn'}</h2>
+          <button onClick={emailPreview ? onCreated : onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
+
+        {emailPreview ? (
+          <div className="p-5 space-y-3">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-[13px] text-emerald-700">✅ Lịch phỏng vấn đã tạo thành công!</div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">To</label>
+              <input value={emailPreview.to_email} onChange={e => setEmailPreview({...emailPreview, to_email: e.target.value})} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Subject</label>
+              <input value={emailPreview.subject} onChange={e => setEmailPreview({...emailPreview, subject: e.target.value})} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Nội dung</label>
+              <textarea value={emailPreview.body} onChange={e => setEmailPreview({...emailPreview, body: e.target.value})} rows={3} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" />
+            </div>
+            <div className="bg-bg-surface rounded-lg p-3 text-[12px] text-text-secondary">
+              <p>📅 {emailPreview.date}</p>
+              <p>🕐 {emailPreview.time}</p>
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Kết</label>
+              <input value={emailPreview.closing} onChange={e => setEmailPreview({...emailPreview, closing: e.target.value})} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={handleSendEmail} disabled={!emailPreview.to_email} className="flex-1 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">Gửi email</button>
+              <button onClick={onCreated} className="flex-1 py-2.5 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-bg-surface/80">Bỏ qua</button>
+            </div>
+          </div>
+        ) : (
         <div className="p-5 space-y-4">
           <div>
             <label className="text-[12px] font-medium text-text-muted uppercase">Ứng viên</label>
@@ -284,6 +329,7 @@ function CreateModal({ candidates, defaultDate, defaultTime, onClose, onCreated 
             {saving ? 'Đang tạo...' : 'Tạo lịch'}
           </button>
         </div>
+        )}
       </div>
     </div>
   );
@@ -348,23 +394,78 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: Interview; 
   const [notes, setNotes] = useState('');
   const [decision, setDecision] = useState('pass');
   const [saving, setSaving] = useState(false);
+  const [emailStep, setEmailStep] = useState<any>(null);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       await apiClient.post(`/interviews/${interview.id}/feedback`, { score, notes: notes || null, decision });
-      onSaved(decision);
-    } catch { /* ignore */ }
+      // Generate email preview for pass/fail
+      if (decision === 'pass' || decision === 'fail') {
+        const { data } = await apiClient.post('/outreach/preview', {
+          candidate_id: interview.candidate_id,
+          template_type: decision === 'pass' ? 'reminder' : 'rejection',
+        });
+        setEmailStep({ ...data, decision, to_email: '' });
+      } else {
+        // next_round → handled by BookNextRound modal
+        onSaved(decision);
+      }
+    } catch { onSaved(decision); }
     setSaving(false);
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailStep?.to_email) { onSaved(decision); return; }
+    try {
+      await apiClient.post('/outreach/send', {
+        candidate_id: interview.candidate_id,
+        to_email: emailStep.to_email,
+        template_type: decision === 'pass' ? 'reminder' : 'rejection',
+        subject: emailStep.subject,
+        greeting: emailStep.greeting,
+        body: emailStep.body,
+        closing: emailStep.closing,
+        highlights: emailStep.highlights || [],
+        tips: emailStep.tips || [],
+        feedback: emailStep.feedback || '',
+        job_title: interview.job_title || 'Position',
+      });
+    } catch { }
+    onSaved(decision);
   };
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm m-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
-          <h2 className="text-[15px] font-semibold text-white">Feedback — {interview.candidate_name}</h2>
+          <h2 className="text-[15px] font-semibold text-white">{emailStep ? 'Gửi email thông báo' : `Feedback — ${interview.candidate_name}`}</h2>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
+
+        {emailStep ? (
+          <div className="p-5 space-y-3">
+            <div className={`rounded-lg p-3 text-[13px] ${decision === 'pass' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+              {decision === 'pass' ? '✅ Ứng viên đã Pass!' : '❌ Ứng viên không đạt'}
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Email ứng viên</label>
+              <input value={emailStep.to_email} onChange={e => setEmailStep({...emailStep, to_email: e.target.value})} placeholder="candidate@email.com" className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Subject</label>
+              <input value={emailStep.subject} onChange={e => setEmailStep({...emailStep, subject: e.target.value})} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Nội dung</label>
+              <textarea value={emailStep.body} onChange={e => setEmailStep({...emailStep, body: e.target.value})} rows={3} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button onClick={handleSendEmail} disabled={!emailStep.to_email} className="flex-1 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">Gửi email</button>
+              <button onClick={() => onSaved(decision)} className="flex-1 py-2.5 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg">Bỏ qua</button>
+            </div>
+          </div>
+        ) : (
         <div className="p-5 space-y-4">
           <div>
             <label className="text-[12px] font-medium text-text-muted uppercase">Đánh giá (1-5)</label>
@@ -394,6 +495,7 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: Interview; 
             {saving ? 'Đang lưu...' : 'Lưu feedback'}
           </button>
         </div>
+        )}
       </div>
     </div>
   );
