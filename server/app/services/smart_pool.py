@@ -17,6 +17,8 @@ async def match_candidate_to_all_jobs(candidate_id: str, db: AsyncSession):
     if not candidate or candidate.embedding is None:
         return
 
+    from app.skill_normalizer import normalize_skills
+
     # Find all jobs with embeddings
     result = await db.execute(select(Job).where(Job.embedding.isnot(None)))
     jobs = result.scalars().all()
@@ -24,7 +26,6 @@ async def match_candidate_to_all_jobs(candidate_id: str, db: AsyncSession):
     cand_skills = {s.lower() for s in normalize_skills(candidate.structured_data.get("skills") or [])}
 
     for job in jobs:
-        from app.skill_normalizer import normalize_skills
         job_skills = {s.lower() for s in normalize_skills(job.required_skills or [])}
         # Compute similarity using pgvector
         sim_result = await db.execute(text("""
@@ -69,11 +70,13 @@ async def match_candidate_to_all_jobs(candidate_id: str, db: AsyncSession):
 
 async def match_job_to_all_candidates(job_id: str, db: AsyncSession):
     """Match a single job against all candidates with embeddings. Called after job create/update."""
+    from app.skill_normalizer import normalize_skills
+
     job = await db.get(Job, uuid.UUID(job_id))
     if not job or job.embedding is None:
         return
 
-    job_skills = {s.lower() for s in (job.required_skills or [])}
+    job_skills = {s.lower() for s in normalize_skills(job.required_skills or [])}
     embedding_str = "[" + ",".join(str(float(x)) for x in job.embedding) + "]"
 
     # Find top candidates by similarity
@@ -88,8 +91,7 @@ async def match_job_to_all_candidates(job_id: str, db: AsyncSession):
     candidates = result.mappings().all()
 
     for c in candidates:
-        from app.skill_normalizer import normalize_skills as _ns
-        cand_skills = {s.lower() for s in _ns(c["structured_data"].get("skills") or [])}
+        cand_skills = {s.lower() for s in normalize_skills(c["structured_data"].get("skills") or [])}
         similarity = float(c["similarity"])
         overlap = job_skills & cand_skills
         skill_score = len(overlap) / len(job_skills) if job_skills else 0.0
