@@ -134,17 +134,28 @@ def _parse_cv_text(text: str) -> dict:
 
 
 def _process_ai_sync(masked_text: str) -> tuple[dict, list[float] | None]:
-    """Run AI parsing + embedding in thread (both are sync/blocking calls)."""
+    """Run AI parsing + embedding in parallel."""
     from app.cv_validator import validate_and_normalize
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    structured = _parse_cv_text(masked_text)
-    structured, confidence = validate_and_normalize(structured)
-    logger.info(f"CV parsed: {structured.get('name', '?')}, confidence: {confidence:.0%}, skills: {len(structured.get('skills', []))}")
+    # Run parse and embed in parallel
+    # Embed uses raw text (first 500 chars) — doesn't need parsed output
+    embed_input = masked_text[:500]
 
-    embed_text = " ".join(structured.get("skills", [])) + " " + " ".join(
-        e.get("role", "") for e in structured.get("experience", [])
-    )
-    embedding = get_embedding(embed_text) if embed_text.strip() else None
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        parse_future = pool.submit(_parse_cv_text, masked_text)
+        embed_future = pool.submit(get_embedding, embed_input)
+
+        structured = parse_future.result()
+        structured, confidence = validate_and_normalize(structured)
+        logger.info(f"CV parsed: {structured.get('name', '?')}, confidence: {confidence:.0%}, skills: {len(structured.get('skills', []))}")
+
+        # If parsed skills available, re-embed with better text (optional — use pre-computed for speed)
+        try:
+            embedding = embed_future.result()
+        except Exception:
+            embedding = None
+
     return structured, embedding
 
 

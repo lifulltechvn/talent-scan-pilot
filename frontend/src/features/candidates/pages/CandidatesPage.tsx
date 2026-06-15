@@ -197,7 +197,11 @@ export function CandidatesPage() {
                     <td className="px-4 py-3"><Badge variant={c.score?.classification ?? 'neutral'}>{c.score?.classification ?? '—'}</Badge></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[12px] text-text-tertiary capitalize">{c.status}</span>
+                        {c.status === 'processing' ? (
+                          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium animate-pulse">⏳ Đang phân tích</span>
+                        ) : (
+                          <span className="text-[12px] text-text-tertiary capitalize">{c.status}</span>
+                        )}
                         {c.quizStatus === 'pending' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Quiz Pending</span>}
                         {c.quizStatus === 'submitted' && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">Quiz Submitted</span>}
                         {c.quizStatus === 'evaluated' && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Quiz Evaluated</span>}

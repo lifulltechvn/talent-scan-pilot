@@ -86,7 +86,9 @@ export function CvUploadPage() {
       try {
         const { data } = await apiClient.get(`/cv/batch/${batchId}`);
         setBatch(data);
-        if (data.status === 'done') clearInterval(interval);
+        // Only stop polling when batch is done AND no items are still pending
+        const allDone = data.status === 'done' && data.items.every((i: BatchItem) => i.status !== 'pending');
+        if (allDone) clearInterval(interval);
       } catch { /* ignore */ }
     }, 3000);
     apiClient.get(`/cv/batch/${batchId}`).then(({ data }) => setBatch(data)).catch(() => {});
@@ -162,13 +164,13 @@ export function CvUploadPage() {
           <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-text-primary">
-                {batch.status === 'done' ? '✅ Xử lý hoàn tất' : '🔄 Đang xử lý...'}
+                {batch.status === 'done' && processing.length === 0 ? '✅ Xử lý hoàn tất' : '🔄 Đang xử lý...'}
               </span>
               <span className="text-xs text-text-muted">{batch.processed}/{batch.total_files} file</span>
             </div>
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${batch.status === 'done' ? 'bg-emerald-500' : 'bg-accent'}`}
+                className={`h-full rounded-full transition-all ${batch.status === 'done' && processing.length === 0 ? 'bg-emerald-500' : 'bg-accent'}`}
                 style={{ width: `${Math.round((batch.processed / batch.total_files) * 100)}%` }}
               />
             </div>
@@ -193,6 +195,31 @@ export function CvUploadPage() {
               <div className="text-[10px] text-text-muted">Đang xử lý</div>
             </div>
           </div>
+
+          {/* Currently processing files */}
+          {processing.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <h3 className="text-xs font-medium text-blue-800 mb-2">🔄 Đang xử lý ({processing.length} file)</h3>
+              <div className="space-y-1.5">
+                {processing.slice(0, 5).map((item, i) => (
+                  <div key={item.id} className="flex items-center gap-2">
+                    <div className="w-3 h-3 border-2 border-blue-400 border-t-blue-700 rounded-full animate-spin shrink-0" />
+                    <span className="text-[11px] text-blue-800 truncate">{item.file_name}</span>
+                  </div>
+                ))}
+                {processing.length > 5 && (
+                  <div className="text-[10px] text-blue-600">+{processing.length - 5} more in queue</div>
+                )}
+              </div>
+              {/* Processing steps animation */}
+              <div className="mt-3 flex items-center gap-1 text-[10px] text-blue-600">
+                <span className="font-medium">Steps:</span>
+                {['Extract', 'PII Filter', 'AI Parse', 'Embed'].map((step, i) => (
+                  <span key={step} className={`px-1.5 py-0.5 rounded ${i <= Math.floor(Date.now() / 2000) % 4 ? 'bg-blue-200 text-blue-800' : 'bg-blue-100 text-blue-400'}`}>{step}</span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Duplicates section */}
           {duplicates.length > 0 && (

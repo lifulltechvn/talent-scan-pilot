@@ -121,15 +121,63 @@ async def _process_item(session_factory, batch_id: str, row):
             db.add(candidate)
             await db.commit()
 
-            # Update batch item
+            # Update batch item — still processing (AI running)
             await db.execute(text("""
-                UPDATE cv_batch_items SET status = 'done', candidate_id = :cid WHERE id = :id
+                UPDATE cv_batch_items SET status = 'processing', candidate_id = :cid WHERE id = :id
             """), {"cid": str(candidate_id), "id": item_id})
+            await db.commit()
+
+            # AI processing — synchronous in this worker (so batch tracks real progress)
+            try:
+                from app.services.cv_upload import _process_ai_sync, _extract_avatar
+                structured, embedding = _process_ai_sync(masked_text)
+
+                # Inject PII back
+                if pii_data:
+                    if pii_data.get("email"):
+                        structured["email"] = pii_data["email"][0]
+                    if pii_data.get("phone"):
+                        structured["phone"] = pii_data["phone"][0]
+                    if pii_data.get("url"):
+                        structured["profile_urls"] = pii_data["url"]
+                    if pii_data.get("address"):
+                        structured["address"] = pii_data["address"][0]
+                    if pii_data.get("dob"):
+                        structured["date_of_birth"] = pii_data["dob"][0]
+
+                # Extract avatar
+                if file_bytes:
+                    avatar = _extract_avatar(file_bytes, str(candidate_id))
+                    if avatar:
+                        structured["avatar"] = avatar
+
+                # Update candidate with parsed data
+                from sqlalchemy import update as sql_update
+                await db.execute(
+                    sql_update(Candidate)
+                    .where(Candidate.id == candidate_id)
+                    .values(structured_data=structured, embedding=embedding, status="new")
+                )
+                await db.commit()
+            except Exception as ai_err:
+                logger.warning(f"AI parse failed for batch item {item_id}: {ai_err}")
+                await db.execute(
+                    sql_update(Candidate)
+                    .where(Candidate.id == candidate_id)
+                    .values(status="new", structured_data={"name": file_name, "parse_error": str(ai_err)})
+                )
+                await db.commit()
+
+            # Now mark batch item done
+            await db.execute(text("""
+                UPDATE cv_batch_items SET status = 'done' WHERE id = :id
+            """), {"id": item_id})
             await _update_batch_counts(db, batch_id)
             await db.commit()
 
-            # AI processing in background (pii_data injected after AI, never sent to AI)
-            _background_ai_task(str(candidate_id), masked_text, result.is_scanned, file_bytes, pii_data=pii_data)
+            # Smart pool matching in background (non-blocking)
+            from app.services.smart_pool import background_match_candidate
+            background_match_candidate(str(candidate_id))
 
     except Exception as e:
         logger.error(f"Batch item {item_id} failed: {e}")
@@ -147,7 +195,8 @@ async def _update_batch_counts(db, batch_id: str):
         UPDATE cv_batches SET
             processed = (SELECT count(*) FROM cv_batch_items WHERE batch_id = :bid AND status IN ('done', 'duplicate', 'skipped', 'error')),
             duplicates = (SELECT count(*) FROM cv_batch_items WHERE batch_id = :bid AND status = 'duplicate'),
-            errors = (SELECT count(*) FROM cv_batch_items WHERE batch_id = :bid AND status = 'error')
+            errors = (SELECT count(*) FROM cv_batch_items WHERE batch_id = :bid AND status = 'error'),
+            status = CASE WHEN (SELECT count(*) FROM cv_batch_items WHERE batch_id = :bid AND status IN ('pending', 'processing')) = 0 THEN 'done' ELSE 'processing' END
         WHERE id = :bid
     """), {"bid": batch_id})
 

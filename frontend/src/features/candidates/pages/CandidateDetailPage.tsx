@@ -141,6 +141,7 @@ export function CandidateDetailPage() {
   const { t } = useI18n();
   const { toast } = useToast();
   const { confirm } = useConfirm();
+  const [cvBlobUrl, setCvBlobUrl] = useState<string | null>(null);
 
   // Find prev/next candidates
   const candidateIds = allCandidates?.map(c => c.id) ?? [];
@@ -377,7 +378,7 @@ export function CandidateDetailPage() {
                     const token = localStorage.getItem('token');
                     fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
                       .then(r => r.blob())
-                      .then(blob => { const url = URL.createObjectURL(blob); window.open(url, '_blank'); });
+                      .then(blob => { setCvBlobUrl(URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))); });
                   }} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
                     <Eye size={14} /> View CV
                   </button>
@@ -404,8 +405,40 @@ export function CandidateDetailPage() {
           </div>
         </div>
       </div>{/* end sidebar layout */}
+
+      {/* CV Preview Modal */}
+      {cvBlobUrl && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60" onClick={() => { URL.revokeObjectURL(cvBlobUrl); setCvBlobUrl(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-[90vw] h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <span className="text-sm font-medium">CV Preview — {candidate.structuredData.name}</span>
+              <button onClick={() => { URL.revokeObjectURL(cvBlobUrl); setCvBlobUrl(null); }} className="p-1 hover:bg-gray-100 rounded-lg">
+                <XCircle size={18} className="text-gray-500" />
+              </button>
+            </div>
+            <iframe src={`${cvBlobUrl}#toolbar=1`} className="flex-1 w-full" title="CV Preview" />
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function AiSummaryInline({ summary }: { summary: string }) {
+  try {
+    const parsed = JSON.parse(summary);
+    if (typeof parsed === 'object' && parsed.summary) {
+      return (
+        <div className="mt-1 space-y-1">
+          <p className="text-[11px] text-blue-800">{parsed.summary}</p>
+          {parsed.strengths?.length > 0 && <p className="text-[10px] text-emerald-700">✓ {parsed.strengths.join(' • ')}</p>}
+          {parsed.concerns?.length > 0 && <p className="text-[10px] text-amber-700">⚠ {parsed.concerns.join(' • ')}</p>}
+          {parsed.suggestion && <p className="text-[10px] text-purple-700 italic">💡 {parsed.suggestion}</p>}
+        </div>
+      );
+    }
+  } catch {}
+  return <p className="text-[11px] text-blue-800 mt-0.5 whitespace-pre-line">{summary}</p>;
 }
 
 function MatchedJobsSection({ candidateId }: { candidateId: string }) {
@@ -550,7 +583,7 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
                   {j.details?.llm_summary && (
                     <div className="p-2.5 bg-blue-50 rounded-lg border border-blue-100">
                       <span className="text-[10px] font-medium text-blue-700 uppercase">Nhận xét từ AI</span>
-                      <p className="text-[11px] text-blue-800 mt-0.5">{j.details.llm_summary}</p>
+                      <AiSummaryInline summary={j.details.llm_summary} />
                     </div>
                   )}
                   <div className="flex items-center gap-3 mt-1">
