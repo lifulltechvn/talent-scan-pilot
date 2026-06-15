@@ -128,8 +128,8 @@ async def _process_item(session_factory, batch_id: str, row):
             await _update_batch_counts(db, batch_id)
             await db.commit()
 
-            # AI processing in background
-            _background_ai_task(str(candidate_id), masked_text, result.is_scanned, file_bytes if result.is_scanned else None)
+            # AI processing in background (pii_data injected after AI, never sent to AI)
+            _background_ai_task(str(candidate_id), masked_text, result.is_scanned, file_bytes, pii_data=pii_data)
 
     except Exception as e:
         logger.error(f"Batch item {item_id} failed: {e}")
