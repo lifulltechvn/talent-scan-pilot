@@ -398,6 +398,30 @@ async def update_candidate_status(
     return {"id": candidate.id, "status": new_status}
 
 
+@router.patch("/{candidate_id}/data")
+async def update_candidate_data(
+    candidate_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Update structured_data fields (HR edit parsed data)."""
+    result = await db.execute(select(Candidate).where(Candidate.id == candidate_id))
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(404, "Candidate not found")
+    # Merge updates into existing data
+    current = candidate.structured_data or {}
+    for key, value in body.items():
+        if key.startswith("_"):
+            continue  # Don't allow editing internal fields
+        current[key] = value
+    candidate.structured_data = current
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(candidate, "structured_data")
+    await db.commit()
+    return {"status": "updated", "id": str(candidate_id)}
+
 @router.post("/{candidate_id}/notes")
 async def add_note(
     candidate_id: uuid.UUID,

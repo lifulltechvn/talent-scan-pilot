@@ -6,6 +6,8 @@ import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { getJobIcon } from '@/shared/utils/job-icon';
 import { useCandidates, useUpdateCandidateStatus } from '@/features/candidates/hooks/useCandidates';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/shared/components/ui/Toast';
 import { useI18n } from '@/shared/i18n';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
@@ -58,6 +60,8 @@ function AiSummaryDisplay({ summary }: { summary: string }) {
 export function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: job, isLoading: loadingJ } = useJob(id!);
   const { data: allCandidates, isLoading: loadingC } = useCandidates();
   const { t } = useI18n();
@@ -93,9 +97,11 @@ export function JobDetailPage() {
     try {
       await apiClient.post(`/jobs/${id}/assign/${candidateId}`);
       setSuggestions(prev => prev?.filter(s => s.id !== candidateId) ?? null);
-      // Refresh candidates list to show newly assigned candidate
-      window.location.reload();
-    } catch { /* ignore */ }
+      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+      toast('success', 'Candidate assigned & scoring started');
+    } catch {
+      toast('error', 'Failed to assign candidate');
+    }
     setAssigning(null);
   };
 
@@ -157,7 +163,7 @@ export function JobDetailPage() {
               )}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button onClick={handleCompare} disabled={compareLoading || candidates.length < 2} className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 text-[13px] font-medium rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50">
               {compareLoading ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />} Compare
             </button>

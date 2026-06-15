@@ -100,7 +100,7 @@ def _parse_cv_text(text: str) -> dict:
                 "email": {"type": "string"},
                 "phone": {"type": "string"},
                 "skills": {"type": "array", "items": {"type": "string"}},
-                "experience": {"type": "array", "items": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}, "duration": {"type": "string"}}}},
+                "experience": {"type": "array", "items": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}, "duration": {"type": "string"}, "description": {"type": "string", "description": "Key responsibilities and achievements in 1-2 sentences"}}}},
                 "education": {"type": "array", "items": {"type": "object", "properties": {"school": {"type": "string"}, "degree": {"type": "string"}, "major": {"type": "string"}, "year": {"type": "string"}}}},
                 "certifications": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "issuer": {"type": "string"}, "year": {"type": "string"}}}},
                 "languages": {"type": "array", "items": {"type": "object", "properties": {"language": {"type": "string"}, "level": {"type": "string"}}}},
@@ -135,7 +135,12 @@ def _parse_cv_text(text: str) -> dict:
 
 def _process_ai_sync(masked_text: str) -> tuple[dict, list[float] | None]:
     """Run AI parsing + embedding in thread (both are sync/blocking calls)."""
+    from app.cv_validator import validate_and_normalize
+
     structured = _parse_cv_text(masked_text)
+    structured, confidence = validate_and_normalize(structured)
+    logger.info(f"CV parsed: {structured.get('name', '?')}, confidence: {confidence:.0%}, skills: {len(structured.get('skills', []))}")
+
     embed_text = " ".join(structured.get("skills", [])) + " " + " ".join(
         e.get("role", "") for e in structured.get("experience", [])
     )
@@ -162,6 +167,12 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                     structured["email"] = pii_data["email"][0]
                 if pii_data.get("phone"):
                     structured["phone"] = pii_data["phone"][0]
+                if pii_data.get("url"):
+                    structured["profile_urls"] = pii_data["url"]
+                if pii_data.get("address"):
+                    structured["address"] = pii_data["address"][0]
+                if pii_data.get("dob"):
+                    structured["date_of_birth"] = pii_data["dob"][0]
 
             # Extract avatar from PDF
             if file_bytes:

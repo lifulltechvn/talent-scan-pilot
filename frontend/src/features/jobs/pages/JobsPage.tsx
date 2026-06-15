@@ -37,7 +37,9 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
         salaryRange: data.salary_range || p.salaryRange,
         location: data.location || p.location,
       }));
-    } catch {}
+    } catch {
+      alert('AI generation failed — please try again or fill manually.');
+    }
     setGenerating(false);
   };
 

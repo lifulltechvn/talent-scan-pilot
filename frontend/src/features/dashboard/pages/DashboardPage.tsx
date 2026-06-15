@@ -38,7 +38,18 @@ export function DashboardPage() {
     apiClient.get('/dashboard/weekly-stats').then(({ data }) => setWeeklyStats(data)).catch(() => {});
   }, []);
 
-  if (!data) return <div className="p-8 text-center text-text-muted">Loading...</div>;
+  if (!data) return (
+    <div className="space-y-5">
+      <div className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {[...Array(5)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="h-48 bg-gray-100 rounded-xl animate-pulse" />
+        <div className="h-48 bg-gray-100 rounded-xl animate-pulse" />
+      </div>
+    </div>
+  );
 
   const { stats } = data;
   const greeting = new Date().getHours() < 12 ? 'Chào buổi sáng' : new Date().getHours() < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';

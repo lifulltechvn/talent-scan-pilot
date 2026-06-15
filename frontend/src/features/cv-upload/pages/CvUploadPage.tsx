@@ -48,11 +48,16 @@ export function CvUploadPage() {
   }, []);
 
   const handleFiles = async (files: FileList | File[]) => {
-    const valid = Array.from(files).filter(f => /\.(pdf|docx)$/i.test(f.name));
+    const all = Array.from(files);
+    const valid = all.filter(f => /\.(pdf|docx)$/i.test(f.name));
+    const skipped = all.length - valid.length;
+    if (skipped > 0) {
+      setError(`${skipped} file(s) skipped — only PDF and DOCX are supported.`);
+    }
     if (!valid.length) return;
 
     setUploading(true);
-    setError('');
+    if (!skipped) setError('');
     setUploadProgress(0);
 
     const form = new FormData();

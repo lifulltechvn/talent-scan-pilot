@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useDeferredValue } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Users, Trophy, Medal, DatabaseZap, LayoutList, Columns3, GitCompareArrows, CheckCircle, XCircle, Download } from 'lucide-react';
+import { Search, Users, Trophy, Medal, DatabaseZap, LayoutList, Columns3, GitCompareArrows, CheckCircle, XCircle, Download, Loader2 } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useCandidates } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
@@ -17,8 +17,11 @@ export function CandidatesPage() {
   const { data: candidates, isLoading } = useCandidates();
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);
   const [view, setView] = useState<ViewMode>('kanban');
+  const [exporting, setExporting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll] = useState(false);
   const navigate = useNavigate();
   const { t } = useI18n();
 
@@ -32,9 +35,12 @@ export function CandidatesPage() {
 
   if (isLoading) return <LoadingSkeleton rows={5} />;
 
-  const filtered = (candidates ?? [])
+  const PAGE_SIZE = 50;
+  const allFiltered = (candidates ?? [])
     .filter(c => filter === 'all' || c.status === filter)
-    .filter(c => !search || c.structuredData.skills.some(s => s.toLowerCase().includes(search.toLowerCase())) || c.structuredData.name.toLowerCase().includes(search.toLowerCase()));
+    .filter(c => !deferredSearch || c.structuredData.skills.some(s => s.toLowerCase().includes(deferredSearch.toLowerCase())) || c.structuredData.name.toLowerCase().includes(deferredSearch.toLowerCase()));
+  const filtered = showAll ? allFiltered : allFiltered.slice(0, PAGE_SIZE);
+  const hasMore = allFiltered.length > PAGE_SIZE && !showAll;
 
   const newCount = candidates?.filter(c => c.status === 'new').length ?? 0;
   const reviewedCount = candidates?.filter(c => c.status === 'reviewed').length ?? 0;
@@ -51,23 +57,28 @@ export function CandidatesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">{t('candidatesTitle')}</h1>
           <p className="text-[13px] text-text-tertiary mt-0.5">{candidates?.length ?? 0} total · {newCount} new · {approvedCount} approved</p>
         </div>
         {/* View toggle + Compare button + Export */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => {
-              const token = localStorage.getItem('token');
-              fetch('/api/v1/candidates/export?format=excel', { headers: { Authorization: `Bearer ${token}` } })
-                .then(r => r.blob())
-                .then(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'candidates.xlsx'; a.click(); URL.revokeObjectURL(url); });
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const token = localStorage.getItem('token');
+                const r = await fetch('/api/v1/candidates/export?format=excel', { headers: { Authorization: `Bearer ${token}` } });
+                const blob = await r.blob();
+                const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'candidates.xlsx'; a.click(); URL.revokeObjectURL(url);
+              } catch {}
+              setExporting(false);
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-surface border border-border-subtle text-text-secondary text-[12px] font-medium rounded-lg hover:bg-accent/10 hover:text-accent transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-surface border border-border-subtle text-text-secondary text-[12px] font-medium rounded-lg hover:bg-accent/10 hover:text-accent transition-colors disabled:opacity-50"
           >
-            <Download size={13} /> Export
+            {exporting ? <><Loader2 size={13} className="animate-spin" /> Exporting...</> : <><Download size={13} /> Export</>}
           </button>
           {selected.size >= 2 && (
             <button
@@ -112,7 +123,7 @@ export function CandidatesPage() {
           />
         </div>
         {view === 'list' && (
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {filters.map(f => (
               <button
                 key={f.value}
@@ -197,6 +208,7 @@ export function CandidatesPage() {
               </tbody>
             </table>
             {filtered.length === 0 && <EmptyState icon={Users} title="No candidates found" description="Try adjusting your search or filters" />}
+            {hasMore && <button onClick={() => setShowAll(true)} className="w-full py-3 text-[13px] text-accent font-medium hover:bg-accent/5 rounded-lg transition-colors">Show all {allFiltered.length} candidates</button>}
           </div>
 
           {/* Mobile cards */}
@@ -229,6 +241,7 @@ export function CandidatesPage() {
               </Link>
             ))}
             {filtered.length === 0 && <EmptyState icon={Users} title="No candidates found" description="Try adjusting your search or filters" />}
+            {hasMore && <button onClick={() => setShowAll(true)} className="w-full py-3 text-[13px] text-accent font-medium hover:bg-accent/5 rounded-lg transition-colors">Show all {allFiltered.length} candidates</button>}
           </div>
         </>
       )}

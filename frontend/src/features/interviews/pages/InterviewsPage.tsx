@@ -84,7 +84,7 @@ export function InterviewsPage() {
   const needFeedback = interviews.filter(i => i.status === 'scheduled' && new Date(i.end_time) < today);
 
   return (
-    <div className="flex gap-5 h-[calc(100vh-80px)]">
+    <div className="flex flex-col lg:flex-row gap-5 lg:h-[calc(100vh-80px)]">
       {/* Calendar */}
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="flex items-center justify-between mb-4">
@@ -105,7 +105,8 @@ export function InterviewsPage() {
         </div>
 
         {/* Week grid */}
-        <div className="flex-1 bg-bg-panel border border-border-subtle rounded-xl overflow-auto">
+        <div className="flex-1 bg-bg-panel border border-border-subtle rounded-xl overflow-auto min-w-0">
+          <div className="min-w-[600px]">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10 bg-bg-panel">
               <tr>
@@ -146,11 +147,12 @@ export function InterviewsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
       {/* Sidebar */}
-      <div className="w-64 shrink-0 space-y-4">
+      <div className="w-full lg:w-64 shrink-0 space-y-4 order-first lg:order-last">
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
           <h2 className="text-sm font-medium text-text-primary mb-3">📋 Hôm nay ({todayInterviews.length})</h2>
           {todayInterviews.length === 0 ? (

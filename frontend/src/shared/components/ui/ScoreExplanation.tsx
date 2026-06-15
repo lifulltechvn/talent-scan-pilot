@@ -52,10 +52,15 @@ export function ScoreExplanation({ candidateId }: { candidateId: string }) {
     queryKey: ['score-explanation', candidateId],
     queryFn: () => apiClient.get(`/scoring/candidates/${candidateId}/explanation`).then(r => r.data),
     enabled: !!candidateId,
+    retry: false,
   });
 
   if (isLoading) return <div className="animate-pulse h-40 bg-gray-100 rounded-lg" />;
-  if (error || !data) return null;
+  if (error || !data) return (
+    <div className="text-center py-4">
+      <span className="text-[12px] text-text-muted">Chưa có điểm — Assign vào job để chấm điểm</span>
+    </div>
+  );
 
   const { breakdown, ai_assessment } = data;
 

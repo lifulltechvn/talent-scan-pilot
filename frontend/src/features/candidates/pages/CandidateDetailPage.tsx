@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone, Eye, Globe } from 'lucide-react';
 import { useCandidate, useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -12,6 +12,62 @@ import { useI18n } from '@/shared/i18n';
 import { apiClient } from '@/data/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MessageSquare } from 'lucide-react';
+import { useToast } from '@/shared/components/ui/Toast';
+import { useConfirm } from '@/shared/components/ui/ConfirmDialog';
+
+function EditCandidateData({ candidateId, data }: { candidateId: string; data: any }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(data.name || '');
+  const [skills, setSkills] = useState((data.skills || []).join(', '));
+  const [expYears, setExpYears] = useState(String(data.experience_years || 0));
+  const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  if (!editing) {
+    return (
+      <button onClick={() => setEditing(true)} className="w-full text-[11px] text-accent hover:underline py-1">
+        ✏️ Edit parsed data
+      </button>
+    );
+  }
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.patch(`/candidates/${candidateId}/data`, {
+        name,
+        skills: skills.split(',').map(s => s.trim()).filter(Boolean),
+        experience_years: parseInt(expYears) || 0,
+      });
+      queryClient.invalidateQueries({ queryKey: ['candidates', candidateId] });
+      toast('success', 'Data updated');
+      setEditing(false);
+    } catch { toast('error', 'Failed to update'); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="border border-accent/30 rounded-lg p-3 space-y-2 bg-accent/5">
+      <div>
+        <label className="text-[10px] text-text-muted uppercase">Name</label>
+        <input value={name} onChange={e => setName(e.target.value)} className="w-full px-2 py-1 border border-border-subtle rounded text-[12px] mt-0.5" />
+      </div>
+      <div>
+        <label className="text-[10px] text-text-muted uppercase">Skills (comma separated)</label>
+        <input value={skills} onChange={e => setSkills(e.target.value)} className="w-full px-2 py-1 border border-border-subtle rounded text-[12px] mt-0.5" />
+      </div>
+      <div>
+        <label className="text-[10px] text-text-muted uppercase">Experience (years)</label>
+        <input type="number" value={expYears} onChange={e => setExpYears(e.target.value)} className="w-full px-2 py-1 border border-border-subtle rounded text-[12px] mt-0.5" />
+      </div>
+      <div className="flex gap-2">
+        <button onClick={handleSave} disabled={saving} className="flex-1 py-1.5 text-[11px] font-medium bg-accent text-white rounded-lg disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+        <button onClick={() => setEditing(false)} className="flex-1 py-1.5 text-[11px] font-medium text-text-muted border border-border-subtle rounded-lg">Cancel</button>
+      </div>
+    </div>
+  );
+}
 
 function CandidateNotes({ candidateId }: { candidateId: string }) {
   const [text, setText] = useState('');
@@ -42,7 +98,7 @@ function CandidateNotes({ candidateId }: { candidateId: string }) {
             <div className="text-text-muted mt-0.5">{n.author} · {new Date(n.created_at).toLocaleDateString()}</div>
           </div>
         ))}
-        {notes.length === 0 && <p className="text-xs text-text-muted">No notes yet</p>}
+        {notes.length === 0 && <p className="text-xs text-text-muted text-center py-2">📝 No notes yet — add one above</p>}
       </div>
     </div>
   );
@@ -83,6 +139,8 @@ export function CandidateDetailPage() {
   const updateStatus = useUpdateCandidateStatus();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { toast } = useToast();
+  const { confirm } = useConfirm();
 
   // Find prev/next candidates
   const candidateIds = allCandidates?.map(c => c.id) ?? [];
@@ -91,9 +149,7 @@ export function CandidateDetailPage() {
   const nextId = currentIdx < candidateIds.length - 1 ? candidateIds[currentIdx + 1] : null;
 
   useEffect(() => {
-    if (candidate && candidate.status === 'new') {
-      updateStatus.mutate({ id: candidate.id, status: 'reviewed' });
-    }
+    // Removed auto-mark as reviewed — HR should explicitly mark
   }, [candidate?.id]);
 
   if (isLoading) return <LoadingSkeleton rows={3} />;
@@ -166,6 +222,7 @@ export function CandidateDetailPage() {
                   <div key={i} className="ml-5 py-1.5 border-l-2 border-border-subtle pl-3 mb-1">
                     <div className="text-[13px] font-medium text-text-primary">{exp.role}</div>
                     <div className="text-[12px] text-text-tertiary">{exp.company}{exp.years ? ` · ${exp.years}y` : exp.duration ? ` · ${exp.duration}` : ''}</div>
+                    {exp.description && <div className="text-[11px] text-text-secondary mt-0.5">{exp.description}</div>}
                   </div>
                 ))}
               </div>
@@ -268,6 +325,9 @@ export function CandidateDetailPage() {
                   'bg-bg-surface text-text-muted'
                 }`}>{candidate.status}</span>
               </div>
+              {d._parse_confidence != null && d._parse_confidence < 0.8 && (
+                <div className="mt-2 text-[10px] text-amber-600 bg-amber-50 px-2 py-1 rounded-full">⚠ Parse confidence: {Math.round(d._parse_confidence * 100)}% — review carefully</div>
+              )}
             </div>
 
             <div className="space-y-2 text-[12px] text-text-secondary border-t border-border-subtle pt-3 mb-4">
@@ -276,6 +336,15 @@ export function CandidateDetailPage() {
               <div className="flex items-center gap-2"><Languages size={12} className="text-text-muted" /> {d.languages.map(l => l.language).join(', ')}</div>
               {d.email && d.email !== '<UNKNOWN>' && <div className="flex items-center gap-2"><Mail size={12} className="text-text-muted" /> <span className="truncate">{d.email}</span></div>}
               {d.phone && d.phone !== '<UNKNOWN>' && <div className="flex items-center gap-2"><Phone size={12} className="text-text-muted" /> {d.phone}</div>}
+              {d.profile_urls?.length > 0 && d.profile_urls.map((url: string, i: number) => (
+                <div key={i} className="flex items-center gap-2"><Globe size={12} className="text-text-muted" /> <a href={url} target="_blank" className="text-accent text-[11px] hover:underline truncate">{url.replace(/https?:\/\/(www\.)?/, '')}</a></div>
+              ))}
+              {d.address && <div className="flex items-center gap-2"><MapPin size={12} className="text-text-muted" /> <span className="text-[11px]">{d.address}</span></div>}
+            </div>
+
+            {/* Edit parsed data */}
+            <div className="border-t border-border-subtle pt-2 mb-2">
+              <EditCandidateData candidateId={candidate.id} data={d} />
             </div>
 
             {/* Score Explanation */}
@@ -285,12 +354,17 @@ export function CandidateDetailPage() {
 
             {/* Actions */}
             <div className="space-y-2">
+              {candidate.status === 'new' && (
+                <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'reviewed' }); toast('success', 'Marked as reviewed'); }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
+                  <CheckCircle size={14} /> Mark as Reviewed
+                </button>
+              )}
               {candidate.status !== 'approved' && candidate.status !== 'rejected' && (
                 <>
-                  <button onClick={() => updateStatus.mutate({ id: candidate.id, status: 'approved' })} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors">
+                  <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'approved' }); toast('success', 'Candidate approved!'); }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors">
                     <CheckCircle size={14} /> Approve
                   </button>
-                  <button onClick={() => updateStatus.mutate({ id: candidate.id, status: 'rejected' })} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                  <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'rejected' }); toast('warning', 'Candidate rejected'); }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
                     <XCircle size={14} /> Reject
                   </button>
                 </>
@@ -298,18 +372,31 @@ export function CandidateDetailPage() {
               {candidate.status === 'approved' && <div className="text-center text-[13px] font-medium text-emerald-600 bg-emerald-50 py-2 rounded-lg">✓ Approved</div>}
               {candidate.status === 'rejected' && <div className="text-center text-[13px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">✗ Rejected</div>}
               {candidate.cvFilePath && (
-                <button onClick={() => {
-                  const token = localStorage.getItem('token');
-                  fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
-                    .then(r => r.blob())
-                    .then(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = candidate.cvFilePath!; a.click(); URL.revokeObjectURL(url); });
-                }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
-                  <Download size={14} /> Download CV
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => {
+                    const token = localStorage.getItem('token');
+                    fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
+                      .then(r => r.blob())
+                      .then(blob => { const url = URL.createObjectURL(blob); window.open(url, '_blank'); });
+                  }} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
+                    <Eye size={14} /> View CV
+                  </button>
+                  <button onClick={() => {
+                    const token = localStorage.getItem('token');
+                    fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
+                      .then(r => r.blob())
+                      .then(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = candidate.cvFilePath!; a.click(); URL.revokeObjectURL(url); });
+                  }} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-text-muted border border-border-subtle rounded-lg hover:bg-bg-surface transition-colors">
+                    <Download size={14} />
+                  </button>
+                </div>
               )}
-              <button onClick={() => {
-                if (!confirm('⚠️ This will permanently delete ALL data for this candidate (CV, scores, notes). This cannot be undone. Continue?')) return;
-                apiClient.delete(`/candidates/${candidate.id}/erase`).then(() => navigate('/candidates'));
+              <button onClick={async () => {
+                const ok = await confirm({ title: 'GDPR Erase', message: 'This will permanently delete ALL data for this candidate (CV, scores, notes). This cannot be undone.', confirmLabel: 'Erase permanently', variant: 'danger' });
+                if (!ok) return;
+                await apiClient.delete(`/candidates/${candidate.id}/erase`);
+                toast('success', 'Candidate data erased');
+                navigate('/candidates');
               }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-red-400 border border-red-200 rounded-lg hover:bg-red-50 transition-colors mt-2">
                 <Trash2 size={14} /> GDPR Erase
               </button>
