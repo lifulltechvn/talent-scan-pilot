@@ -1,4 +1,5 @@
 """Background worker for batch CV processing."""
+import asyncio
 import hashlib
 import logging
 import os
@@ -15,7 +16,7 @@ from app.pii_filter import filter_pii
 from app.services.cv_upload import CV_UPLOAD_DIR, _background_ai_task
 
 logger = logging.getLogger(__name__)
-_executor = ThreadPoolExecutor(max_workers=2)
+_executor = ThreadPoolExecutor(max_workers=10)
 
 
 def _get_session_factory():
@@ -45,8 +46,12 @@ async def _process_batch(batch_id: str):
         ), {"bid": batch_id})
         rows = items.mappings().all()
 
-    for row in rows:
-        await _process_item(session_factory, batch_id, row)
+    # Process items in parallel (up to 10 concurrent)
+    sem = asyncio.Semaphore(10)
+    async def _bounded(row):
+        async with sem:
+            await _process_item(session_factory, batch_id, row)
+    await asyncio.gather(*[_bounded(row) for row in rows])
 
     # Update batch status
     async with session_factory() as db:

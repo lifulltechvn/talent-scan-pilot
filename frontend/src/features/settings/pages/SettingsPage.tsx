@@ -50,7 +50,7 @@ function ChangePasswordForm() {
 
 export function SettingsPage() {
   const { t } = useI18n();
-  const [tab, setTab] = useState<'general' | 'templates'>('general');
+  const [tab, setTab] = useState<'general' | 'templates' | 'master'>('general');
   const [templates, setTemplates] = useState<Template[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<Template | null>(null);
@@ -87,6 +87,7 @@ export function SettingsPage() {
       <div className="flex gap-1 p-1 bg-bg-surface rounded-lg mb-6 w-fit">
         <button onClick={() => setTab('general')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'general' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>General</button>
         <button onClick={() => setTab('templates')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'templates' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Email Templates</button>
+        <button onClick={() => setTab('master')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'master' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Master Data</button>
       </div>
 
       {tab === 'general' && (
@@ -157,6 +158,68 @@ export function SettingsPage() {
           ))}
         </div>
       )}
+
+      {tab === 'master' && (
+        <MasterDataEditor />
+      )}
+    </div>
+  );
+}
+
+function MasterDataEditor() {
+  const [locations, setLocations] = useState('');
+  const [salaries, setSalaries] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    apiClient.get('/master-data').then(({ data }) => {
+      setLocations(data.locations.join('\n'));
+      setSalaries(data.salary_ranges.join('\n'));
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await apiClient.put('/master-data', {
+      locations: locations.split('\n').map((s: string) => s.trim()).filter(Boolean),
+      salary_ranges: salaries.split('\n').map((s: string) => s.trim()).filter(Boolean),
+    }).catch(() => {});
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  if (loading) return <div className="text-[13px] text-text-muted py-4">Loading...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-medium text-text-primary">Locations</h3>
+            <p className="text-[12px] text-text-tertiary">Danh sách địa điểm hiện trong dropdown khi tạo/edit job (mỗi dòng 1 location)</p>
+          </div>
+        </div>
+        <textarea value={locations} onChange={e => setLocations(e.target.value)} rows={6} className="w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y font-mono" />
+      </div>
+
+      <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-medium text-text-primary">Salary Ranges</h3>
+            <p className="text-[12px] text-text-tertiary">Danh sách mức lương hiện trong dropdown (mỗi dòng 1 range)</p>
+          </div>
+        </div>
+        <textarea value={salaries} onChange={e => setSalaries(e.target.value)} rows={6} className="w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y font-mono" />
+      </div>
+
+      <div className="flex justify-end">
+        <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-5 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40 transition-colors">
+          {saved ? '✓ Saved' : saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
     </div>
   );
 }

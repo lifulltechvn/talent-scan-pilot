@@ -205,6 +205,21 @@ async def delete_job(
     await db.commit()
 
 
+@router.delete("/{job_id}/candidates/{candidate_id}")
+async def remove_candidate_from_job(
+    job_id: uuid.UUID,
+    candidate_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Remove a candidate from a job. Resets to suggested state."""
+    from sqlalchemy import text
+    await db.execute(text("UPDATE job_candidates SET status = 'suggested' WHERE job_id = :jid AND candidate_id = :cid"), {"jid": str(job_id), "cid": str(candidate_id)})
+    await db.execute(text("UPDATE candidates SET status = 'reviewed', job_id = NULL WHERE id = :cid"), {"cid": str(candidate_id)})
+    await db.commit()
+    return {"status": "removed"}
+
+
 @router.get("/{job_id}/suggest")
 async def suggest_candidates(
     job_id: uuid.UUID,
@@ -226,7 +241,7 @@ async def suggest_candidates(
                c.structured_data, c.status, c.created_at
         FROM job_candidates jc
         JOIN candidates c ON c.id = jc.candidate_id
-        WHERE jc.job_id = :jid AND c.status != 'processing' AND c.status != 'approved'
+        WHERE jc.job_id = :jid AND c.status = 'reviewed'
         ORDER BY jc.combined_score DESC
         LIMIT 20
     """), {"jid": str(job_id)})
@@ -326,6 +341,7 @@ async def assign_candidate_to_job(
 
     # Also set candidate.job_id for backward compatibility
     candidate.job_id = job_id
+    candidate.status = "assigned"
     await db.commit()
 
     # Run full scoring

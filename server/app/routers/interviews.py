@@ -102,6 +102,8 @@ async def create_interview(
         "salary": body.proposed_salary, "link": body.meeting_link,
         "type": body.interview_type, "uid": str(user.id),
     })
+    # Update candidate status to pending (interview scheduled)
+    await db.execute(text("UPDATE candidates SET status = 'pending' WHERE id = :cid AND status = 'assigned'"), {"cid": body.candidate_id})
     await db.commit()
     return {"id": str(interview_id), "status": "scheduled", "round": body.round}
 
@@ -240,6 +242,15 @@ async def add_feedback(
             feedback_decision = :decision, status = 'completed'
         WHERE id = :id
     """), {"score": body.score, "notes": body.notes, "decision": body.decision, "id": str(interview_id)})
+
+    # Update candidate status based on decision
+    if body.decision in ('pass', 'fail'):
+        new_status = 'approved' if body.decision == 'pass' else 'rejected'
+        await db.execute(text("""
+            UPDATE candidates SET status = :status
+            WHERE id = (SELECT candidate_id FROM interviews WHERE id = :iid)
+        """), {"status": new_status, "iid": str(interview_id)})
+
     await db.commit()
     return {"status": "feedback_added"}
 

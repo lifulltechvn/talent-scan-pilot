@@ -43,8 +43,17 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
     setGenerating(false);
   };
 
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const errors: Record<string, string> = {};
+    if (!form.title.trim()) errors.title = 'Tên job không được để trống';
+    if (!form.description.trim()) errors.description = 'Mô tả không được để trống';
+    if (form.skills.length === 0) errors.skills = 'Cần ít nhất 1 kỹ năng';
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     createJob.mutate(
       { title: form.title, description: form.description, requiredSkills: form.skills, salaryRange: form.salaryRange || undefined, location: form.location || undefined, deadline: form.deadline || undefined },
       { onSuccess: onClose },
@@ -60,15 +69,18 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
         </div>
         <div className="space-y-3">
           <div className="flex gap-2">
-            <input required value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Job title *" className="flex-1 px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <input value={form.title} onChange={e => { setForm(p => ({ ...p, title: e.target.value })); setFormErrors(p => ({ ...p, title: '' })); }} placeholder="Job title *" className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.title ? 'border-red-400' : 'border-border-subtle'}`} />
             <button type="button" onClick={handleAIGenerate} disabled={!form.title || generating} className="px-3 py-2 bg-purple-50 text-purple-700 text-xs font-medium rounded-lg hover:bg-purple-100 disabled:opacity-50 shrink-0 flex items-center gap-1">
               {generating ? <><div className="w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" /> AI...</> : <><Sparkles size={12} /> AI Generate</>}
             </button>
           </div>
-          <textarea required value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Job description *" rows={3} className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+          {formErrors.title && <p className="text-[11px] text-red-500 -mt-2">{formErrors.title}</p>}
+          <textarea value={form.description} onChange={e => { setForm(p => ({ ...p, description: e.target.value })); setFormErrors(p => ({ ...p, description: '' })); }} placeholder="Job description *" rows={3} className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.description ? 'border-red-400' : 'border-border-subtle'}`} />
+          {formErrors.description && <p className="text-[11px] text-red-500 -mt-2">{formErrors.description}</p>}
           <div>
             <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Skills</label>
-            <TagInput value={form.skills} onChange={v => setForm(p => ({ ...p, skills: v }))} suggestions={masterData?.skills || []} placeholder="Type skill name..." />
+            <TagInput value={form.skills} onChange={v => { setForm(p => ({ ...p, skills: v })); setFormErrors(p => ({ ...p, skills: '' })); }} suggestions={masterData?.skills || []} placeholder="Type skill name..." />
+            {formErrors.skills && <p className="text-[11px] text-red-500 mt-1">{formErrors.skills}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

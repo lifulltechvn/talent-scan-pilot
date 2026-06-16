@@ -386,7 +386,7 @@ async def update_candidate_status(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    valid = {"new", "reviewed", "approved", "rejected", "talent_pool"}
+    valid = {"new", "reviewed", "assigned", "pending", "approved", "rejected", "talent_pool"}
     if new_status not in valid:
         raise HTTPException(400, f"Status must be one of: {valid}")
     result = await db.execute(select(Candidate).where(Candidate.id == candidate_id))

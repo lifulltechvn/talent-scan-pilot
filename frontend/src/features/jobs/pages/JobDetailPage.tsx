@@ -78,6 +78,7 @@ export function JobDetailPage() {
   const [scoreDetail, setScoreDetail] = useState<any | null>(null);
   const [scoreDetailLoading, setScoreDetailLoading] = useState(false);
   const [bookInterview, setBookInterview] = useState<{ candidateId: string; candidateName: string } | null>(null);
+  const [removeCandidate, setRemoveCandidate] = useState<{ id: string; name: string } | null>(null);
   const [compareData, setCompareData] = useState<any | null>(null);
   const [compareLoading, setCompareLoading] = useState(false);
   const [aiRecommend, setAiRecommend] = useState<string | null>(null);
@@ -97,7 +98,7 @@ export function JobDetailPage() {
     try {
       await apiClient.post(`/jobs/${id}/assign/${candidateId}`);
       setSuggestions(prev => prev?.filter(s => s.id !== candidateId) ?? null);
-      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+      await queryClient.refetchQueries({ queryKey: ['candidates'] });
       toast('success', 'Candidate assigned & scoring started');
     } catch {
       toast('error', 'Failed to assign candidate');
@@ -173,9 +174,6 @@ export function JobDetailPage() {
             <button onClick={handleSuggest} disabled={suggestLoading} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50">
               {suggestLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Suggest
             </button>
-            <button onClick={() => setOutreachModal(true)} className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">
-              <Mail size={14} /> Outreach
-            </button>
             <button onClick={() => setEditModal(true)} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-accent/10 hover:text-accent border border-border-subtle transition-colors">
               <Edit size={14} /> Edit Job
             </button>
@@ -222,6 +220,13 @@ export function JobDetailPage() {
       </div>
 
       {/* Suggestions */}
+      {suggestions && suggestions.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-5 text-center">
+          <Users size={28} className="mx-auto mb-2 text-amber-400" />
+          <p className="text-[14px] font-medium text-amber-800 mb-1">Chưa có ứng viên phù hợp</p>
+          <p className="text-[12px] text-amber-600">Upload thêm CV hoặc đánh dấu "Reviewed" cho ứng viên để nhận gợi ý.</p>
+        </div>
+      )}
       {suggestions && suggestions.length > 0 && (
         <div className="bg-bg-panel border border-emerald-200 rounded-xl overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-emerald-100 bg-emerald-50 flex items-center justify-between">
@@ -364,16 +369,9 @@ export function JobDetailPage() {
                     <button onClick={() => setBookInterview({ candidateId: c.id, candidateName: c.structuredData.name })} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title="Đặt lịch phỏng vấn">
                       <CalendarCheck size={15} />
                     </button>
-                    {c.status === 'new' && (
-                      <>
-                        <button onClick={() => setActionModal({ candidateId: c.id, action: 'approved' })} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Approve">
-                          <CheckCircle size={15} />
-                        </button>
-                        <button onClick={() => setActionModal({ candidateId: c.id, action: 'rejected' })} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Reject">
-                          <XCircle size={15} />
-                        </button>
-                      </>
-                    )}
+                    <button onClick={() => setRemoveCandidate({ id: c.id, name: c.structuredData.name })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-md transition-colors" title="Loại khỏi job">
+                      <XCircle size={15} />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -564,6 +562,29 @@ export function JobDetailPage() {
           jobTitle={job.title}
           onClose={() => setBookInterview(null)}
         />
+      )}
+
+      {/* Remove Candidate Modal */}
+      {removeCandidate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setRemoveCandidate(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm m-4 p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <XCircle size={24} className="text-red-500" />
+            </div>
+            <h3 className="text-[15px] font-semibold text-text-primary text-center mb-1">Loại ứng viên</h3>
+            <p className="text-[13px] text-text-tertiary text-center mb-6">
+              Loại <span className="font-medium text-text-primary">{removeCandidate.name}</span> khỏi job này? Ứng viên sẽ quay lại danh sách suggest.
+            </p>
+            <div className="space-y-2">
+              <button onClick={async () => { await apiClient.delete(`/jobs/${id}/candidates/${removeCandidate.id}`); setRemoveCandidate(null); window.location.reload(); }} className="w-full py-2.5 text-[13px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors">
+                Loại khỏi job
+              </button>
+              <button onClick={() => setRemoveCandidate(null)} className="w-full py-2.5 text-[13px] font-medium text-text-secondary bg-bg-surface rounded-lg hover:bg-bg-surface/80 transition-colors">
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -25,6 +25,7 @@ interface Interview {
 interface Candidate {
   id: string;
   name: string;
+  job_id: string | null;
 }
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 7); // 7:00 - 18:00
@@ -51,6 +52,7 @@ export function InterviewsPage() {
   const [showFeedback, setShowFeedback] = useState<Interview | null>(null);
   const [bookNextRound, setBookNextRound] = useState<Interview | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const fetchInterviews = () => {
@@ -60,10 +62,11 @@ export function InterviewsPage() {
   useEffect(() => {
     fetchInterviews();
     apiClient.get('/candidates').then(({ data }) => {
-      setCandidates(data.filter((c: any) => c.status === 'approved' || c.status === 'reviewed' || c.status === 'new').map((c: any) => ({
-        id: c.id, name: c.structured_data?.name || 'Unknown',
+      setCandidates(data.filter((c: any) => c.status === 'assigned' || c.status === 'pending').map((c: any) => ({
+        id: c.id, name: c.structured_data?.name || 'Unknown', job_id: c.job_id,
       })));
     }).catch(() => {});
+    apiClient.get('/jobs').then(({ data }) => setJobs(data.map((j: any) => ({ id: j.id, title: j.title })))).catch(() => {});
   }, []);
 
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
@@ -211,7 +214,7 @@ export function InterviewsPage() {
       </div>
 
       {/* Modals */}
-      {showCreate && <CreateModal candidates={candidates} defaultDate={showCreate.date} defaultTime={showCreate.time} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); fetchInterviews(); }} />}
+      {showCreate && <CreateModal candidates={candidates} jobs={jobs} defaultDate={showCreate.date} defaultTime={showCreate.time} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); fetchInterviews(); }} />}
       {showDetail && <DetailModal interview={showDetail} onClose={() => setShowDetail(null)} onFeedback={() => { setShowFeedback(showDetail); setShowDetail(null); }} onDeleted={() => { setShowDetail(null); fetchInterviews(); }} />}
       {showFeedback && <FeedbackModal interview={showFeedback} onClose={() => setShowFeedback(null)} onSaved={(decision) => { setShowFeedback(null); fetchInterviews(); if (decision === 'next_round') setBookNextRound(showFeedback); }} />}
       {bookNextRound && <BookNextRoundModal interview={bookNextRound} onClose={() => setBookNextRound(null)} onCreated={() => { setBookNextRound(null); fetchInterviews(); }} />}
@@ -219,8 +222,9 @@ export function InterviewsPage() {
   );
 }
 
-function CreateModal({ candidates, defaultDate, defaultTime, onClose, onCreated }: { candidates: Candidate[]; defaultDate: string; defaultTime: string; onClose: () => void; onCreated: () => void }) {
+function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCreated }: { candidates: Candidate[]; jobs: { id: string; title: string }[]; defaultDate: string; defaultTime: string; onClose: () => void; onCreated: () => void }) {
   const [candidateId, setCandidateId] = useState('');
+  const [jobId, setJobId] = useState('');
   const [title, setTitle] = useState('Interview');
   const [date, setDate] = useState(defaultDate || new Date().toISOString().slice(0, 10));
   const [startTime, setStartTime] = useState(defaultTime || '09:00');
@@ -238,6 +242,7 @@ function CreateModal({ candidates, defaultDate, defaultTime, onClose, onCreated 
       const endIso = new Date(`${date}T${endTime}`).toISOString();
       await apiClient.post('/interviews', {
         candidate_id: candidateId,
+        job_id: jobId || null,
         title,
         start_time: startIso,
         end_time: endIso,
@@ -299,10 +304,17 @@ function CreateModal({ candidates, defaultDate, defaultTime, onClose, onCreated 
         ) : (
         <div className="p-5 space-y-4">
           <div>
+            <label className="text-[12px] font-medium text-text-muted uppercase">Job</label>
+            <select value={jobId} onChange={e => { setJobId(e.target.value); setCandidateId(''); }} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20">
+              <option value="">Tất cả jobs</option>
+              {jobs.map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
+            </select>
+          </div>
+          <div>
             <label className="text-[12px] font-medium text-text-muted uppercase">Ứng viên</label>
             <select value={candidateId} onChange={e => setCandidateId(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20">
               <option value="">Chọn ứng viên...</option>
-              {candidates.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {candidates.filter(c => !jobId || c.job_id === jobId).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>

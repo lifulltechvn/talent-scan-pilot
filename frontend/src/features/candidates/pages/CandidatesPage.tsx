@@ -1,254 +1,195 @@
-import { useState, useDeferredValue } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Users, Trophy, Medal, DatabaseZap, LayoutList, Columns3, GitCompareArrows, CheckCircle, XCircle, Download, Loader2 } from 'lucide-react';
-import { cn } from '@/shared/utils/cn';
+import { Search, Users, Clock, CalendarCheck, CheckCircle, XCircle, ChevronRight, Eye } from 'lucide-react';
 import { useCandidates } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
-import { Badge } from '@/shared/components/ui/Badge';
-import { ScoreBar } from '@/shared/components/ui/ScoreBar';
-import { KanbanBoard } from '../components/KanbanBoard';
 import { useI18n } from '@/shared/i18n';
 
-type Filter = 'all' | 'new' | 'reviewed' | 'approved' | 'rejected';
-type ViewMode = 'list' | 'kanban';
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  new: { label: 'New', color: 'text-blue-700', bg: 'bg-blue-500' },
+  reviewed: { label: 'Reviewed', color: 'text-amber-700', bg: 'bg-amber-500' },
+  assigned: { label: 'Assigned', color: 'text-purple-700', bg: 'bg-purple-500' },
+  pending: { label: 'Phỏng vấn', color: 'text-cyan-700', bg: 'bg-cyan-500' },
+  approved: { label: 'Approved', color: 'text-emerald-700', bg: 'bg-emerald-500' },
+  rejected: { label: 'Rejected', color: 'text-red-700', bg: 'bg-red-500' },
+};
 
 export function CandidatesPage() {
   const { data: candidates, isLoading } = useCandidates();
-  const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
-  const deferredSearch = useDeferredValue(search);
-  const [view, setView] = useState<ViewMode>('kanban');
-  const [exporting, setExporting] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [showAll, setShowAll] = useState(false);
   const navigate = useNavigate();
   const { t } = useI18n();
 
-  const toggleSelect = (id: string) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else if (next.size < 4) next.add(id);
-      return next;
-    });
-  };
-
   if (isLoading) return <LoadingSkeleton rows={5} />;
 
-  const PAGE_SIZE = 50;
-  const allFiltered = (candidates ?? [])
-    .filter(c => filter === 'all' || c.status === filter)
-    .filter(c => !deferredSearch || c.structuredData.skills.some(s => s.toLowerCase().includes(deferredSearch.toLowerCase())) || c.structuredData.name.toLowerCase().includes(deferredSearch.toLowerCase()));
-  const filtered = showAll ? allFiltered : allFiltered.slice(0, PAGE_SIZE);
-  const hasMore = allFiltered.length > PAGE_SIZE && !showAll;
+  const all = candidates ?? [];
+  const counts: Record<string, number> = {};
+  for (const c of all) counts[c.status] = (counts[c.status] || 0) + 1;
+  const total = all.length;
 
-  const newCount = candidates?.filter(c => c.status === 'new').length ?? 0;
-  const reviewedCount = candidates?.filter(c => c.status === 'reviewed').length ?? 0;
-  const approvedCount = candidates?.filter(c => c.status === 'approved').length ?? 0;
-  const rejectedCount = candidates?.filter(c => c.status === 'rejected').length ?? 0;
+  const needsAction = all.filter(c => c.status === 'new' || c.status === 'reviewed');
+  const interviewing = all.filter(c => c.status === 'assigned' || c.status === 'pending');
+  const done = all.filter(c => c.status === 'approved' || c.status === 'rejected');
 
-  const filters: { value: Filter; label: string; count: number; icon: typeof Trophy }[] = [
-    { value: 'all', label: t('all'), count: candidates?.length ?? 0, icon: Users },
-    { value: 'new', label: 'New', count: newCount, icon: Users },
-    { value: 'reviewed', label: 'Reviewed', count: reviewedCount, icon: Users },
-    { value: 'approved', label: 'Approved', count: approvedCount, icon: CheckCircle as any },
-    { value: 'rejected', label: 'Rejected', count: rejectedCount, icon: XCircle as any },
-  ];
+  const searched = search
+    ? all.filter(c => c.structuredData.name.toLowerCase().includes(search.toLowerCase()) || c.structuredData.skills.some(s => s.toLowerCase().includes(search.toLowerCase())))
+    : null;
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">{t('candidatesTitle')}</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{candidates?.length ?? 0} total · {newCount} new · {approvedCount} approved</p>
+          <h1 className="text-xl font-semibold text-text-primary">{t('candidates')}</h1>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{total} ứng viên</p>
         </div>
-        {/* View toggle + Compare button + Export */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            disabled={exporting}
-            onClick={async () => {
-              setExporting(true);
-              try {
-                const token = localStorage.getItem('token');
-                const r = await fetch('/api/v1/candidates/export?format=excel', { headers: { Authorization: `Bearer ${token}` } });
-                const blob = await r.blob();
-                const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'candidates.xlsx'; a.click(); URL.revokeObjectURL(url);
-              } catch {}
-              setExporting(false);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-surface border border-border-subtle text-text-secondary text-[12px] font-medium rounded-lg hover:bg-accent/10 hover:text-accent transition-colors disabled:opacity-50"
-          >
-            {exporting ? <><Loader2 size={13} className="animate-spin" /> Exporting...</> : <><Download size={13} /> Export</>}
-          </button>
-          {selected.size >= 2 && (
-            <button
-              onClick={() => navigate(`/candidates/compare?ids=${[...selected].join(',')}`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white text-[12px] font-medium rounded-lg hover:bg-accent-hover transition-colors"
-            >
-              <GitCompareArrows size={13} /> {t('compare')} ({selected.size})
-            </button>
-          )}
-          {selected.size > 0 && selected.size < 2 && (
-            <span className="text-[11px] text-text-muted">{t('selectMoreToCompare', { count: 2 - selected.size })}</span>
-          )}
-          <div className="flex items-center gap-1 bg-bg-surface border border-border-subtle rounded-lg p-0.5">
-            <button
-              onClick={() => setView('list')}
-              className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium transition-colors',
-                view === 'list' ? 'bg-bg-panel text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary')}
-            >
-              <LayoutList size={13} /> {t('list')}
-            </button>
-            <button
-              onClick={() => setView('kanban')}
-              className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium transition-colors',
-                view === 'kanban' ? 'bg-bg-panel text-text-primary shadow-sm' : 'text-text-muted hover:text-text-secondary')}
-            >
-              <Columns3 size={13} /> {t('pipeline')}
-            </button>
-          </div>
+        <div className="relative w-64">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm tên hoặc kỹ năng..." className="w-full pl-9 pr-3 py-2 bg-bg-panel border border-border-subtle rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20" />
         </div>
       </div>
 
-      {/* Search + Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={t('searchByNameOrSkill')}
-            className="w-full pl-9 pr-3 py-2 bg-bg-panel border border-border-subtle rounded-lg text-[13px] text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40"
-          />
-        </div>
-        {view === 'list' && (
-          <div className="flex flex-wrap gap-1.5">
-            {filters.map(f => (
-              <button
-                key={f.value}
-                onClick={() => setFilter(f.value)}
-                className={cn(
-                  'flex items-center gap-1.5 text-[12px] font-medium px-3 py-2 rounded-lg transition-colors',
-                  filter === f.value ? 'bg-accent text-white' : 'bg-bg-panel border border-border-subtle text-text-secondary hover:text-text-primary'
-                )}
-              >
-                <f.icon size={13} />
-                {f.label}
-                <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full', filter === f.value ? 'bg-white/20' : 'bg-bg-surface')}>{f.count}</span>
-              </button>
-            ))}
+      {/* Search results */}
+      {searched ? (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-border-subtle">
+            <h2 className="text-sm font-medium text-text-primary">Kết quả ({searched.length})</h2>
           </div>
-        )}
-      </div>
-
-      {/* Kanban view */}
-      {view === 'kanban' && <KanbanBoard candidates={filtered} />}
-
-      {/* List view */}
-      {view === 'list' && (
+          {searched.length === 0 ? (
+            <div className="p-8 text-center text-[13px] text-text-muted">Không tìm thấy ứng viên</div>
+          ) : (
+            <div className="divide-y divide-border-subtle">
+              {searched.slice(0, 20).map(c => (
+                <CandidateRow key={c.id} candidate={c} />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
         <>
-          {/* Desktop table */}
-          <div className="hidden md:block bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border-subtle bg-bg-surface/50">
-                  <th className="w-10 px-3 py-3" />
-                  <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-3">Candidate</th>
-                  <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-3">Skills</th>
-                  <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-3">Exp</th>
-                  <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-3">Score</th>
-                  <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-3">Class</th>
-                  <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(c => (
-                  <tr key={c.id} className={cn('border-b border-border-subtle last:border-0 hover:bg-bg-surface/30 transition-colors', selected.has(c.id) && 'bg-accent/5')}>
-                    <td className="px-3 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(c.id)}
-                        onChange={() => toggleSelect(c.id)}
-                        className="w-3.5 h-3.5 rounded border-border-subtle text-accent focus:ring-accent/30 cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link to={`/candidates/${c.id}`} className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent text-[11px] font-bold shrink-0">
-                          {c.structuredData.name.replace(/[\[\]NAME-]/g, '').trim().charAt(0) || 'C'}
-                        </div>
-                        <div>
-                          <span className="text-[13px] font-medium text-accent hover:underline">{c.structuredData.name}</span>
-                          <div className="text-[11px] text-text-muted">{c.structuredData.totalYearsExperience}y · {c.structuredData.languages.map(l => l.language).join(', ')}</div>
-                        </div>
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {c.structuredData.skills.slice(0, 3).map(s => (
-                          <span key={s} className="text-[10px] bg-bg-surface text-text-secondary px-1.5 py-0.5 rounded">{s}</span>
-                        ))}
-                        {c.structuredData.skills.length > 3 && <span className="text-[10px] text-text-muted">+{c.structuredData.skills.length - 3}</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-[13px] text-text-secondary">{c.structuredData.totalYearsExperience}y</td>
-                    <td className="px-4 py-3"><ScoreBar score={c.score?.finalScore ?? 0} /></td>
-                    <td className="px-4 py-3"><Badge variant={c.score?.classification ?? 'neutral'}>{c.score?.classification ?? '—'}</Badge></td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        {c.status === 'processing' ? (
-                          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium animate-pulse">⏳ Đang phân tích</span>
-                        ) : (
-                          <span className="text-[12px] text-text-tertiary capitalize">{c.status}</span>
-                        )}
-                        {c.quizStatus === 'pending' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Quiz Pending</span>}
-                        {c.quizStatus === 'submitted' && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">Quiz Submitted</span>}
-                        {c.quizStatus === 'evaluated' && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Quiz Evaluated</span>}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filtered.length === 0 && <EmptyState icon={Users} title="No candidates found" description="Try adjusting your search or filters" />}
-            {hasMore && <button onClick={() => setShowAll(true)} className="w-full py-3 text-[13px] text-accent font-medium hover:bg-accent/5 rounded-lg transition-colors">Show all {allFiltered.length} candidates</button>}
+          {/* Overview Progress Bar */}
+          <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mb-5">
+            <div className="flex items-center gap-4 mb-3">
+              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                <div key={key} className="flex items-center gap-1.5 text-[12px]">
+                  <div className={`w-2.5 h-2.5 rounded-full ${cfg.bg}`} />
+                  <span className="text-text-secondary">{cfg.label}</span>
+                  <span className="font-medium text-text-primary">{counts[key] || 0}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex h-3 rounded-full overflow-hidden bg-bg-surface">
+              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+                const pct = total > 0 ? ((counts[key] || 0) / total) * 100 : 0;
+                return pct > 0 ? <div key={key} className={`${cfg.bg} transition-all`} style={{ width: `${pct}%` }} /> : null;
+              })}
+            </div>
           </div>
 
-          {/* Mobile cards */}
-          <div className="md:hidden space-y-3">
-            {filtered.map(c => (
-              <Link key={c.id} to={`/candidates/${c.id}`} className="block bg-bg-panel border border-border-subtle rounded-xl p-3 hover:border-accent/30 transition-colors">
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent text-[11px] font-bold shrink-0">
-                    {c.structuredData.name.replace(/[\[\]NAME-]/g, '').trim().charAt(0) || 'C'}
+          {/* Cần xử lý */}
+          {needsAction.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-5">
+              <h2 className="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
+                <Clock size={15} /> Cần xử lý ({needsAction.length})
+              </h2>
+              <div className="space-y-2">
+                {(counts['new'] || 0) > 0 && (
+                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-amber-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      <span className="text-[13px] text-text-primary font-medium">{counts['new']} CV mới</span>
+                      <span className="text-[12px] text-text-muted">chưa review</span>
+                    </div>
+                    <Link to={`/candidates/${all.find(c => c.status === 'new')?.id}`} className="text-[12px] text-accent font-medium hover:underline flex items-center gap-0.5">
+                      Review <ChevronRight size={12} />
+                    </Link>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[13px] font-medium text-accent truncate block">{c.structuredData.name}</span>
-                    <span className="text-[11px] text-text-muted">{c.structuredData.totalYearsExperience}y exp</span>
+                )}
+                {(counts['reviewed'] || 0) > 0 && (
+                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-2.5 border border-amber-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-amber-500" />
+                      <span className="text-[13px] text-text-primary font-medium">{counts['reviewed']} đã review</span>
+                      <span className="text-[12px] text-text-muted">chưa assign vào job</span>
+                    </div>
+                    <Link to="/jobs" className="text-[12px] text-accent font-medium hover:underline flex items-center gap-0.5">
+                      Assign <ChevronRight size={12} />
+                    </Link>
                   </div>
-                  <Badge variant={c.score?.classification ?? 'neutral'}>{c.score?.classification ?? '—'}</Badge>
-                </div>
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {c.structuredData.skills.slice(0, 4).map(s => (
-                    <span key={s} className="text-[10px] bg-bg-surface text-text-secondary px-1.5 py-0.5 rounded">{s}</span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-text-muted capitalize">{c.status}</span>
-                    {c.quizStatus === 'pending' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Quiz</span>}
-                    {c.quizStatus === 'evaluated' && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">✓ Quiz</span>}
-                  </div>
-                  <ScoreBar score={c.score?.finalScore ?? 0} />
-                </div>
-              </Link>
-            ))}
-            {filtered.length === 0 && <EmptyState icon={Users} title="No candidates found" description="Try adjusting your search or filters" />}
-            {hasMore && <button onClick={() => setShowAll(true)} className="w-full py-3 text-[13px] text-accent font-medium hover:bg-accent/5 rounded-lg transition-colors">Show all {allFiltered.length} candidates</button>}
-          </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Đang phỏng vấn */}
+          {interviewing.length > 0 && (
+            <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden mb-5">
+              <div className="px-4 py-3 border-b border-border-subtle flex items-center gap-2">
+                <CalendarCheck size={14} className="text-cyan-600" />
+                <h2 className="text-sm font-medium text-text-primary">Đang phỏng vấn ({interviewing.length})</h2>
+              </div>
+              <div className="divide-y divide-border-subtle">
+                {interviewing.map(c => (
+                  <CandidateRow key={c.id} candidate={c} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Hoàn thành */}
+          {done.length > 0 && (
+            <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden mb-5">
+              <div className="px-4 py-3 border-b border-border-subtle flex items-center gap-2">
+                <CheckCircle size={14} className="text-emerald-600" />
+                <h2 className="text-sm font-medium text-text-primary">Hoàn thành ({done.length})</h2>
+              </div>
+              <div className="divide-y divide-border-subtle">
+                {done.map(c => (
+                  <CandidateRow key={c.id} candidate={c} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* All candidates */}
+          {needsAction.length > 0 && (
+            <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-border-subtle flex items-center gap-2">
+                <Eye size={14} className="text-text-muted" />
+                <h2 className="text-sm font-medium text-text-primary">Chưa xử lý ({needsAction.length})</h2>
+              </div>
+              <div className="divide-y divide-border-subtle">
+                {needsAction.map(c => (
+                  <CandidateRow key={c.id} candidate={c} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {total === 0 && <EmptyState icon={Users} title="Chưa có ứng viên" description="Upload CV để bắt đầu" />}
         </>
       )}
     </div>
+  );
+}
+
+function CandidateRow({ candidate: c }: { candidate: any }) {
+  const cfg = STATUS_CONFIG[c.status] || STATUS_CONFIG.new;
+  return (
+    <Link to={`/candidates/${c.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-bg-surface/50 transition-colors">
+      <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center text-accent text-[12px] font-bold shrink-0">
+        {c.structuredData.name?.charAt(0) || 'C'}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-medium text-text-primary truncate">{c.structuredData.name}</span>
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${cfg.color} bg-opacity-10`} style={{ backgroundColor: `color-mix(in srgb, currentColor 10%, transparent)` }}>
+            {cfg.label}
+          </span>
+        </div>
+        <p className="text-[12px] text-text-tertiary truncate">{c.structuredData.skills?.slice(0, 4).join(' · ')}</p>
+      </div>
+      <ChevronRight size={14} className="text-text-muted shrink-0" />
+    </Link>
   );
 }

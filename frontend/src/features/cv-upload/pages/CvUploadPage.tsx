@@ -139,7 +139,7 @@ export function CvUploadPage() {
           <p className="text-xs text-text-muted mb-3">PDF, DOCX — tối đa 10MB/file, 200 file/lần</p>
           <label className="inline-block px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg cursor-pointer hover:bg-accent-hover">
             Chọn file
-            <input type="file" multiple accept=".pdf,.docx" className="hidden" onChange={e => e.target.files && handleFiles(e.target.files)} />
+            <input type="file" multiple accept=".pdf,.docx" className="hidden" onChange={e => { if (e.target.files) handleFiles(e.target.files); e.target.value = ''; }} />
           </label>
         </div>
       )}
@@ -334,7 +334,7 @@ export function CvUploadPage() {
 
           {/* Upload more */}
           {batch.status === 'done' && (
-            <button onClick={() => setBatch(null)} className="w-full py-3 text-sm font-medium text-accent border border-accent/30 rounded-xl hover:bg-accent/5 transition-colors">
+            <button onClick={() => { setBatch(null); setError(''); }} className="w-full py-3 text-sm font-medium text-accent border border-accent/30 rounded-xl hover:bg-accent/5 transition-colors">
               Upload thêm CV
             </button>
           )}
