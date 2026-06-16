@@ -12,6 +12,7 @@ interface Interview {
   start_time: string;
   end_time: string;
   notes: string | null;
+  interviewer_emails: string[];
   status: string;
   round: number;
   proposed_salary: string | null;
@@ -231,6 +232,7 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
   const endHour = Math.min(parseInt(defaultTime || '09') + 1, 23);
   const [endTime, setEndTime] = useState(`${String(endHour).padStart(2, '0')}:00`);
   const [notes, setNotes] = useState('');
+  const [interviewerEmails, setInterviewerEmails] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [emailPreview, setEmailPreview] = useState<any>(null);
 
@@ -254,12 +256,13 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
         start_time: startIso,
         end_time: endIso,
         notes: notes || null,
+        interviewer_emails: interviewerEmails,
       });
       // Get email preview
       const { data } = await apiClient.post('/interviews/email-preview', {
         candidate_id: candidateId, round: 1, start_time: startIso, end_time: endIso, title,
       });
-      setEmailPreview(data);
+      setEmailPreview({ ...data, bcc: interviewerEmails });
     } catch { onCreated(); }
     setSaving(false);
   };
@@ -343,10 +346,13 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
             </div>
           </div>
           <div>
+            <label className="text-[12px] font-medium text-text-muted uppercase">Interviewer Emails</label>
+            <EmailTagInput value={interviewerEmails} onChange={setInterviewerEmails} />
+          </div>
+          <div>
             <label className="text-[12px] font-medium text-text-muted uppercase">Ghi chú</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder="Link meeting, interviewer..." />
           </div>
-          {validationError && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">{validationError}</p>}
           <button onClick={handleSave} disabled={saving || !candidateId} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
             {saving ? 'Đang tạo...' : 'Tạo lịch'}
           </button>
@@ -381,6 +387,16 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
             <strong>Thời gian:</strong> {new Date(interview.start_time).toLocaleString('vi')} — {new Date(interview.end_time).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}
           </div>
           {interview.meeting_link && <div className="text-[13px] text-text-secondary"><strong>Meeting:</strong> <a href={interview.meeting_link} target="_blank" className="text-accent hover:underline">{interview.meeting_link}</a></div>}
+          {interview.interviewer_emails && interview.interviewer_emails.length > 0 && (
+            <div className="text-[13px] text-text-secondary">
+              <strong>Interviewers:</strong>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {interview.interviewer_emails.map((e: string) => (
+                  <span key={e} className="text-[11px] bg-accent/10 text-accent px-2 py-0.5 rounded-md">{e}</span>
+                ))}
+              </div>
+            </div>
+          )}
           {interview.proposed_salary && <div className="text-[13px] text-text-secondary"><strong>Lương đề xuất:</strong> {interview.proposed_salary}</div>}
           {interview.notes && <div className="text-[13px] text-text-secondary"><strong>Ghi chú:</strong> {interview.notes}</div>}
           {interview.feedback_score && (
@@ -605,6 +621,38 @@ function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Inte
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function EmailTagInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [input, setInput] = useState('');
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
+  const add = () => {
+    const email = input.trim();
+    if (email && isValidEmail(email) && !value.includes(email)) {
+      onChange([...value, email]);
+    }
+    setInput('');
+  };
+
+  return (
+    <div className="mt-1 flex flex-wrap gap-1.5 p-2 border border-border-default rounded-lg bg-white min-h-[38px] focus-within:ring-2 focus-within:ring-accent/20">
+      {value.map(email => (
+        <span key={email} className="flex items-center gap-1 text-[11px] bg-accent/10 text-accent px-2 py-0.5 rounded-md font-medium">
+          {email}
+          <button type="button" onClick={() => onChange(value.filter(e => e !== email))} className="hover:text-red-500">×</button>
+        </span>
+      ))}
+      <input
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+        onBlur={add}
+        placeholder={value.length === 0 ? 'Nhập email interviewer rồi Enter...' : ''}
+        className="flex-1 min-w-[150px] text-[13px] outline-none bg-transparent"
+      />
     </div>
   );
 }

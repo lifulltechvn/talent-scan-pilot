@@ -12,15 +12,6 @@ from app.models import User
 
 router = APIRouter(prefix="/master-data", tags=["master-data"])
 
-DEFAULT_LOCATIONS = [
-    "Ho Chi Minh City", "Ha Noi", "Da Nang", "Remote", "Hybrid",
-]
-
-DEFAULT_SALARY_RANGES = [
-    "8-12M VND", "12-18M VND", "18-25M VND", "25-35M VND",
-    "35-50M VND", "50-70M VND", "70M+ VND", "Negotiable",
-]
-
 DEFAULT_SKILLS = [
     "Python", "JavaScript", "TypeScript", "Java", "PHP", "Go", "Rust", "C#",
     "React", "Vue.js", "Angular", "Next.js", "Node.js", "Express",
@@ -45,8 +36,8 @@ async def get_master_data(
     except Exception:
         custom_map = {}
 
-    locations = custom_map.get('locations', DEFAULT_LOCATIONS)
-    salary_ranges = custom_map.get('salary_ranges', DEFAULT_SALARY_RANGES)
+    locations = custom_map.get('locations', [])
+    salary_ranges = custom_map.get('salary_ranges', [])
 
     # Aggregate skills
     job_skills = await db.execute(text("SELECT DISTINCT jsonb_array_elements_text(required_skills) AS skill FROM jobs"))

@@ -1,4 +1,5 @@
 """Interviews API — CRUD for calendar events + feedback."""
+import json
 import uuid
 from datetime import datetime
 
@@ -21,6 +22,7 @@ class InterviewCreate(BaseModel):
     start_time: str  # ISO
     end_time: str    # ISO
     notes: str | None = None
+    interviewer_emails: list[str] = []
     round: int = 1
     proposed_salary: str | None = None
     meeting_link: str | None = None
@@ -32,6 +34,7 @@ class InterviewUpdate(BaseModel):
     start_time: str | None = None
     end_time: str | None = None
     notes: str | None = None
+    interviewer_emails: list[str] | None = None
     status: str | None = None
     round: int | None = None
     proposed_salary: str | None = None
@@ -69,6 +72,7 @@ async def list_interviews(
             "start_time": r["start_time"].isoformat(),
             "end_time": r["end_time"].isoformat(),
             "notes": r["notes"],
+            "interviewer_emails": r["interviewer_emails"] or [],
             "status": r["status"],
             "round": r["round"],
             "proposed_salary": r["proposed_salary"],
@@ -92,13 +96,14 @@ async def create_interview(
     from datetime import datetime as dt
     interview_id = uuid.uuid4()
     await db.execute(text("""
-        INSERT INTO interviews (id, candidate_id, job_id, title, start_time, end_time, notes, round, proposed_salary, meeting_link, interview_type, created_by)
-        VALUES (:id, :cid, :jid, :title, :start, :end, :notes, :round, :salary, :link, :type, :uid)
+        INSERT INTO interviews (id, candidate_id, job_id, title, start_time, end_time, notes, interviewer_emails, round, proposed_salary, meeting_link, interview_type, created_by)
+        VALUES (:id, :cid, :jid, :title, :start, :end, :notes, :emails, :round, :salary, :link, :type, :uid)
     """), {
         "id": str(interview_id), "cid": body.candidate_id,
         "jid": body.job_id, "title": body.title,
         "start": dt.fromisoformat(body.start_time), "end": dt.fromisoformat(body.end_time),
-        "notes": body.notes, "round": body.round,
+        "notes": body.notes, "emails": json.dumps(body.interviewer_emails),
+        "round": body.round,
         "salary": body.proposed_salary, "link": body.meeting_link,
         "type": body.interview_type, "uid": str(user.id),
     })
@@ -172,6 +177,7 @@ class SendInvitationRequest(BaseModel):
     time: str
     meeting_link: str | None = None
     closing: str
+    bcc: list[str] = []
 
 
 @router.post("/send-invitation", status_code=201)
@@ -201,7 +207,7 @@ async def send_invitation_email(
     html = _base(html_content)
 
     try:
-        get_email_service().send(to=body.to_email, subject=body.subject, html_body=html)
+        get_email_service().send(to=body.to_email, subject=body.subject, html_body=html, bcc=body.bcc)
         return {"status": "sent"}
     except Exception as e:
         raise HTTPException(502, f"Email delivery failed: {e}")
@@ -262,6 +268,15 @@ async def delete_interview(
     user: User = Depends(get_current_user),
 ):
     """Cancel/delete an interview."""
+    # Get candidate_id before deleting
+    row = await db.execute(text("SELECT candidate_id FROM interviews WHERE id = :id"), {"id": str(interview_id)})
+    interview = row.mappings().first()
     await db.execute(text("DELETE FROM interviews WHERE id = :id"), {"id": str(interview_id)})
+    # Revert candidate status from pending to assigned if no other interviews exist
+    if interview:
+        cid = str(interview["candidate_id"])
+        remaining = await db.execute(text("SELECT 1 FROM interviews WHERE candidate_id = :cid LIMIT 1"), {"cid": cid})
+        if not remaining.first():
+            await db.execute(text("UPDATE candidates SET status = 'assigned' WHERE id = :cid AND status = 'pending'"), {"cid": cid})
     await db.commit()
     return {"status": "deleted"}
