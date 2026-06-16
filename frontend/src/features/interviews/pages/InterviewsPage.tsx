@@ -234,12 +234,19 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
   const [saving, setSaving] = useState(false);
   const [emailPreview, setEmailPreview] = useState<any>(null);
 
+  const [validationError, setValidationError] = useState('');
+
   const handleSave = async () => {
     if (!candidateId) return;
+    const start = new Date(`${date}T${startTime}`);
+    const end = new Date(`${date}T${endTime}`);
+    if (start < new Date()) { setValidationError('Không thể đặt lịch trong quá khứ'); return; }
+    if (end <= start) { setValidationError('Giờ kết thúc phải sau giờ bắt đầu'); return; }
+    setValidationError('');
     setSaving(true);
     try {
-      const startIso = new Date(`${date}T${startTime}`).toISOString();
-      const endIso = new Date(`${date}T${endTime}`).toISOString();
+      const startIso = start.toISOString();
+      const endIso = end.toISOString();
       await apiClient.post('/interviews', {
         candidate_id: candidateId,
         job_id: jobId || null,
@@ -339,6 +346,7 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
             <label className="text-[12px] font-medium text-text-muted uppercase">Ghi chú</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder="Link meeting, interviewer..." />
           </div>
+          {validationError && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">{validationError}</p>}
           <button onClick={handleSave} disabled={saving || !candidateId} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
             {saving ? 'Đang tạo...' : 'Tạo lịch'}
           </button>

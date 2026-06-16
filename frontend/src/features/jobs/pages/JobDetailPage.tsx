@@ -377,9 +377,11 @@ export function JobDetailPage() {
                     <button onClick={() => handleViewScore(c.id)} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title="View Score Detail">
                       <Sparkles size={15} />
                     </button>
-                    <button onClick={() => setBookInterview({ candidateId: c.id, candidateName: c.structuredData.name })} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title="Đặt lịch phỏng vấn">
-                      <CalendarCheck size={15} />
-                    </button>
+                    {c.status !== 'pending' && (
+                      <button onClick={() => setBookInterview({ candidateId: c.id, candidateName: c.structuredData.name })} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title="Đặt lịch phỏng vấn">
+                        <CalendarCheck size={15} />
+                      </button>
+                    )}
                     <button onClick={() => setRemoveCandidate({ id: c.id, name: c.structuredData.name })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-md transition-colors" title="Loại khỏi job">
                       <XCircle size={15} />
                     </button>
@@ -601,6 +603,38 @@ export function JobDetailPage() {
   );
 }
 
+function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const slots = Array.from({ length: 26 }, (_, i) => {
+    const h = Math.floor(i / 2) + 7;
+    const m = i % 2 === 0 ? '00' : '30';
+    return `${String(h).padStart(2, '0')}:${m}`;
+  });
+
+  return (
+    <div className="relative flex-1">
+      <button type="button" onClick={() => setOpen(!open)} className="w-full px-3 py-2 border border-border-default rounded-lg text-[13px] text-left bg-white hover:border-accent/40 transition-colors flex items-center justify-between">
+        <span className="font-medium">{value}</span>
+        <Clock size={12} className="text-text-muted" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute z-50 mt-1 bg-white border border-border-subtle rounded-xl shadow-lg p-2 w-[200px] max-h-[200px] overflow-y-auto">
+            <div className="grid grid-cols-3 gap-1">
+              {slots.map(t => (
+                <button key={t} type="button" onClick={() => { onChange(t); setOpen(false); }} className={`px-2 py-1.5 rounded-md text-[12px] font-medium transition-colors ${value === t ? 'bg-accent text-white' : 'text-text-secondary hover:bg-accent/10 hover:text-accent'}`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClose }: {
   candidateId: string; candidateName: string; jobId: string; jobTitle: string; onClose: () => void;
 }) {
@@ -614,25 +648,46 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
   const [interviewType, setInterviewType] = useState('online');
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  const [emailPreview, setEmailPreview] = useState<any>(null);
 
   const handleSave = async () => {
+    const start = new Date(`${date}T${startTime}`);
+    const end = new Date(`${date}T${endTime}`);
+    if (start < new Date()) { setError('Không thể đặt lịch trong quá khứ'); return; }
+    if (end <= start) { setError('Giờ kết thúc phải sau giờ bắt đầu'); return; }
+    setError('');
     setSaving(true);
     try {
+      const startIso = start.toISOString();
+      const endIso = end.toISOString();
       await apiClient.post('/interviews', {
         candidate_id: candidateId,
         job_id: jobId,
         title: `Round ${round}: ${jobTitle}`,
-        start_time: new Date(`${date}T${startTime}`).toISOString(),
-        end_time: new Date(`${date}T${endTime}`).toISOString(),
+        start_time: startIso,
+        end_time: endIso,
         notes: notes || null,
         round,
         proposed_salary: proposedSalary || null,
         meeting_link: meetingLink || null,
         interview_type: interviewType,
       });
-      setDone(true);
-    } catch { /* ignore */ }
+      // Get email preview
+      const { data } = await apiClient.post('/interviews/email-preview', {
+        candidate_id: candidateId, round, start_time: startIso, end_time: endIso, title: `Round ${round}: ${jobTitle}`, meeting_link: meetingLink || null,
+      });
+      setEmailPreview(data);
+    } catch { setDone(true); }
     setSaving(false);
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailPreview?.to_email) { setDone(true); return; }
+    try {
+      await apiClient.post('/interviews/send-invitation', emailPreview);
+    } catch { }
+    setDone(true);
   };
 
   return (
@@ -648,6 +703,31 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
             <p className="text-[14px] font-medium text-text-primary">Đã đặt lịch thành công!</p>
             <p className="text-[12px] text-text-muted mt-1">{candidateName} — Round {round} — {date} {startTime}</p>
             <button onClick={onClose} className="mt-4 px-4 py-2 text-[13px] text-accent hover:bg-accent/10 rounded-lg">Đóng</button>
+          </div>
+        ) : emailPreview ? (
+          <div className="p-5 space-y-3">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-[13px] text-emerald-700">✅ Lịch phỏng vấn đã tạo!</div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Email ứng viên</label>
+              <input value={emailPreview.to_email} onChange={e => setEmailPreview({...emailPreview, to_email: e.target.value})} placeholder="candidate@email.com" className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Subject</label>
+              <input value={emailPreview.subject} onChange={e => setEmailPreview({...emailPreview, subject: e.target.value})} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Nội dung</label>
+              <textarea value={emailPreview.body} onChange={e => setEmailPreview({...emailPreview, body: e.target.value})} rows={3} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" />
+            </div>
+            <div className="bg-bg-surface rounded-lg p-3 text-[12px] text-text-secondary">
+              <p>📅 {emailPreview.date}</p>
+              <p>🕐 {emailPreview.time}</p>
+              {emailPreview.meeting_link && <p>🔗 {emailPreview.meeting_link}</p>}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleSendEmail} disabled={!emailPreview.to_email} className="flex-1 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">Gửi email</button>
+              <button onClick={() => setDone(true)} className="flex-1 py-2.5 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-bg-surface/80">Bỏ qua</button>
+            </div>
           </div>
         ) : (
           <div className="p-5 space-y-3">
@@ -676,13 +756,13 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
                 <label className="text-[11px] font-medium text-text-muted uppercase">Ngày</label>
                 <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
               </div>
-              <div>
-                <label className="text-[11px] font-medium text-text-muted uppercase">Từ</label>
-                <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
-              </div>
-              <div>
-                <label className="text-[11px] font-medium text-text-muted uppercase">Đến</label>
-                <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+              <div className="col-span-2">
+                <label className="text-[11px] font-medium text-text-muted uppercase">Thời gian</label>
+                <div className="mt-1 flex items-center gap-2">
+                  <TimeSelect value={startTime} onChange={v => { setStartTime(v); const [h] = v.split(':'); setEndTime(`${String(Math.min(+h+1,23)).padStart(2,'0')}:00`); }} />
+                  <span className="text-text-muted text-[12px]">→</span>
+                  <TimeSelect value={endTime} onChange={setEndTime} />
+                </div>
               </div>
             </div>
 
@@ -701,6 +781,7 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
               <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Yêu cầu đặc biệt, người phỏng vấn..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
 
+            {error && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
             <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
               {saving ? 'Đang tạo...' : `Đặt lịch Round ${round}`}
             </button>

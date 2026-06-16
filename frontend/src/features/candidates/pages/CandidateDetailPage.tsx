@@ -349,20 +349,10 @@ export function CandidateDetailPage() {
 
             {/* Actions */}
             <div className="space-y-2">
-              {candidate.status === 'new' && (
+              {candidate.status !== 'approved' && candidate.status !== 'rejected' && candidate.status === 'new' && (
                 <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'reviewed' }); toast('success', 'Marked as reviewed'); }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
                   <CheckCircle size={14} /> Mark as Reviewed
                 </button>
-              )}
-              {candidate.status !== 'approved' && candidate.status !== 'rejected' && (
-                <>
-                  <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'approved' }); toast('success', 'Candidate approved!'); }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors">
-                    <CheckCircle size={14} /> Approve
-                  </button>
-                  <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'rejected' }); toast('warning', 'Candidate rejected'); }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
-                    <XCircle size={14} /> Reject
-                  </button>
-                </>
               )}
               {candidate.status === 'approved' && <div className="text-center text-[13px] font-medium text-emerald-600 bg-emerald-50 py-2 rounded-lg">✓ Approved</div>}
               {candidate.status === 'rejected' && <div className="text-center text-[13px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">✗ Rejected</div>}

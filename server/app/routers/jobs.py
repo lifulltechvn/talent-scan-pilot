@@ -344,10 +344,37 @@ async def assign_candidate_to_job(
     candidate.status = "assigned"
     await db.commit()
 
-    # Run full scoring
+    # Run full scoring (skip LLM if score already exists for this candidate)
     try:
         from app.services.matching import compute_match_score
         from app.services.scoring import compute_rule_score
+
+        # Check cached score
+        existing_score = await db.execute(select(Score).where(Score.candidate_id == candidate_id))
+        cached = existing_score.scalar_one_or_none()
+
+        if cached and cached.details:
+            # Reuse cached score — no LLM call needed
+            candidate.match_score = cached.details.get("matching", {}).get("combined_score", 0)
+            await db.execute(text("""
+                UPDATE job_candidates SET status = 'scored', final_score = :fs, classification = :cl,
+                    details = :det
+                WHERE job_id = :jid AND candidate_id = :cid
+            """), {
+                "fs": cached.final_score, "cl": cached.classification,
+                "det": json.dumps(cached.details) if cached.details else '{}',
+                "jid": str(job_id), "cid": str(candidate_id),
+            })
+            await db.commit()
+            return {
+                "candidate_id": str(candidate.id),
+                "job_id": str(job_id),
+                "match_score": candidate.match_score,
+                "final_score": cached.final_score,
+                "classification": cached.classification,
+                "details": cached.details,
+                "cached": True,
+            }
 
         match_result = compute_match_score(
             job.embedding, candidate.embedding, job.required_skills,
