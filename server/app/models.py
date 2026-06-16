@@ -299,6 +299,7 @@ class Interview(Base):
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
+    interviewer_emails: Mapped[list | None] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(String(20), default="scheduled")
     feedback_score: Mapped[int | None] = mapped_column(Integer)
     feedback_notes: Mapped[str | None] = mapped_column(Text)

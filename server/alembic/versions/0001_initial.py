@@ -268,6 +268,7 @@ def upgrade() -> None:
         sa.Column("start_time", sa.DateTime(timezone=True), nullable=False),
         sa.Column("end_time", sa.DateTime(timezone=True), nullable=False),
         sa.Column("notes", sa.Text, nullable=True),
+        sa.Column("interviewer_emails", JSONB, server_default=sa.text("'[]'::jsonb")),
         sa.Column("status", sa.String(20), nullable=False, server_default=sa.text("'scheduled'")),
         sa.Column("feedback_score", sa.Integer, nullable=True),
         sa.Column("feedback_notes", sa.Text, nullable=True),
@@ -286,6 +287,17 @@ def upgrade() -> None:
         "master_config",
         sa.Column("key", sa.String(50), primary_key=True),
         sa.Column("value", sa.Text, nullable=False),
+    )
+
+    # Seed default master data
+    import json
+    default_locations = ["Ho Chi Minh City", "Ha Noi", "Da Nang", "Remote", "Hybrid"]
+    default_salaries = ["8-12M VND", "12-18M VND", "18-25M VND", "25-35M VND", "35-50M VND", "50-70M VND", "70M+ VND", "Negotiable"]
+    op.execute(
+        sa.text("INSERT INTO master_config (key, value) VALUES ('locations', :v)").bindparams(v=json.dumps(default_locations))
+    )
+    op.execute(
+        sa.text("INSERT INTO master_config (key, value) VALUES ('salary_ranges', :v)").bindparams(v=json.dumps(default_salaries))
     )
 
 
