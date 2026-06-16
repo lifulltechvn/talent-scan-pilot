@@ -638,7 +638,7 @@ function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) 
 function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClose }: {
   candidateId: string; candidateName: string; jobId: string; jobTitle: string; onClose: () => void;
 }) {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); });
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [notes, setNotes] = useState('');
@@ -685,7 +685,7 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
   const handleSendEmail = async () => {
     if (!emailPreview?.to_email) { setDone(true); return; }
     try {
-      await apiClient.post('/interviews/send-invitation', emailPreview);
+      await apiClient.post('/interviews/send-invitation', { ...emailPreview, candidate_id: candidateId });
     } catch { }
     setDone(true);
   };

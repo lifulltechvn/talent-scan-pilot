@@ -226,7 +226,7 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
   const [candidateId, setCandidateId] = useState('');
   const [jobId, setJobId] = useState('');
   const [title, setTitle] = useState('Interview');
-  const [date, setDate] = useState(defaultDate || new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => { if (defaultDate) return defaultDate; const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); });
   const [startTime, setStartTime] = useState(defaultTime || '09:00');
   const endHour = Math.min(parseInt(defaultTime || '09') + 1, 23);
   const [endTime, setEndTime] = useState(`${String(endHour).padStart(2, '0')}:00`);
@@ -267,7 +267,7 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
   const handleSendEmail = async () => {
     if (!emailPreview) return;
     try {
-      await apiClient.post('/interviews/send-invitation', emailPreview);
+      await apiClient.post('/interviews/send-invitation', { ...emailPreview, candidate_id: candidateId });
     } catch { }
     onCreated();
   };
