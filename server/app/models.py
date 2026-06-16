@@ -58,13 +58,14 @@ class Candidate(Base):
     job_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("jobs.id"))
     structured_data: Mapped[dict] = mapped_column(JSONB, default=dict)
     embedding = mapped_column(Vector(1024), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="new")  # new / reviewed / approved / rejected / talent_pool
+    status: Mapped[str] = mapped_column(String(50), default="new")  # new / reviewed / assigned / pending / approved / rejected
     match_score: Mapped[float | None] = mapped_column(Float)
     cv_file_path: Mapped[str | None] = mapped_column(String(500))
     cv_hash: Mapped[str | None] = mapped_column(String(32), nullable=True)
     source_app_version: Mapped[str | None] = mapped_column(String(20))
     scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     job = relationship("Job", back_populates="candidates")
     score = relationship("Score", back_populates="candidate", uselist=False)
@@ -78,7 +79,7 @@ class Score(Base):
     rule_score: Mapped[float | None] = mapped_column(Float)
     llm_score: Mapped[float | None] = mapped_column(Float)
     final_score: Mapped[float | None] = mapped_column(Float)
-    classification: Mapped[str | None] = mapped_column(String(20))  # gold / silver / talent_pool
+    classification: Mapped[str | None] = mapped_column(String(20))  # gold / silver / bronze
     details: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

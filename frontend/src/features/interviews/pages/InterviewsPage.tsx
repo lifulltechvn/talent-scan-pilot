@@ -134,7 +134,7 @@ export function InterviewsPage() {
                         {events.map(ev => (
                           <div
                             key={ev.id}
-                            onClick={() => setShowDetail(ev)}
+                            onClick={(e) => { e.stopPropagation(); setShowDetail(ev); }}
                             className={`text-[10px] px-1.5 py-1 rounded cursor-pointer truncate ${
                               ev.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-accent/10 text-accent'
                             }`}

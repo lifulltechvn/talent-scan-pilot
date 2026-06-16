@@ -6,7 +6,6 @@ import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
-import { ScoreExplanation } from '@/shared/components/ui/ScoreExplanation';
 import { CandidateTimeline } from '../components/CandidateTimeline';
 import { useI18n } from '@/shared/i18n';
 import { apiClient } from '@/data/api/client';
@@ -346,11 +345,6 @@ export function CandidateDetailPage() {
             {/* Edit parsed data */}
             <div className="border-t border-border-subtle pt-2 mb-2">
               <EditCandidateData candidateId={candidate.id} data={d} />
-            </div>
-
-            {/* Score Explanation */}
-            <div className="border-t border-border-subtle pt-3 mb-4">
-              <ScoreExplanation candidateId={candidate.id} />
             </div>
 
             {/* Actions */}

@@ -168,6 +168,14 @@ async def list_candidates(
 
     # Attach quiz_status
     out = []
+    # Batch fetch job titles
+    job_ids = {c.job_id for c in candidates if c.job_id}
+    job_titles = {}
+    if job_ids:
+        from app.models import Job
+        jr = await db.execute(select(Job.id, Job.title).where(Job.id.in_(job_ids)))
+        job_titles = {row[0]: row[1] for row in jr.all()}
+
     for c in candidates:
         quiz_q = await db.execute(
             select(Quiz).where(Quiz.candidate_id == c.id).order_by(Quiz.created_at.desc()).limit(1)
@@ -175,11 +183,14 @@ async def list_candidates(
         quiz = quiz_q.scalar_one_or_none()
 
         out.append({
-            "id": c.id, "job_id": c.job_id, "structured_data": c.structured_data,
+            "id": c.id, "job_id": c.job_id,
+            "job_title": job_titles.get(c.job_id) if c.job_id else None,
+            "structured_data": c.structured_data,
             "status": c.status, "match_score": c.match_score,
             "source_app_version": c.source_app_version, "scanned_at": c.scanned_at,
             "created_at": c.created_at,
-            "quiz_status": quiz.status if quiz else None,  # pending / submitted / evaluated / expired
+            "updated_at": c.updated_at,
+            "quiz_status": quiz.status if quiz else None,
             "quiz_reason": quiz.reason if quiz else None,
         })
     return out
@@ -386,7 +397,7 @@ async def update_candidate_status(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    valid = {"new", "reviewed", "assigned", "pending", "approved", "rejected", "talent_pool"}
+    valid = {"new", "reviewed", "assigned", "pending", "approved", "rejected"}
     if new_status not in valid:
         raise HTTPException(400, f"Status must be one of: {valid}")
     result = await db.execute(select(Candidate).where(Candidate.id == candidate_id))

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Mail, Bell, Shield, Save, Check } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
 import { useI18n } from '@/shared/i18n';
+import { TagInput } from '@/shared/components/ui/TagInput';
 
 interface Template {
   template_type: string;
@@ -167,58 +168,42 @@ export function SettingsPage() {
 }
 
 function MasterDataEditor() {
-  const [locations, setLocations] = useState('');
-  const [salaries, setSalaries] = useState('');
+  const [locations, setLocations] = useState<string[]>([]);
+  const [salaries, setSalaries] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     apiClient.get('/master-data').then(({ data }) => {
-      setLocations(data.locations.join('\n'));
-      setSalaries(data.salary_ranges.join('\n'));
+      setLocations(data.locations || []);
+      setSalaries(data.salary_ranges || []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const handleSave = async () => {
-    setSaving(true);
-    await apiClient.put('/master-data', {
-      locations: locations.split('\n').map((s: string) => s.trim()).filter(Boolean),
-      salary_ranges: salaries.split('\n').map((s: string) => s.trim()).filter(Boolean),
-    }).catch(() => {});
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const save = (locs: string[], sals: string[]) => {
+    apiClient.put('/master-data', { locations: locs, salary_ranges: sals }).catch(() => {});
   };
+
+  const updateLocations = (v: string[]) => { setLocations(v); save(v, salaries); };
+  const updateSalaries = (v: string[]) => { setSalaries(v); save(locations, v); };
 
   if (loading) return <div className="text-[13px] text-text-muted py-4">Loading...</div>;
 
   return (
     <div className="space-y-4">
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-sm font-medium text-text-primary">Locations</h3>
-            <p className="text-[12px] text-text-tertiary">Danh sách địa điểm hiện trong dropdown khi tạo/edit job (mỗi dòng 1 location)</p>
-          </div>
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-text-primary">Locations</h3>
+          <p className="text-[12px] text-text-tertiary">Danh sách địa điểm hiện trong dropdown khi tạo/edit job</p>
         </div>
-        <textarea value={locations} onChange={e => setLocations(e.target.value)} rows={6} className="w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y font-mono" />
+        <TagInput value={locations} onChange={updateLocations} suggestions={[]} placeholder="Nhập location rồi Enter..." />
       </div>
 
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-sm font-medium text-text-primary">Salary Ranges</h3>
-            <p className="text-[12px] text-text-tertiary">Danh sách mức lương hiện trong dropdown (mỗi dòng 1 range)</p>
-          </div>
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-text-primary">Salary Ranges</h3>
+          <p className="text-[12px] text-text-tertiary">Danh sách mức lương hiện trong dropdown</p>
         </div>
-        <textarea value={salaries} onChange={e => setSalaries(e.target.value)} rows={6} className="w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y font-mono" />
-      </div>
-
-      <div className="flex justify-end">
-        <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-5 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40 transition-colors">
-          {saved ? '✓ Saved' : saving ? 'Saving...' : 'Save Changes'}
-        </button>
+        <TagInput value={salaries} onChange={updateSalaries} suggestions={[]} placeholder="Nhập salary range rồi Enter..." />
       </div>
     </div>
   );

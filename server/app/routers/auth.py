@@ -33,11 +33,15 @@ async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
     return user
 
 
-limiter = Limiter(key_func=get_remote_address)
+def _get_real_ip(request: Request) -> str:
+    return request.headers.get("X-Real-IP") or get_remote_address(request)
+
+
+limiter = Limiter(key_func=_get_real_ip)
 
 
 @router.post("/login", response_model=Token)
-@limiter.limit("5/minute")
+@limiter.limit("10/minute")
 async def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == form.username))
     user = result.scalar_one_or_none()

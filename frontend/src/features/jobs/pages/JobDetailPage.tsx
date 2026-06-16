@@ -273,59 +273,70 @@ export function JobDetailPage() {
         </div>
       )}
 
-      {/* AI Recommendation */}
+      {/* AI Recommendation Modal */}
       {aiRecommend && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-5 mb-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Brain size={16} className="text-purple-600" />
-              <h3 className="text-sm font-semibold text-purple-800">AI Recommendation</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setAiRecommend(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+              <div className="flex items-center gap-2">
+                <Brain size={16} className="text-white" />
+                <h2 className="text-[15px] font-semibold text-white">AI Recommendation</h2>
+              </div>
+              <button onClick={() => setAiRecommend(null)} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
             </div>
-            <button onClick={() => setAiRecommend(null)} className="text-purple-400 hover:text-purple-600"><X size={14} /></button>
+            <div className="p-5">
+              <div className="text-[13px] text-text-primary whitespace-pre-line leading-relaxed">{aiRecommend}</div>
+            </div>
           </div>
-          <div className="text-sm text-purple-900 whitespace-pre-line">{aiRecommend}</div>
         </div>
       )}
 
-      {/* Compare Table */}
+      {/* Compare Modal */}
       {compareData && (
-        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mb-5 overflow-x-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-text-primary">Compare Top {compareData.candidates.length} Candidates</h3>
-            <button onClick={() => setCompareData(null)} className="text-text-muted hover:text-text-primary"><X size={14} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setCompareData(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+              <div className="flex items-center gap-2">
+                <Users size={16} className="text-white" />
+                <h2 className="text-[15px] font-semibold text-white">Compare Top {compareData.candidates.length} Candidates</h2>
+              </div>
+              <button onClick={() => setCompareData(null)} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
+            </div>
+            <div className="p-5 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border-subtle">
+                    <th className="py-2 text-left text-text-muted font-medium">Candidate</th>
+                    <th className="py-2 text-center text-text-muted font-medium">Score</th>
+                    <th className="py-2 text-center text-text-muted font-medium">Exp</th>
+                    <th className="py-2 text-center text-text-muted font-medium">Salary</th>
+                    <th className="py-2 text-left text-text-muted font-medium">Matched Skills</th>
+                    <th className="py-2 text-left text-text-muted font-medium">Missing</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {compareData.candidates.map((c: any) => (
+                    <tr key={c.id} className="border-b border-border-subtle/50">
+                      <td className="py-2 font-medium text-text-primary">
+                        <Link to={`/candidates/${c.id}`} className="hover:text-accent">{c.name}</Link>
+                      </td>
+                      <td className="py-2 text-center">
+                        <span className={`font-bold ${c.final_score >= 80 ? 'text-emerald-600' : c.final_score >= 50 ? 'text-amber-600' : 'text-red-500'}`}>{c.final_score}</span>
+                      </td>
+                      <td className="py-2 text-center text-text-secondary">{c.experience_years}y</td>
+                      <td className="py-2 text-center text-text-secondary">{c.expected_salary || '—'}</td>
+                      <td className="py-2">
+                        <div className="flex flex-wrap gap-0.5">{c.matched_skills.map((s: string) => <span key={s} className="px-1 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[10px]">{s}</span>)}</div>
+                      </td>
+                      <td className="py-2">
+                        <div className="flex flex-wrap gap-0.5">{c.missing_skills.map((s: string) => <span key={s} className="px-1 py-0.5 bg-red-50 text-red-600 rounded text-[10px] line-through">{s}</span>)}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-border-subtle">
-                <th className="py-2 text-left text-text-muted font-medium">Candidate</th>
-                <th className="py-2 text-center text-text-muted font-medium">Score</th>
-                <th className="py-2 text-center text-text-muted font-medium">Exp</th>
-                <th className="py-2 text-center text-text-muted font-medium">Salary</th>
-                <th className="py-2 text-left text-text-muted font-medium">Matched Skills</th>
-                <th className="py-2 text-left text-text-muted font-medium">Missing</th>
-              </tr>
-            </thead>
-            <tbody>
-              {compareData.candidates.map((c: any) => (
-                <tr key={c.id} className="border-b border-border-subtle/50">
-                  <td className="py-2 font-medium text-text-primary">
-                    <Link to={`/candidates/${c.id}`} className="hover:text-accent">{c.name}</Link>
-                  </td>
-                  <td className="py-2 text-center">
-                    <span className={`font-bold ${c.final_score >= 80 ? 'text-emerald-600' : c.final_score >= 50 ? 'text-amber-600' : 'text-red-500'}`}>{c.final_score}</span>
-                  </td>
-                  <td className="py-2 text-center text-text-secondary">{c.experience_years}y</td>
-                  <td className="py-2 text-center text-text-secondary">{c.expected_salary || '—'}</td>
-                  <td className="py-2">
-                    <div className="flex flex-wrap gap-0.5">{c.matched_skills.map((s: string) => <span key={s} className="px-1 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[10px]">{s}</span>)}</div>
-                  </td>
-                  <td className="py-2">
-                    <div className="flex flex-wrap gap-0.5">{c.missing_skills.map((s: string) => <span key={s} className="px-1 py-0.5 bg-red-50 text-red-600 rounded text-[10px] line-through">{s}</span>)}</div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       )}
 

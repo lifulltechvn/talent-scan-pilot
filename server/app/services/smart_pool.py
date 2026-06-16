@@ -2,11 +2,11 @@
 import uuid
 import logging
 
-from sqlalchemy import text, select, delete
+from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.config import settings
-from app.models import Job, Candidate, JobCandidate, Score
+from app.models import Job, Candidate, JobCandidate
 
 logger = logging.getLogger(__name__)
 
@@ -123,123 +123,26 @@ async def match_job_to_all_candidates(job_id: str, db: AsyncSession):
 
 
 def background_match_candidate(candidate_id: str):
-    """Run matching in a background thread, then auto-score top matches."""
+    """Run matching in a background thread."""
     import asyncio
     import threading
 
     def _run():
         try:
-            async def _match_and_score():
+            async def _match():
                 engine = create_async_engine(settings.DATABASE_URL, pool_size=1)
                 factory = async_sessionmaker(engine, expire_on_commit=False)
                 async with factory() as db:
                     await match_candidate_to_all_jobs(candidate_id, db)
-                    await _auto_score_candidate(candidate_id, db)
                 await engine.dispose()
 
             loop = asyncio.new_event_loop()
-            loop.run_until_complete(_match_and_score())
+            loop.run_until_complete(_match())
             loop.close()
         except Exception as e:
             logger.error(f"Background match failed for candidate {candidate_id[:8]}: {e}")
 
     threading.Thread(target=_run, daemon=True).start()
-
-
-AUTO_SCORE_THRESHOLD = 0.3  # Only auto-score if combined_score >= this
-
-
-async def _auto_score_candidate(candidate_id: str, db: AsyncSession):
-    """Auto-score candidate for top matching jobs (combined_score >= threshold)."""
-    from app.services.scoring import compute_rule_score
-    from app.services.matching import compute_match_score
-    from app.models import Score
-
-    candidate = await db.get(Candidate, uuid.UUID(candidate_id))
-    if not candidate or not candidate.structured_data:
-        return
-
-    # Find top matches above threshold
-    matches = await db.execute(
-        select(JobCandidate).where(
-            JobCandidate.candidate_id == candidate.id,
-            JobCandidate.combined_score >= AUTO_SCORE_THRESHOLD,
-            JobCandidate.status == "suggested",
-        ).order_by(JobCandidate.combined_score.desc()).limit(5)
-    )
-    top_matches = matches.scalars().all()
-
-    if not top_matches:
-        return
-
-    # Score for the best matching job
-    best = top_matches[0]
-    job = await db.get(Job, best.job_id)
-    if not job:
-        return
-
-    # Update status to assigned
-    best.status = "assigned"
-
-    # Compute full score
-    try:
-        score_result = compute_rule_score(
-            job_skills=job.required_skills or [],
-            candidate_data=candidate.structured_data,
-            required_years=job.required_years,
-            required_education=job.required_education,
-            job_title=job.title,
-            use_llm=True,
-        )
-
-        # Cosine similarity
-        match_data = {
-            "cosine_score": best.similarity_score,
-            "keyword_score": best.skill_score,
-            "combined_score": best.combined_score,
-        }
-
-        final_score = score_result["final_score"]
-        classification = score_result["classification"]
-
-        # Update job_candidate
-        best.final_score = final_score
-        best.classification = classification
-        best.details = {"matching": match_data, "rule_scoring": score_result["details"], "llm_summary": score_result.get("llm_summary", ""), "auto_scored": True}
-
-        # Upsert Score record
-        existing_score = await db.execute(select(Score).where(Score.candidate_id == candidate.id))
-        score = existing_score.scalar_one_or_none()
-        if score:
-            score.rule_score = score_result["rule_score"]
-            score.llm_score = score_result.get("llm_score")
-            score.final_score = final_score
-            score.classification = classification
-            score.details = best.details
-        else:
-            db.add(Score(
-                candidate_id=candidate.id,
-                rule_score=score_result["rule_score"],
-                llm_score=score_result.get("llm_score"),
-                final_score=final_score,
-                classification=classification,
-                details=best.details,
-            ))
-
-        # Auto-promote gold candidates
-        if classification == "gold" and candidate.status == "new":
-            candidate.status = "reviewed"
-
-        # Link candidate to best job if not already linked
-        if not candidate.job_id:
-            candidate.job_id = job.id
-
-        await db.commit()
-        logger.info(f"Auto-scored candidate {candidate_id[:8]} → {classification} ({final_score:.0f}) for job '{job.title}'")
-
-    except Exception as e:
-        logger.error(f"Auto-score failed for candidate {candidate_id[:8]}: {e}")
-        await db.rollback()
 
 
 async def background_match_job(job_id: str):

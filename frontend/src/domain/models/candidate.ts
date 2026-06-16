@@ -1,5 +1,5 @@
-export type CandidateStatus = 'new' | 'reviewed' | 'approved' | 'rejected' | 'talent_pool';
-export type Classification = 'gold' | 'silver' | 'talent_pool';
+export type CandidateStatus = 'new' | 'processing' | 'reviewed' | 'assigned' | 'pending' | 'approved' | 'rejected';
+export type Classification = 'gold' | 'silver' | 'bronze';
 
 export interface AiInsight {
   strengths: string;
@@ -40,6 +40,7 @@ export interface CandidateStructuredData {
 export interface Candidate {
   id: string;
   jobId: string | null;
+  jobTitle: string | null;
   structuredData: CandidateStructuredData;
   status: CandidateStatus;
   matchScore: number | null;
@@ -48,6 +49,7 @@ export interface Candidate {
   sourceAppVersion: string | null;
   scannedAt: string;
   createdAt: string;
+  updatedAt: string | null;
   quizStatus: string | null;
   quizReason: string | null;
 }

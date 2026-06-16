@@ -82,12 +82,14 @@ class CandidateCreate(BaseModel):
 class CandidateRead(BaseModel):
     id: uuid.UUID
     job_id: Optional[uuid.UUID]
+    job_title: Optional[str] = None
     structured_data: dict
     status: str
     match_score: Optional[float]
     source_app_version: Optional[str]
     scanned_at: Optional[datetime]
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

@@ -89,7 +89,7 @@ export const mockCandidates: Candidate[] = [
       insight: { strengths: 'Eager to learn', weaknesses: 'No modern framework experience', recommendation: 'Not ready for this role' },
     },
     status: 'new', matchScore: 0.31,
-    score: { id: 's3', candidateId: 'c3', ruleScore: 25, llmScore: 30, finalScore: 27, classification: 'talent_pool', details: null, createdAt: '2026-04-21T09:00:00' },
+    score: { id: 's3', candidateId: 'c3', ruleScore: 25, llmScore: 30, finalScore: 27, classification: 'bronze', details: null, createdAt: '2026-04-21T09:00:00' },
     sourceAppVersion: '1.0.0', scannedAt: '2026-04-21T08:30:00', createdAt: '2026-04-21T08:30:00',
   },
   {

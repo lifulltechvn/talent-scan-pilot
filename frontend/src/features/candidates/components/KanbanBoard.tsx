@@ -25,7 +25,6 @@ const COLUMNS: { id: CandidateStatus; labelKey: 'statusNew' | 'statusReviewed' |
   { id: 'reviewed', labelKey: 'statusReviewed', icon: Eye, color: 'border-t-amber-400' },
   { id: 'approved', labelKey: 'statusApproved', icon: CheckCircle2, color: 'border-t-emerald-400' },
   { id: 'rejected', labelKey: 'statusRejected', icon: XCircle, color: 'border-t-red-400' },
-  { id: 'talent_pool', labelKey: 'statusTalentPool', icon: DatabaseZap, color: 'border-t-indigo-400' },
 ];
 
 function Column({ id, label, icon: Icon, color, count, isOver, children }: {

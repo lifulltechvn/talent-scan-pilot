@@ -64,6 +64,7 @@ def upgrade() -> None:
         sa.Column("source_app_version", sa.String(20), nullable=True),
         sa.Column("scanned_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     # Scores
@@ -280,8 +281,16 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
     )
 
+    # Master Config
+    op.create_table(
+        "master_config",
+        sa.Column("key", sa.String(50), primary_key=True),
+        sa.Column("value", sa.Text, nullable=False),
+    )
+
 
 def downgrade() -> None:
+    op.drop_table("master_config")
     op.drop_table("interviews")
     op.drop_table("cv_batch_items")
     op.drop_table("cv_batches")

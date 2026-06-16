@@ -51,7 +51,7 @@ def classify_candidate(final_score: float) -> str:
         return "gold"
     elif final_score >= 50:
         return "silver"
-    return "talent_pool"
+    return "bronze"
 
 
 def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str] | None = None) -> tuple[float, str]:
