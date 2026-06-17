@@ -233,10 +233,16 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
   const [endTime, setEndTime] = useState(`${String(endHour).padStart(2, '0')}:00`);
   const [notes, setNotes] = useState('');
   const [interviewerEmails, setInterviewerEmails] = useState<string[]>([]);
+  const [selectedInterviewers, setSelectedInterviewers] = useState<{ id: string; full_name: string; email: string }[]>([]);
+  const [availableInterviewers, setAvailableInterviewers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [emailPreview, setEmailPreview] = useState<any>(null);
 
   const [validationError, setValidationError] = useState('');
+
+  useEffect(() => {
+    apiClient.get('/users/interviewers').then(({ data }) => setAvailableInterviewers(data)).catch(() => {});
+  }, []);
 
   const handleSave = async () => {
     if (!candidateId) return;
@@ -257,12 +263,13 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
         end_time: endIso,
         notes: notes || null,
         interviewer_emails: interviewerEmails,
+        interviewer_ids: selectedInterviewers.map(i => i.id),
       });
       // Get email preview
       const { data } = await apiClient.post('/interviews/email-preview', {
         candidate_id: candidateId, round: 1, start_time: startIso, end_time: endIso, title,
       });
-      setEmailPreview({ ...data, bcc: interviewerEmails });
+      setEmailPreview({ ...data, bcc: [...interviewerEmails, ...selectedInterviewers.map(i => i.email)] });
     } catch { onCreated(); }
     setSaving(false);
   };
@@ -336,18 +343,40 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
               <label className="text-[12px] font-medium text-text-muted uppercase">Ngày</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
-            <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase">Bắt đầu</label>
-              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
-            </div>
-            <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase">Kết thúc</label>
-              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+            <div className="col-span-2">
+              <label className="text-[12px] font-medium text-text-muted uppercase">Thời gian</label>
+              <div className="mt-1 flex items-center gap-2">
+                <TimeSelect value={startTime} onChange={v => { setStartTime(v); const [h] = v.split(':'); setEndTime(`${String(Math.min(+h+1,23)).padStart(2,'0')}:00`); }} />
+                <span className="text-text-muted text-[12px]">→</span>
+                <TimeSelect value={endTime} onChange={setEndTime} />
+              </div>
             </div>
           </div>
           <div>
-            <label className="text-[12px] font-medium text-text-muted uppercase">Interviewer Emails</label>
-            <EmailTagInput value={interviewerEmails} onChange={setInterviewerEmails} />
+            <label className="text-[12px] font-medium text-text-muted uppercase">Interviewers</label>
+            {availableInterviewers.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1.5 p-2 border border-border-default rounded-lg bg-white min-h-[38px]">
+                {selectedInterviewers.map(i => (
+                  <span key={i.id} className="flex items-center gap-1 text-[11px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md font-medium">
+                    {i.full_name}
+                    <button type="button" onClick={() => setSelectedInterviewers(prev => prev.filter(x => x.id !== i.id))} className="hover:text-red-500">×</button>
+                  </span>
+                ))}
+                <select
+                  value=""
+                  onChange={e => {
+                    const found = availableInterviewers.find(x => x.id === e.target.value);
+                    if (found && !selectedInterviewers.some(x => x.id === found.id)) setSelectedInterviewers(prev => [...prev, found]);
+                  }}
+                  className="flex-1 min-w-[120px] text-[13px] outline-none bg-transparent border-0"
+                >
+                  <option value="">+ Chọn interviewer...</option>
+                  {availableInterviewers.filter(a => !selectedInterviewers.some(s => s.id === a.id)).map(a => (
+                    <option key={a.id} value={a.id}>{a.full_name} ({a.email})</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           <div>
             <label className="text-[12px] font-medium text-text-muted uppercase">Ghi chú</label>
@@ -570,7 +599,13 @@ function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Inte
   const [meetingLink, setMeetingLink] = useState(interview.meeting_link || '');
   const [interviewType, setInterviewType] = useState(interview.interview_type || 'online');
   const [notes, setNotes] = useState('');
+  const [selectedInterviewers, setSelectedInterviewers] = useState<{ id: string; full_name: string; email: string }[]>([]);
+  const [availableInterviewers, setAvailableInterviewers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    apiClient.get('/users/interviewers').then(({ data }) => setAvailableInterviewers(data)).catch(() => {});
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -586,6 +621,8 @@ function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Inte
         meeting_link: meetingLink || null,
         interview_type: interviewType,
         proposed_salary: interview.proposed_salary,
+        interviewer_ids: selectedInterviewers.map(i => i.id),
+        interviewer_emails: [],
       });
       onCreated();
     } catch { /* ignore */ }
@@ -617,20 +654,38 @@ function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Inte
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Từ</label>
-              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
-            </div>
-            <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Đến</label>
-              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+          <div>
+            <label className="text-[11px] font-medium text-text-muted uppercase">Thời gian</label>
+            <div className="mt-1 flex items-center gap-2">
+              <TimeSelect value={startTime} onChange={v => { setStartTime(v); const [h] = v.split(':'); setEndTime(`${String(Math.min(+h+1,23)).padStart(2,'0')}:00`); }} />
+              <span className="text-text-muted text-[12px]">→</span>
+              <TimeSelect value={endTime} onChange={setEndTime} />
             </div>
           </div>
 
           <div>
             <label className="text-[11px] font-medium text-text-muted uppercase">Meeting Link</label>
             <input value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-text-muted uppercase">Interviewers</label>
+            {availableInterviewers.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1.5 p-2 border border-border-default rounded-lg bg-white min-h-[36px]">
+                {selectedInterviewers.map(i => (
+                  <span key={i.id} className="flex items-center gap-1 text-[11px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md font-medium">
+                    {i.full_name}
+                    <button type="button" onClick={() => setSelectedInterviewers(prev => prev.filter(x => x.id !== i.id))} className="hover:text-red-500">×</button>
+                  </span>
+                ))}
+                <select value="" onChange={e => { const f = availableInterviewers.find(x => x.id === e.target.value); if (f && !selectedInterviewers.some(x => x.id === f.id)) setSelectedInterviewers(prev => [...prev, f]); }} className="flex-1 min-w-[120px] text-[12px] outline-none bg-transparent border-0">
+                  <option value="">+ Chọn interviewer...</option>
+                  {availableInterviewers.filter(a => !selectedInterviewers.some(s => s.id === a.id)).map(a => (
+                    <option key={a.id} value={a.id}>{a.full_name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div>
@@ -643,6 +698,38 @@ function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Inte
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+
+function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const slots = Array.from({ length: 26 }, (_, i) => {
+    const h = Math.floor(i / 2) + 7;
+    const m = i % 2 === 0 ? '00' : '30';
+    return `${String(h).padStart(2, '0')}:${m}`;
+  });
+  return (
+    <div className="relative flex-1">
+      <button type="button" onClick={() => setOpen(!open)} className="w-full px-3 py-2 border border-border-default rounded-lg text-[13px] text-left bg-white hover:border-accent/40 transition-colors flex items-center justify-between">
+        <span className="font-medium">{value}</span>
+        <span className="text-text-muted text-[10px]">▼</span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute z-50 mt-1 bg-white border border-border-subtle rounded-xl shadow-lg p-2 w-[200px] max-h-[200px] overflow-y-auto">
+            <div className="grid grid-cols-3 gap-1">
+              {slots.map(t => (
+                <button key={t} type="button" onClick={() => { onChange(t); setOpen(false); }} className={`px-2 py-1.5 rounded-md text-[12px] font-medium transition-colors ${value === t ? 'bg-accent text-white' : 'text-text-secondary hover:bg-accent/10 hover:text-accent'}`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

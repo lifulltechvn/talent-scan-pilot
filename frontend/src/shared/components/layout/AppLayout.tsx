@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { LoadingPage } from '@/shared/components/ui/LoadingSkeleton';
@@ -7,12 +7,18 @@ import { UploadProgressWidget } from '@/shared/components/ui/UploadProgressWidge
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export function AppLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
 
   if (isLoading) return <LoadingPage />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  // Redirect interviewer to their dashboard if accessing HR pages
+  if (user?.role === 'interviewer' && location.pathname !== '/interviewer') {
+    return <Navigate to="/interviewer" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-bg-primary">

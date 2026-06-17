@@ -26,6 +26,7 @@ def upgrade() -> None:
             email VARCHAR(255) NOT NULL UNIQUE,
             hashed_password VARCHAR(255) NOT NULL,
             full_name VARCHAR(255) NOT NULL,
+            role VARCHAR(20) DEFAULT 'hr',
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMPTZ DEFAULT now()
         )
@@ -289,6 +290,13 @@ def upgrade() -> None:
         sa.Column("value", sa.Text, nullable=False),
     )
 
+    # Interview Interviewers (many-to-many)
+    op.create_table(
+        "interview_interviewers",
+        sa.Column("interview_id", UUID(as_uuid=True), sa.ForeignKey("interviews.id", ondelete="CASCADE"), primary_key=True),
+        sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    )
+
     # Seed default master data
     import json
     default_locations = ["Ho Chi Minh City", "Ha Noi", "Da Nang", "Remote", "Hybrid"]
@@ -302,6 +310,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_table("interview_interviewers")
     op.drop_table("master_config")
     op.drop_table("interviews")
     op.drop_table("cv_batch_items")

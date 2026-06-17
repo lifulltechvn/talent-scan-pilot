@@ -1,15 +1,17 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Briefcase, CalendarCheck, Upload, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, CalendarCheck, Upload, Settings, UserCog } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useI18n } from '@/shared/i18n';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { TranslationKey } from '@/shared/i18n/en';
 
-const navItems: { to: string; labelKey: TranslationKey; icon: typeof LayoutDashboard }[] = [
-  { to: '/', labelKey: 'navDashboard', icon: LayoutDashboard },
-  { to: '/candidates', labelKey: 'navCandidates', icon: Users },
-  { to: '/jobs', labelKey: 'navJobs', icon: Briefcase },
-  { to: '/interviews', labelKey: 'navInterviews', icon: CalendarCheck },
-  { to: '/cv-upload', labelKey: 'navCvUpload', icon: Upload },
+const navItems: { to: string; labelKey: TranslationKey; icon: typeof LayoutDashboard; roles?: string[] }[] = [
+  { to: '/', labelKey: 'navDashboard', icon: LayoutDashboard, roles: ['admin', 'hr'] },
+  { to: '/candidates', labelKey: 'navCandidates', icon: Users, roles: ['admin', 'hr'] },
+  { to: '/jobs', labelKey: 'navJobs', icon: Briefcase, roles: ['admin', 'hr'] },
+  { to: '/interviews', labelKey: 'navInterviews', icon: CalendarCheck, roles: ['admin', 'hr'] },
+  { to: '/cv-upload', labelKey: 'navCvUpload', icon: Upload, roles: ['admin', 'hr'] },
+  { to: '/interviewer', labelKey: 'navInterviews', icon: CalendarCheck, roles: ['interviewer'] },
 ];
 
 interface SidebarProps {
@@ -21,6 +23,9 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: SidebarProps) {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const role = user?.role || 'hr';
+  const visibleItems = navItems.filter(item => !item.roles || item.roles.includes(role));
   return (
     <>
       {mobileOpen && (
@@ -55,7 +60,7 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
 
         {/* Nav */}
         <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          {navItems.map((item) => (
+          {visibleItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -78,7 +83,8 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
           ))}
         </nav>
 
-        {/* Settings */}
+        {/* Settings — admin/hr only */}
+        {role !== 'interviewer' && (
         <div className="px-2 py-3 border-t border-border-subtle shrink-0">
           <NavLink
             to="/settings"
@@ -93,6 +99,7 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
             {!collapsed && <span>{t('navSettings')}</span>}
           </NavLink>
         </div>
+        )}
 
         {/* Toggle button — vertically centered */}
         <button

@@ -9,12 +9,14 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: str
+    role: str = "hr"
 
 
 class UserRead(BaseModel):
     id: uuid.UUID
     email: str
     full_name: str
+    role: str
     is_active: bool
 
     model_config = {"from_attributes": True}

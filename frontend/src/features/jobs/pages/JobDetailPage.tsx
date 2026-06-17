@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Clock, DollarSign, Users, Trophy, Edit, Trash2, Briefcase, Mail, X, Send, CheckCircle, XCircle, ClipboardCheck, Sparkles, Loader2, UserPlus, Download, CalendarCheck, Brain } from 'lucide-react';
 import { useJob, useUpdateJob, useDeleteJob } from '../hooks/useJobs';
@@ -646,10 +646,16 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
   const [proposedSalary, setProposedSalary] = useState('');
   const [meetingLink, setMeetingLink] = useState('');
   const [interviewType, setInterviewType] = useState('online');
+  const [selectedInterviewers, setSelectedInterviewers] = useState<{ id: string; full_name: string; email: string }[]>([]);
+  const [availableInterviewers, setAvailableInterviewers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [emailPreview, setEmailPreview] = useState<any>(null);
+
+  useEffect(() => {
+    apiClient.get('/users/interviewers').then(({ data }) => setAvailableInterviewers(data)).catch(() => {});
+  }, []);
 
   const handleSave = async () => {
     const start = new Date(`${date}T${startTime}`);
@@ -672,12 +678,14 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
         proposed_salary: proposedSalary || null,
         meeting_link: meetingLink || null,
         interview_type: interviewType,
+        interviewer_ids: selectedInterviewers.map(i => i.id),
+        interviewer_emails: [],
       });
       // Get email preview
       const { data } = await apiClient.post('/interviews/email-preview', {
         candidate_id: candidateId, round, start_time: startIso, end_time: endIso, title: `Round ${round}: ${jobTitle}`, meeting_link: meetingLink || null,
       });
-      setEmailPreview(data);
+      setEmailPreview({ ...data, bcc: selectedInterviewers.map(i => i.email) });
     } catch { setDone(true); }
     setSaving(false);
   };
@@ -774,6 +782,26 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
             <div>
               <label className="text-[11px] font-medium text-text-muted uppercase">Mức lương đề xuất</label>
               <input value={proposedSalary} onChange={e => setProposedSalary(e.target.value)} placeholder="1500-2000 USD" className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Interviewers</label>
+              {availableInterviewers.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1.5 p-2 border border-border-default rounded-lg bg-white min-h-[36px]">
+                  {selectedInterviewers.map(i => (
+                    <span key={i.id} className="flex items-center gap-1 text-[11px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md font-medium">
+                      {i.full_name}
+                      <button type="button" onClick={() => setSelectedInterviewers(prev => prev.filter(x => x.id !== i.id))} className="hover:text-red-500">×</button>
+                    </span>
+                  ))}
+                  <select value="" onChange={e => { const f = availableInterviewers.find(x => x.id === e.target.value); if (f && !selectedInterviewers.some(x => x.id === f.id)) setSelectedInterviewers(prev => [...prev, f]); }} className="flex-1 min-w-[120px] text-[12px] outline-none bg-transparent border-0">
+                    <option value="">+ Chọn interviewer...</option>
+                    {availableInterviewers.filter(a => !selectedInterviewers.some(s => s.id === a.id)).map(a => (
+                      <option key={a.id} value={a.id}>{a.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div>

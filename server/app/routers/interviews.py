@@ -23,6 +23,7 @@ class InterviewCreate(BaseModel):
     end_time: str    # ISO
     notes: str | None = None
     interviewer_emails: list[str] = []
+    interviewer_ids: list[str] = []
     round: int = 1
     proposed_salary: str | None = None
     meeting_link: str | None = None
@@ -46,6 +47,10 @@ class FeedbackCreate(BaseModel):
     score: int  # 1-5
     notes: str | None = None
     decision: str  # pass / fail / next_round
+
+
+class FeedbackNotesCreate(BaseModel):
+    notes: str
 
 
 @router.get("")
@@ -109,6 +114,9 @@ async def create_interview(
     })
     # Update candidate status to pending (interview scheduled)
     await db.execute(text("UPDATE candidates SET status = 'pending' WHERE id = :cid AND status = 'assigned'"), {"cid": body.candidate_id})
+    # Link interviewers (user accounts)
+    for uid in body.interviewer_ids:
+        await db.execute(text("INSERT INTO interview_interviewers (interview_id, user_id) VALUES (:iid, :uid) ON CONFLICT DO NOTHING"), {"iid": str(interview_id), "uid": uid})
     await db.commit()
     return {"id": str(interview_id), "status": "scheduled", "round": body.round}
 
@@ -235,6 +243,19 @@ async def update_interview(
     return {"status": "updated"}
 
 
+@router.post("/{interview_id}/notes")
+async def add_interview_notes(
+    interview_id: uuid.UUID,
+    body: FeedbackNotesCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Save interview notes (during or after interview, before final decision)."""
+    await db.execute(text("UPDATE interviews SET feedback_notes = :notes WHERE id = :id"), {"notes": body.notes, "id": str(interview_id)})
+    await db.commit()
+    return {"status": "notes_saved"}
+
+
 @router.post("/{interview_id}/feedback")
 async def add_feedback(
     interview_id: uuid.UUID,
@@ -280,3 +301,59 @@ async def delete_interview(
             await db.execute(text("UPDATE candidates SET status = 'assigned' WHERE id = :cid AND status = 'pending'"), {"cid": cid})
     await db.commit()
     return {"status": "deleted"}
+
+
+@router.get("/my")
+async def my_interviews(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Get interviews assigned to current user (for interviewer role)."""
+    rows = await db.execute(text("""
+        SELECT i.*, c.structured_data as candidate_data, c.structured_data->>'name' as candidate_name, j.title as job_title, j.required_skills as job_skills
+        FROM interviews i
+        LEFT JOIN candidates c ON c.id = i.candidate_id
+        LEFT JOIN jobs j ON j.id = i.job_id
+        WHERE i.id IN (
+            SELECT interview_id FROM interview_interviewers WHERE user_id = :uid
+        ) OR i.interviewer_emails::text LIKE :email_pattern
+        ORDER BY i.start_time
+    """), {"uid": str(user.id), "email_pattern": f"%{user.email}%"})
+    results = []
+    for r in rows.mappings().all():
+        # Get previous round feedback for this candidate
+        prev_feedback = await db.execute(text("""
+            SELECT round, feedback_score, feedback_notes, feedback_decision
+            FROM interviews WHERE candidate_id = :cid AND feedback_score IS NOT NULL AND round < :round
+            ORDER BY round
+        """), {"cid": str(r["candidate_id"]), "round": r["round"] or 1})
+        results.append({
+            "id": str(r["id"]),
+            "candidate_id": str(r["candidate_id"]),
+            "candidate_name": r["candidate_name"] or "Unknown",
+            "candidate_profile": {
+                "skills": (r["candidate_data"] or {}).get("skills", []),
+                "experience": (r["candidate_data"] or {}).get("experience", []),
+                "education": (r["candidate_data"] or {}).get("education", []),
+                "experience_years": (r["candidate_data"] or {}).get("experience_years", 0),
+                "languages": (r["candidate_data"] or {}).get("languages", []),
+            },
+            "job_title": r["job_title"],
+            "job_skills": r["job_skills"] or [],
+            "title": r["title"],
+            "start_time": r["start_time"].isoformat(),
+            "end_time": r["end_time"].isoformat(),
+            "notes": r["notes"],
+            "status": r["status"],
+            "round": r["round"],
+            "meeting_link": r["meeting_link"],
+            "interview_type": r["interview_type"],
+            "feedback_score": r["feedback_score"],
+            "feedback_notes": r["feedback_notes"],
+            "feedback_decision": r["feedback_decision"],
+            "previous_feedback": [
+                {"round": pf["round"], "score": pf["feedback_score"], "notes": pf["feedback_notes"], "decision": pf["feedback_decision"]}
+                for pf in prev_feedback.mappings().all()
+            ],
+        })
+    return results
