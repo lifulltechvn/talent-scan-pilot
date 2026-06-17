@@ -51,7 +51,7 @@ function ChangePasswordForm() {
 
 export function SettingsPage() {
   const { t } = useI18n();
-  const [tab, setTab] = useState<'general' | 'templates' | 'master'>('general');
+  const [tab, setTab] = useState<'general' | 'templates' | 'master' | 'users'>('general');
   const [templates, setTemplates] = useState<Template[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<Template | null>(null);
@@ -89,6 +89,7 @@ export function SettingsPage() {
         <button onClick={() => setTab('general')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'general' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>General</button>
         <button onClick={() => setTab('templates')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'templates' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Email Templates</button>
         <button onClick={() => setTab('master')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'master' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Master Data</button>
+        <button onClick={() => setTab('users')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'users' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Users</button>
       </div>
 
       {tab === 'general' && (
@@ -163,10 +164,117 @@ export function SettingsPage() {
       {tab === 'master' && (
         <MasterDataEditor />
       )}
+      {tab === 'users' && (
+        <UserManagement />
+      )}
     </div>
   );
 }
 
+
+function UserManagement() {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ email: '', password: '', full_name: '', role: 'interviewer' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    apiClient.get('/users').then(({ data }) => setUsers(data)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const handleCreate = async () => {
+    if (!form.email || !form.password || !form.full_name) { setError('Vui lòng điền đầy đủ'); return; }
+    setSaving(true); setError('');
+    try {
+      const { data } = await apiClient.post('/users', form);
+      setUsers(prev => [data, ...prev]);
+      setShowCreate(false);
+      setForm({ email: '', password: '', full_name: '', role: 'interviewer' });
+    } catch (e: any) { setError(e.response?.data?.detail || 'Failed'); }
+    setSaving(false);
+  };
+
+  const toggleActive = async (u: any) => {
+    const { data } = await apiClient.put(`/users/${u.id}`, { is_active: !u.is_active });
+    setUsers(prev => prev.map(x => x.id === u.id ? data : x));
+  };
+
+  const changeRole = async (u: any, role: string) => {
+    const { data } = await apiClient.put(`/users/${u.id}`, { role });
+    setUsers(prev => prev.map(x => x.id === u.id ? data : x));
+  };
+
+  if (loading) return <div className="text-[13px] text-text-muted py-4">Loading...</div>;
+
+  const ROLE_BADGE: Record<string, string> = { admin: 'bg-red-100 text-red-700', hr: 'bg-blue-100 text-blue-700', interviewer: 'bg-purple-100 text-purple-700' };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-text-primary">{users.length} users</h3>
+        <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover">+ Tạo user</button>
+      </div>
+
+      {showCreate && (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Email</label>
+              <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" placeholder="user@company.com" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Password</label>
+              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Họ tên</label>
+              <input value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Role</label>
+              <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] bg-white">
+                <option value="interviewer">Interviewer</option>
+                <option value="hr">HR</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          </div>
+          {error && <p className="text-[12px] text-red-600">{error}</p>}
+          <div className="flex gap-2">
+            <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">{saving ? 'Creating...' : 'Create'}</button>
+            <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-[13px] text-text-muted border border-border-subtle rounded-lg">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
+        <div className="grid grid-cols-[1fr_1fr_100px_80px] gap-3 px-4 py-2.5 border-b border-border-subtle text-[11px] font-medium text-text-muted uppercase">
+          <span>Email</span><span>Họ tên</span><span>Role</span><span>Status</span>
+        </div>
+        <div className="divide-y divide-border-subtle">
+          {users.map(u => (
+            <div key={u.id} className="grid grid-cols-[1fr_1fr_100px_80px] gap-3 px-4 py-3 items-center">
+              <span className="text-[13px] text-text-primary truncate">{u.email}</span>
+              <span className="text-[13px] text-text-secondary truncate">{u.full_name}</span>
+              <select value={u.role} onChange={e => changeRole(u, e.target.value)} className={`text-[11px] font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer ${ROLE_BADGE[u.role] || ''}`}>
+                <option value="interviewer">interviewer</option>
+                <option value="hr">hr</option>
+                <option value="admin">admin</option>
+              </select>
+              <button onClick={() => toggleActive(u)} className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                {u.is_active ? 'Active' : 'Inactive'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 function MasterDataEditor() {
   const [locations, setLocations] = useState<string[]>([]);
   const [salaries, setSalaries] = useState<string[]>([]);

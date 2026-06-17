@@ -27,6 +27,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     full_name: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20), default="hr")  # admin / hr / interviewer
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -309,3 +310,11 @@ class Interview(Base):
 
     candidate = relationship("Candidate")
     job = relationship("Job")
+    interviewers = relationship("User", secondary="interview_interviewers", lazy="selectin")
+
+
+class InterviewInterviewer(Base):
+    __tablename__ = "interview_interviewers"
+
+    interview_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("interviews.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
