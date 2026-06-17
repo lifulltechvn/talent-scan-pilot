@@ -350,8 +350,8 @@ export function CandidateDetailPage() {
             {/* Actions */}
             <div className="space-y-2">
               {candidate.status !== 'approved' && candidate.status !== 'rejected' && candidate.status === 'new' && (
-                <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'reviewed' }); toast('success', 'Marked as reviewed'); }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">
-                  <CheckCircle size={14} /> Mark as Reviewed
+                <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'reviewed' }); toast('success', 'Marked as reviewed'); }} disabled={updateStatus.isPending} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-40">
+                  <CheckCircle size={14} /> {updateStatus.isPending ? 'Updating...' : 'Mark as Reviewed'}
                 </button>
               )}
               {candidate.status === 'approved' && <div className="text-center text-[13px] font-medium text-emerald-600 bg-emerald-50 py-2 rounded-lg">✓ Approved</div>}

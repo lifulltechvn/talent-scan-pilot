@@ -395,8 +395,10 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
 
 function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview: Interview; onClose: () => void; onFeedback: () => void; onDeleted: () => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
+    setDeleting(true);
     await apiClient.delete(`/interviews/${interview.id}`);
     onDeleted();
   };
@@ -413,8 +415,8 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
             Xoá lịch phỏng vấn của <span className="font-medium text-text-primary">{interview.candidate_name}</span>? Hành động này không thể hoàn tác.
           </p>
           <div className="space-y-2">
-            <button onClick={handleDelete} className="w-full py-2.5 text-[13px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors">Xoá</button>
-            <button onClick={() => setConfirmDelete(false)} className="w-full py-2.5 text-[13px] font-medium text-text-secondary bg-bg-surface rounded-lg hover:bg-bg-surface/80 transition-colors">Hủy</button>
+            <button onClick={handleDelete} disabled={deleting} className="w-full py-2.5 text-[13px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-40">{deleting ? 'Đang xoá...' : 'Xoá'}</button>
+            <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="w-full py-2.5 text-[13px] font-medium text-text-secondary bg-bg-surface rounded-lg hover:bg-bg-surface/80 transition-colors disabled:opacity-40">Hủy</button>
           </div>
         </div>
       </div>

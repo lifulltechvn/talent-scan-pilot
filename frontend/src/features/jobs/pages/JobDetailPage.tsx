@@ -180,8 +180,8 @@ export function JobDetailPage() {
             <button onClick={() => exportJobPdf(job)} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-accent/10 hover:text-accent border border-border-subtle transition-colors">
               <Download size={14} /> PDF
             </button>
-            <button onClick={() => { if (confirm('Delete this job?')) deleteJob.mutate(id!, { onSuccess: () => navigate('/jobs') }); }} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-red-500 text-[13px] font-medium rounded-lg hover:bg-red-50 border border-border-subtle transition-colors">
-              <Trash2 size={14} /> Delete
+            <button onClick={() => { if (confirm('Delete this job?')) deleteJob.mutate(id!, { onSuccess: () => navigate('/jobs') }); }} disabled={deleteJob.isPending} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-red-500 text-[13px] font-medium rounded-lg hover:bg-red-50 border border-border-subtle transition-colors disabled:opacity-40">
+              <Trash2 size={14} /> {deleteJob.isPending ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         </div>
@@ -589,7 +589,7 @@ export function JobDetailPage() {
               Loại <span className="font-medium text-text-primary">{removeCandidate.name}</span> khỏi job này? Ứng viên sẽ quay lại danh sách suggest.
             </p>
             <div className="space-y-2">
-              <button onClick={async () => { await apiClient.delete(`/jobs/${id}/candidates/${removeCandidate.id}`); setRemoveCandidate(null); window.location.reload(); }} className="w-full py-2.5 text-[13px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors">
+              <button onClick={async (e) => { const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Đang xoá...'; await apiClient.delete(`/jobs/${id}/candidates/${removeCandidate.id}`); setRemoveCandidate(null); await queryClient.refetchQueries({ queryKey: ['candidates'] }); }} className="w-full py-2.5 text-[13px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-40">
                 Loại khỏi job
               </button>
               <button onClick={() => setRemoveCandidate(null)} className="w-full py-2.5 text-[13px] font-medium text-text-secondary bg-bg-surface rounded-lg hover:bg-bg-surface/80 transition-colors">

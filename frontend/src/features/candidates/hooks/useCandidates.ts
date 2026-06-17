@@ -13,8 +13,9 @@ export function useUpdateCandidateStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => candidateRepo.updateStatus(id, status),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['candidates'] });
+    onSuccess: (_, { id }) => {
+      qc.refetchQueries({ queryKey: ['candidates'] });
+      qc.refetchQueries({ queryKey: ['candidates', id] });
     },
   });
 }

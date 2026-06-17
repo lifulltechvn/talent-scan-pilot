@@ -15,7 +15,7 @@ export function useCreateJob() {
     mutationFn: (data: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; deadline?: string }) =>
       jobRepo.create(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['jobs'] });
+      qc.refetchQueries({ queryKey: ['jobs'] });
     },
   });
 }
@@ -26,8 +26,8 @@ export function useUpdateJob() {
     mutationFn: ({ id, data }: { id: string; data: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; deadline?: string } }) =>
       jobRepo.update(id, data),
     onSuccess: (_, { id }) => {
-      qc.invalidateQueries({ queryKey: ['jobs'] });
-      qc.invalidateQueries({ queryKey: ['jobs', id] });
+      qc.refetchQueries({ queryKey: ['jobs'] });
+      qc.refetchQueries({ queryKey: ['jobs', id] });
     },
   });
 }
@@ -37,7 +37,7 @@ export function useDeleteJob() {
   return useMutation({
     mutationFn: (id: string) => jobRepo.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['jobs'] });
+      qc.refetchQueries({ queryKey: ['jobs'] });
     },
   });
 }
