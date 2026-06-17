@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, X, Star, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, X, Star, MessageSquare, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
 
 interface Interview {
@@ -353,6 +353,7 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
             <label className="text-[12px] font-medium text-text-muted uppercase">Ghi chú</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder="Link meeting, interviewer..." />
           </div>
+          {validationError && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">{validationError}</p>}
           <button onClick={handleSave} disabled={saving || !candidateId} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
             {saving ? 'Đang tạo...' : 'Tạo lịch'}
           </button>
@@ -364,11 +365,32 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
 }
 
 function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview: Interview; onClose: () => void; onFeedback: () => void; onDeleted: () => void }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   const handleDelete = async () => {
-    if (!confirm('Xoá lịch phỏng vấn này?')) return;
     await apiClient.delete(`/interviews/${interview.id}`);
     onDeleted();
   };
+
+  if (confirmDelete) {
+    return (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={() => setConfirmDelete(false)}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm m-4 p-6" onClick={e => e.stopPropagation()}>
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+            <Trash2 size={22} className="text-red-500" />
+          </div>
+          <h3 className="text-[15px] font-semibold text-text-primary text-center mb-1">Xoá lịch phỏng vấn</h3>
+          <p className="text-[13px] text-text-tertiary text-center mb-6">
+            Xoá lịch phỏng vấn của <span className="font-medium text-text-primary">{interview.candidate_name}</span>? Hành động này không thể hoàn tác.
+          </p>
+          <div className="space-y-2">
+            <button onClick={handleDelete} className="w-full py-2.5 text-[13px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors">Xoá</button>
+            <button onClick={() => setConfirmDelete(false)} className="w-full py-2.5 text-[13px] font-medium text-text-secondary bg-bg-surface rounded-lg hover:bg-bg-surface/80 transition-colors">Hủy</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={onClose}>
@@ -414,7 +436,7 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
                 <MessageSquare size={13} /> Feedback
               </button>
             )}
-            <button onClick={handleDelete} className="px-4 py-2 text-[13px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
+            <button onClick={() => setConfirmDelete(true)} className="px-4 py-2 text-[13px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
               Xoá
             </button>
             <button onClick={onClose} className="px-4 py-2 text-[13px] font-medium text-text-secondary border border-border-subtle rounded-lg hover:bg-bg-surface">

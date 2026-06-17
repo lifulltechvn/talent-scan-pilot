@@ -573,7 +573,7 @@ export function JobDetailPage() {
           candidateName={bookInterview.candidateName}
           jobId={id!}
           jobTitle={job.title}
-          onClose={() => setBookInterview(null)}
+          onClose={() => { setBookInterview(null); queryClient.refetchQueries({ queryKey: ['candidates'] }); }}
         />
       )}
 
