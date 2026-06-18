@@ -224,17 +224,13 @@ def _ai_generate_outreach(name: str, job_title: str, skills: list[str]) -> Outre
         return None
 
     try:
-        prompt = f"""Write a short, warm outreach email to a candidate.
-Name: {name}
-Position: {job_title}
-Their skills: {', '.join(skills[:5])}
-Company: LIFULL Tech Vietnam
+        from app.prompts import OUTREACH_PROMPT
 
-Reply in this exact format:
-GREETING: <greeting line>
-BODY: <2-3 sentences, personalized to their skills>
-HIGHLIGHTS: <comma-separated list of 3 role highlights>
-CLOSING: <closing line>"""
+        prompt = OUTREACH_PROMPT.format(
+            name=name,
+            job_title=job_title,
+            skills=", ".join(skills[:5]),
+        )
 
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="outreach")
         parts = {}

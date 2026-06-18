@@ -56,28 +56,21 @@ def classify_candidate(final_score: float) -> str:
 
 def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str] | None = None) -> tuple[float, str]:
     """Use Claude Haiku to evaluate candidate (0-100 score + summary)."""
+    from app.prompts import SCORING_PROMPT
+
     skills = candidate_data.get("skills", [])
     experience = candidate_data.get("experience", [])
     exp_years = candidate_data.get("experience_years", 0)
     insight = candidate_data.get("insight", {})
 
-    prompt = f"""Evaluate this candidate for the position "{job_title or 'Software Engineer'}".
-
-Required skills: {', '.join(job_skills or [])}
-
-Candidate:
-- Skills: {', '.join(skills)}
-- Experience: {exp_years} years
-- Experience details: {experience[:3]}
-- Insight: {insight}
-
-Score 0-100 based on: career progression, skill depth, red flags, culture fit.
-Reply in exactly this format:
-SCORE: <number>
-SUMMARY: <one sentence>
-STRENGTHS: <comma-separated list>
-CONCERNS: <comma-separated list>
-SUGGESTION: <one actionable recommendation for the interviewer>"""
+    prompt = SCORING_PROMPT.format(
+        job_title=job_title or "Software Engineer",
+        job_skills=", ".join(job_skills or []),
+        skills=", ".join(skills),
+        exp_years=exp_years,
+        experience=experience[:3],
+        insight=insight,
+    )
 
     try:
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="scoring")

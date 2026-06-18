@@ -42,20 +42,11 @@ async def import_jd_file(
         raise HTTPException(400, "Could not extract text from file")
 
     # Parse with AI
-    prompt = f"""Parse this job description and extract structured data. Reply in JSON only:
-{{
-  "title": "job title",
-  "description": "2-3 sentence summary",
-  "required_skills": ["skill1", "skill2", ...],
-  "location": "city or remote",
-  "salary_range": "range if mentioned or null",
-  "required_years": number or null,
-  "required_education": "bachelor/master/phd or null",
-  "deadline": "YYYY-MM-DD or null"
-}}
+    from app.prompts import JD_IMPORT_PROMPT
+    from app.injection_guard import sanitize_for_llm
 
-JD text:
-{text[:3000]}"""
+    clean_text = sanitize_for_llm(text[:3000], "JD_CONTENT")
+    prompt = JD_IMPORT_PROMPT.format(text=clean_text)
 
     try:
         raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="jd_import")
@@ -82,21 +73,10 @@ async def generate_job_description(
     if not title:
         raise HTTPException(400, "Title is required")
 
-    prompt = f"""Generate a professional job description for the position: "{title}"
-{f'Additional context/keywords: {keywords}' if keywords else ''}
+    from app.prompts import JD_GENERATE_PROMPT
 
-Reply in JSON format:
-{{
-  "title": "{title}",
-  "description": "3-4 sentences describing the role, responsibilities, and team",
-  "required_skills": ["skill1", "skill2", ...up to 8 relevant technical skills],
-  "required_years": number (minimum years of experience),
-  "required_education": "bachelor" or "master" or null,
-  "salary_range": "estimated salary range in USD",
-  "location": "suggested location or Remote"
-}}
-
-Be specific and realistic. Skills should be concrete technologies/tools."""
+    context = f"Additional context/keywords: {keywords}" if keywords else ""
+    prompt = JD_GENERATE_PROMPT.format(title=title, context=context)
 
     try:
         raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="jd_generate")
@@ -529,16 +509,13 @@ async def ai_recommend_candidates(
         sd = c["structured_data"]
         cand_summaries.append(f"{i+1}. {sd.get('name','?')} — Score: {c['final_score']}, Skills: {sd.get('skills',[][:5])}, Exp: {sd.get('experience_years',0)}y, Class: {c['classification']}")
 
-    prompt = f"""You are an HR advisor. For the job "{job.title}" (required skills: {job.required_skills}), here are the top candidates:
+    from app.prompts import RECOMMENDATION_PROMPT
 
-{chr(10).join(cand_summaries)}
-
-Give a brief recommendation:
-1. Which 2-3 candidates should be interviewed first and why (1 sentence each)?
-2. Any candidates to skip and why?
-3. One interview focus suggestion.
-
-Be concise and actionable. Reply in Vietnamese."""
+    prompt = RECOMMENDATION_PROMPT.format(
+        job_title=job.title,
+        job_skills=job.required_skills,
+        candidates=chr(10).join(cand_summaries),
+    )
 
     try:
         recommendation = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="recommendation")
