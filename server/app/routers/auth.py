@@ -21,6 +21,13 @@ from app.schemas import Token, TokenRefresh, UserCreate, UserRead
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _get_real_ip(request: Request) -> str:
+    return request.headers.get("X-Real-IP") or get_remote_address(request)
+
+
+limiter = Limiter(key_func=_get_real_ip)
+
+
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 async def register(request: Request, body: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -32,13 +39,6 @@ async def register(request: Request, body: UserCreate, db: AsyncSession = Depend
     await db.commit()
     await db.refresh(user)
     return user
-
-
-def _get_real_ip(request: Request) -> str:
-    return request.headers.get("X-Real-IP") or get_remote_address(request)
-
-
-limiter = Limiter(key_func=_get_real_ip)
 
 
 @router.post("/login", response_model=Token)
