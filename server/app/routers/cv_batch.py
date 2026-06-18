@@ -55,7 +55,12 @@ async def batch_upload(
             VALUES (:id, :bid, :fname, :fpath, :fhash, 'pending')
         """), {"id": str(item_id), "bid": str(batch_id), "fname": f.filename, "fpath": file_path, "fhash": file_hash})
 
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Batch commit failed: {e}")
+        raise HTTPException(500, f"Failed to save batch: {e}")
 
     # Start background processing
     from app.services.cv_batch_worker import start_batch_processing
