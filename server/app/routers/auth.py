@@ -22,7 +22,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, body: UserCreate, db: AsyncSession = Depends(get_db)):
     exists = await db.execute(select(User).where(User.email == body.email))
     if exists.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")

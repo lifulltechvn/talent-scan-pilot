@@ -74,15 +74,11 @@ def _log_usage(model_id: str, feature: str, input_tokens: int, output_tokens: in
     def _save():
         try:
             import asyncio
-            import uuid
-            from datetime import datetime, timezone
-            from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+            from app.database import async_session_factory
             from app.models import AIUsageLog
 
             async def _do():
-                engine = create_async_engine(settings.DATABASE_URL, pool_size=1)
-                session_factory = async_sessionmaker(engine, expire_on_commit=False)
-                async with session_factory() as db:
+                async with async_session_factory() as db:
                     db.add(AIUsageLog(
                         model_id=model_id, feature=feature,
                         input_tokens=input_tokens, output_tokens=output_tokens,
@@ -90,7 +86,6 @@ def _log_usage(model_id: str, feature: str, input_tokens: int, output_tokens: in
                         source=source,
                     ))
                     await db.commit()
-                await engine.dispose()
 
             loop = asyncio.new_event_loop()
             loop.run_until_complete(_do())

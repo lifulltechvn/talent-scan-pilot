@@ -19,9 +19,16 @@ logger = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=10)
 
 
+_engine = None
+_session_factory = None
+
+
 def _get_session_factory():
-    engine = create_async_engine(settings.DATABASE_URL, pool_size=5)
-    return async_sessionmaker(engine, expire_on_commit=False)
+    global _engine, _session_factory
+    if _session_factory is None:
+        _engine = create_async_engine(settings.DATABASE_URL, pool_size=5)
+        _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
+    return _session_factory
 
 
 def start_batch_processing(batch_id: str):

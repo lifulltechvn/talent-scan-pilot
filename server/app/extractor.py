@@ -27,7 +27,7 @@ def extract_pdf(file_bytes: bytes, file_name: str) -> ExtractionResult:
     if is_scanned and page_count > 0:
         try:
             import base64
-            from app.bedrock import invoke_claude
+            from app.bedrock import get_bedrock_client, _log_usage
             from app.config import settings
 
             # Get first page as image
@@ -37,7 +37,6 @@ def extract_pdf(file_bytes: bytes, file_name: str) -> ExtractionResult:
             img_b64 = base64.b64encode(img_bytes).decode()
 
             # Use Claude Sonnet vision for OCR
-            from app.bedrock import get_bedrock_client
             import json
             client = get_bedrock_client()
             body = {
@@ -53,6 +52,8 @@ def extract_pdf(file_bytes: bytes, file_name: str) -> ExtractionResult:
             }
             response = client.invoke_model(modelId=settings.BEDROCK_MODEL_SONNET, body=json.dumps(body))
             result = json.loads(response["body"].read())
+            usage = result.get("usage", {})
+            _log_usage(settings.BEDROCK_MODEL_SONNET, "ocr", usage.get("input_tokens", 0), usage.get("output_tokens", 0))
             text = result["content"][0]["text"]
         except Exception:
             pass  # Fallback: return empty text, let caller handle

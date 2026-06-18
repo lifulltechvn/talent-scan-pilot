@@ -26,16 +26,32 @@ async def recover_stuck_tasks():
 
             for candidate in stuck:
                 if candidate.cv_file_path:
-                    # Re-trigger background AI parsing
-                    from app.services.cv_upload import _background_ai_task
-                    _background_ai_task(str(candidate.id), candidate.cv_file_path)
-                    logger.info(f"Re-queued candidate {str(candidate.id)[:8]}")
+                    # Re-extract text from CV file and re-trigger AI parsing
+                    import os
+                    from app.services.cv_upload import CV_UPLOAD_DIR, _background_ai_task
+                    from app.extractor import extract as extract_cv
+                    from app.pii_filter import filter_pii
+
+                    file_path = os.path.join(CV_UPLOAD_DIR, candidate.cv_file_path)
+                    if os.path.exists(file_path):
+                        try:
+                            with open(file_path, "rb") as f:
+                                file_bytes = f.read()
+                            result_ext = extract_cv(file_bytes, candidate.cv_file_path)
+                            masked_text, pii_data = filter_pii(result_ext.text)
+                            _background_ai_task(str(candidate.id), masked_text, result_ext.is_scanned, file_bytes if result_ext.is_scanned else None, pii_data)
+                            logger.info(f"Re-queued candidate {str(candidate.id)[:8]}")
+                        except Exception as e:
+                            candidate.status = "new"
+                            logger.warning(f"Re-queue failed for {str(candidate.id)[:8]}: {e}")
+                    else:
+                        candidate.status = "new"
+                        logger.warning(f"Candidate {str(candidate.id)[:8]} CV file missing, reset to 'new'")
                 else:
-                    # No CV file — mark as error
                     candidate.status = "new"
                     logger.warning(f"Candidate {str(candidate.id)[:8]} has no CV file, reset to 'new'")
 
             await db.commit()
-            logger.info(f"Task recovery complete: {len(stuck)} candidates re-queued")
+            logger.info(f"Task recovery complete: {len(stuck)} candidates handled")
     except Exception as e:
         logger.error(f"Task recovery failed: {e}")

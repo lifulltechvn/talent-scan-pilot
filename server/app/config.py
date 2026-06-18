@@ -28,5 +28,11 @@ class Settings(BaseSettings):
 
     model_config = {"env_file": ".env"}
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.SECRET_KEY == "change-me":
+            import warnings
+            warnings.warn("SECRET_KEY is using default value 'change-me'. Set a strong secret in .env for production!", stacklevel=2)
+
 
 settings = Settings()

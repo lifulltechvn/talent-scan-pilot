@@ -164,24 +164,31 @@ async def get_public_schedule(token: str, db: AsyncSession = Depends(get_db)):
 @router.post("/public/{token}/book")
 async def book_slot(token: str, body: BookSlotRequest, db: AsyncSession = Depends(get_db)):
     """Public: candidate selects a time slot."""
+    from sqlalchemy import text as sql_text
+
     booking = await _get_booking_by_token(db, token)
 
     if booking.status == "booked":
         raise HTTPException(status_code=400, detail="Already booked")
 
-    slot = await db.get(ScheduleSlot, body.slot_id)
-    if not slot:
-        raise HTTPException(status_code=404, detail="Slot not found")
-    if slot.booked_count >= slot.max_candidates:
-        raise HTTPException(status_code=409, detail="Slot is full")
+    # Atomic increment with check to prevent overbooking
+    result = await db.execute(sql_text("""
+        UPDATE schedule_slots
+        SET booked_count = booked_count + 1
+        WHERE id = :sid AND booked_count < max_candidates
+        RETURNING slot_start, slot_end
+    """), {"sid": body.slot_id})
+    row = result.mappings().first()
 
-    slot.booked_count += 1
-    booking.slot_id = slot.id
+    if not row:
+        raise HTTPException(status_code=409, detail="Slot is full or not found")
+
+    booking.slot_id = body.slot_id
     booking.status = "booked"
     booking.booked_at = datetime.now(timezone.utc)
     await db.commit()
 
-    return {"status": "booked", "slot_start": slot.slot_start.isoformat(), "slot_end": slot.slot_end.isoformat()}
+    return {"status": "booked", "slot_start": row["slot_start"].isoformat(), "slot_end": row["slot_end"].isoformat()}
 
 
 # --- Helpers ---

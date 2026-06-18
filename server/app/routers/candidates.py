@@ -145,18 +145,22 @@ async def list_candidates(
             Candidate.structured_data["name"].astext.ilike(search_like)
             | Candidate.structured_data["skills"].astext.ilike(search_like)
         )
+    joined_score = False
     if classification:
         from app.models import Score
         q = q.join(Score, Score.candidate_id == Candidate.id).where(Score.classification == classification)
+        joined_score = True
     if min_score is not None:
         from app.models import Score
-        if "score" not in str(q):
+        if not joined_score:
             q = q.join(Score, Score.candidate_id == Candidate.id)
+            joined_score = True
         q = q.where(Score.final_score >= min_score)
     if max_score is not None:
         from app.models import Score
-        if "score" not in str(q):
+        if not joined_score:
             q = q.join(Score, Score.candidate_id == Candidate.id)
+            joined_score = True
         q = q.where(Score.final_score <= max_score)
 
     # Pagination
@@ -176,12 +180,21 @@ async def list_candidates(
         jr = await db.execute(select(Job.id, Job.title).where(Job.id.in_(job_ids)))
         job_titles = {row[0]: row[1] for row in jr.all()}
 
-    for c in candidates:
-        quiz_q = await db.execute(
-            select(Quiz).where(Quiz.candidate_id == c.id).order_by(Quiz.created_at.desc()).limit(1)
-        )
-        quiz = quiz_q.scalar_one_or_none()
+    # Batch fetch latest quiz per candidate (fix N+1)
+    candidate_ids = [c.id for c in candidates]
+    quiz_map = {}
+    if candidate_ids:
+        from sqlalchemy import text as sql_text
+        quiz_rows = await db.execute(sql_text("""
+            SELECT DISTINCT ON (candidate_id) candidate_id, status, reason
+            FROM quizzes WHERE candidate_id = ANY(:ids)
+            ORDER BY candidate_id, created_at DESC
+        """), {"ids": candidate_ids})
+        for qr in quiz_rows.mappings().all():
+            quiz_map[qr["candidate_id"]] = qr
 
+    for c in candidates:
+        quiz = quiz_map.get(c.id)
         out.append({
             "id": c.id, "job_id": c.job_id,
             "job_title": job_titles.get(c.job_id) if c.job_id else None,
@@ -190,8 +203,8 @@ async def list_candidates(
             "source_app_version": c.source_app_version, "scanned_at": c.scanned_at,
             "created_at": c.created_at,
             "updated_at": c.updated_at,
-            "quiz_status": quiz.status if quiz else None,
-            "quiz_reason": quiz.reason if quiz else None,
+            "quiz_status": quiz["status"] if quiz else None,
+            "quiz_reason": quiz["reason"] if quiz else None,
         })
     return out
 
@@ -495,31 +508,33 @@ async def gdpr_erase_candidate(
         raise HTTPException(404, "Candidate not found")
 
     # Delete CV file from disk
-    if candidate.cv_file_path and os.path.exists(candidate.cv_file_path):
-        os.remove(candidate.cv_file_path)
+    if candidate.cv_file_path:
+        full_path = os.path.join(CV_UPLOAD_DIR, candidate.cv_file_path)
+        if os.path.exists(full_path):
+            os.remove(full_path)
+
+    # Delete avatar
+    avatar_path = os.path.join("/app/uploads/avatars", f"{candidate_id}.jpg")
+    if os.path.exists(avatar_path):
+        os.remove(avatar_path)
 
     # Cascade delete related data
-    await db.execute(sql_text("UPDATE cv_batch_items SET duplicate_of = NULL WHERE duplicate_of = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM cv_batch_items WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM quiz_responses WHERE question_id IN (SELECT id FROM quiz_questions WHERE quiz_id IN (SELECT id FROM quizzes WHERE candidate_id = :cid))"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM quiz_questions WHERE quiz_id IN (SELECT id FROM quizzes WHERE candidate_id = :cid)"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM quizzes WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM scores WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM job_candidates WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM schedule_bookings WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM outreach_logs WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM interview_feedback WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM interviews WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM audit_logs WHERE entity_type = 'candidate' AND entity_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM candidates WHERE id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM schedule_bookings WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM outreach_logs WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM interview_feedback WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM interviews WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM audit_logs WHERE entity_type = 'candidate' AND entity_id = :cid"), {"cid": str(candidate_id)})
-    await db.execute(sql_text("DELETE FROM candidates WHERE id = :cid"), {"cid": str(candidate_id)})
+    cid = str(candidate_id)
+    await db.execute(sql_text("UPDATE cv_batch_items SET duplicate_of = NULL WHERE duplicate_of = :cid"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM cv_batch_items WHERE candidate_id = :cid"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM quiz_responses WHERE question_id IN (SELECT id FROM quiz_questions WHERE quiz_id IN (SELECT id FROM quizzes WHERE candidate_id = :cid))"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM quiz_questions WHERE quiz_id IN (SELECT id FROM quizzes WHERE candidate_id = :cid)"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM quizzes WHERE candidate_id = :cid"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM scores WHERE candidate_id = :cid"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM job_candidates WHERE candidate_id = :cid"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM schedule_bookings WHERE candidate_id = :cid"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM outreach_logs WHERE candidate_id = :cid"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM interview_feedback WHERE candidate_id = :cid"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM interviews WHERE candidate_id = :cid"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM audit_logs WHERE entity_type = 'candidate' AND entity_id = :cid"), {"cid": cid})
+    await db.execute(sql_text("DELETE FROM candidates WHERE id = :cid"), {"cid": cid})
 
     await db.commit()
-    return {"status": "erased", "candidate_id": str(candidate_id)}
+    return {"status": "erased", "candidate_id": cid}
 
 
