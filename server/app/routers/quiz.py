@@ -214,22 +214,17 @@ async def _evaluate_quiz(quiz, answers: list, question_map: dict, db: AsyncSessi
     if not settings.AWS_ACCESS_KEY_ID:
         return 60.0  # Credentials required
 
+    from app.prompts import QUIZ_EVAL_PROMPT
+    from app.injection_guard import sanitize_for_llm
+
     qa_text = ""
     for ans in answers:
         q = question_map.get(ans.question_id)
         if q:
+            safe_answer = sanitize_for_llm(str(ans.answer), "ANSWER")
             qa_text += f"Q: {q.question}\nCriteria: {q.eval_criteria}\nA: {ans.answer}\n\n"
 
-    prompt = f"""Evaluate these quiz responses for candidate credibility.
-Quiz reason: {quiz.reason}
-
-{qa_text}
-
-For each answer, assess if it demonstrates real experience (specific details, numbers, tools) vs generic/vague responses.
-Reply in this format:
-SCORE: <0-100 credibility score>
-VERDICT: <credible / suspicious / insufficient>
-REASON: <one sentence explanation>"""
+    prompt = QUIZ_EVAL_PROMPT.format(reason=quiz.reason, qa_text=qa_text)
 
     try:
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=300, feature="quiz")
@@ -295,19 +290,14 @@ def _generate_questions(skills: list, experience: list, job_title: str, reason: 
                 },
             }]
 
-            prompt = f"""Generate 5 personalized verification questions for a candidate.
+            from app.prompts import QUIZ_GENERATE_PROMPT
 
-Candidate skills: {', '.join(skills[:5])}
-Latest role: {latest_role}
-Job position: {job_title}
-Reason for quiz: {reason}
-
-Requirements:
-- Mix of question types: 1 radio, 1 checkbox, 3 text
-- Questions must reference specific skills from the CV
-- Text questions should require concrete details (numbers, timelines, specific tools)
-- If reason is "suspected_ai_cv", add questions that are hard to answer without real experience
-- Each question needs eval_criteria for automated evaluation"""
+            prompt = QUIZ_GENERATE_PROMPT.format(
+                skills=", ".join(skills[:5]),
+                latest_role=latest_role,
+                job_title=job_title,
+                reason=reason,
+            )
 
             result = invoke_claude_with_tools(prompt, tools, model=settings.BEDROCK_MODEL_SONNET, feature="quiz")
             if result and "questions" in result:

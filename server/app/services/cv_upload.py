@@ -113,13 +113,17 @@ def _parse_cv_text(text: str) -> dict:
             "required": ["name", "skills", "experience", "education", "experience_years", "insight"],
         },
     }]
+    from app.prompts import CV_PARSE_SYSTEM, CV_PARSE_USER
+    from app.injection_guard import sanitize_for_llm
+
     cleaned = _clean_text(text)[:4000]
+    safe_text = sanitize_for_llm(cleaned, "CV_CONTENT")
     body = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 2048,
         "temperature": 0,
-        "system": "Parse the CV into structured data. Be concise in insight fields (1-2 sentences each).",
-        "messages": [{"role": "user", "content": f"Parse this CV:\n\n{cleaned}"}],
+        "system": CV_PARSE_SYSTEM,
+        "messages": [{"role": "user", "content": CV_PARSE_USER.format(text=safe_text)}],
         "tools": tools,
         "tool_choice": {"type": "tool", "name": "save_cv_data"},
     }
