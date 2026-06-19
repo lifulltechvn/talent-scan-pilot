@@ -102,8 +102,10 @@ async def get_batch_status(
 
     items = await db.execute(text("""
         SELECT bi.id, bi.file_name, bi.status, bi.candidate_id, bi.duplicate_of, bi.error,
+               bi.duplicate_reason, bi.duplicate_details,
                c.structured_data->>'name' as candidate_name,
-               dc.structured_data->>'name' as duplicate_name
+               dc.structured_data->>'name' as duplicate_name,
+               dc.status as duplicate_status
         FROM cv_batch_items bi
         LEFT JOIN candidates c ON c.id = bi.candidate_id
         LEFT JOIN candidates dc ON dc.id = bi.duplicate_of
@@ -121,6 +123,9 @@ async def get_batch_status(
             "candidate_name": i["candidate_name"],
             "duplicate_of": str(i["duplicate_of"]) if i["duplicate_of"] else None,
             "duplicate_name": i["duplicate_name"],
+            "duplicate_reason": i["duplicate_reason"],
+            "duplicate_details": i["duplicate_details"],
+            "duplicate_status": i["duplicate_status"],
             "error": i["error"],
         })
 

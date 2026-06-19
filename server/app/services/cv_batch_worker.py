@@ -103,7 +103,7 @@ async def _process_item(session_factory, batch_id: str, row):
 
             if dup:
                 await db.execute(text("""
-                    UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id WHERE id = :id
+                    UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id, duplicate_reason = 'hash_match' WHERE id = :id
                 """), {"dup_id": str(dup["id"]), "id": item_id})
                 await _update_batch_counts(db, batch_id)
                 await db.commit()
@@ -173,6 +173,60 @@ async def _process_item(session_factory, batch_id: str, row):
 
                 # Update candidate with parsed data
                 from sqlalchemy import update as sql_update
+
+                # Check person-level duplicate (email/phone match)
+                dup_candidate = None
+                dup_reason = None
+                if structured.get("email") and structured["email"] != "null":
+                    dup_q = await db.execute(text(
+                        "SELECT id, structured_data->>'name' as name, status FROM candidates WHERE structured_data->>'email' = :email AND id != :cid LIMIT 1"
+                    ), {"email": structured["email"], "cid": str(candidate_id)})
+                    dup_candidate = dup_q.mappings().first()
+                    if dup_candidate:
+                        dup_reason = "email_match"
+
+                if not dup_candidate and structured.get("phone") and structured["phone"] != "null":
+                    dup_q = await db.execute(text(
+                        "SELECT id, structured_data->>'name' as name, status FROM candidates WHERE structured_data->>'phone' = :phone AND id != :cid LIMIT 1"
+                    ), {"phone": structured["phone"], "cid": str(candidate_id)})
+                    dup_candidate = dup_q.mappings().first()
+                    if dup_candidate:
+                        dup_reason = "phone_match"
+
+                if dup_candidate:
+                    # Person-level duplicate found — mark item and delete the new candidate
+                    import json as json_mod
+                    old_skills = set()
+                    new_skills = set(structured.get("skills") or [])
+                    # Get old candidate data for diff
+                    old_q = await db.execute(text("SELECT structured_data FROM candidates WHERE id = :id"), {"id": str(dup_candidate["id"])})
+                    old_row = old_q.mappings().first()
+                    old_data = old_row["structured_data"] if old_row else {}
+                    old_skills = set(old_data.get("skills") or [])
+                    added_skills = list(new_skills - old_skills)
+                    removed_skills = list(old_skills - new_skills)
+
+                    details = {
+                        "match_field": dup_reason.replace("_match", ""),
+                        "match_value": structured.get("email") if dup_reason == "email_match" else structured.get("phone"),
+                        "existing_status": dup_candidate["status"],
+                        "existing_name": dup_candidate["name"],
+                        "new_skills_added": added_skills[:10],
+                        "skills_removed": removed_skills[:10],
+                        "new_experience_count": len(structured.get("experience") or []),
+                        "old_experience_count": len(old_data.get("experience") or []),
+                    }
+                    # Delete the newly created candidate
+                    await db.execute(text("DELETE FROM candidates WHERE id = :cid"), {"cid": str(candidate_id)})
+                    await db.execute(text("""
+                        UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id,
+                            duplicate_reason = :reason, duplicate_details = :details
+                        WHERE id = :id
+                    """), {"dup_id": str(dup_candidate["id"]), "reason": dup_reason, "details": json_mod.dumps(details), "id": item_id})
+                    await _update_batch_counts(db, batch_id)
+                    await db.commit()
+                    return
+
                 await db.execute(
                     sql_update(Candidate)
                     .where(Candidate.id == candidate_id)
