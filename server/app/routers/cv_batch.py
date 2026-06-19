@@ -3,7 +3,7 @@ import hashlib
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +19,7 @@ BATCH_UPLOAD_DIR = os.path.join(CV_UPLOAD_DIR, "batches")
 
 @router.post("/upload")
 async def batch_upload(
+    background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -63,8 +64,8 @@ async def batch_upload(
         raise HTTPException(500, f"Failed to save batch: {e}")
 
     # Start background processing
-    from app.services.cv_batch_worker import start_batch_processing
-    start_batch_processing(str(batch_id))
+    from app.services.cv_batch_worker import run_batch_sync
+    background_tasks.add_task(run_batch_sync, str(batch_id))
 
     return {"batch_id": str(batch_id), "total_files": len(files), "status": "processing"}
 

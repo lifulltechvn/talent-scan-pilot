@@ -44,6 +44,11 @@ def start_batch_processing(batch_id: str):
     threading.Thread(target=_run, daemon=True).start()
 
 
+async def run_batch_sync(batch_id: str):
+    """Run batch processing (called from FastAPI BackgroundTasks)."""
+    await _process_batch(batch_id)
+
+
 async def _process_batch(batch_id: str):
     """Process all pending items in a batch."""
     session_factory = _get_session_factory()
