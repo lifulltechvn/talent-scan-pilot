@@ -179,6 +179,7 @@ function UserManagement() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
   const [form, setForm] = useState({ email: '', password: '', full_name: '', role: 'interviewer' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -197,6 +198,28 @@ function UserManagement() {
       setForm({ email: '', password: '', full_name: '', role: 'interviewer' });
     } catch (e: any) { setError(e.response?.data?.detail || 'Failed'); }
     setSaving(false);
+  };
+
+  const handleEdit = async () => {
+    if (!editingUser) return;
+    setSaving(true); setError('');
+    try {
+      const { data } = await apiClient.put(`/users/${editingUser.id}`, { full_name: editingUser.full_name, role: editingUser.role });
+      setUsers(prev => prev.map(x => x.id === editingUser.id ? { ...x, ...data } : x));
+      setEditingUser(null);
+    } catch (e: any) { setError(e.response?.data?.detail || 'Failed'); }
+    setSaving(false);
+  };
+
+  const handleDelete = async (u: any) => {
+    if (u.is_active) {
+      if (!confirm(`Vô hiệu hoá user "${u.full_name}" (${u.email})? User sẽ không thể đăng nhập nhưng lịch sử phỏng vấn vẫn được giữ.`)) return;
+      const { data } = await apiClient.put(`/users/${u.id}`, { is_active: false });
+      setUsers(prev => prev.map(x => x.id === u.id ? data : x));
+    } else {
+      const { data } = await apiClient.put(`/users/${u.id}`, { is_active: true });
+      setUsers(prev => prev.map(x => x.id === u.id ? data : x));
+    }
   };
 
   const toggleActive = async (u: any) => {
@@ -255,12 +278,12 @@ function UserManagement() {
       )}
 
       <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
-        <div className="grid grid-cols-[1fr_1fr_100px_80px] gap-3 px-4 py-2.5 border-b border-border-subtle text-[11px] font-medium text-text-muted uppercase">
-          <span>Email</span><span>Họ tên</span><span>Role</span><span>Status</span>
+        <div className="grid grid-cols-[1fr_1fr_100px_80px_70px] gap-3 px-4 py-2.5 border-b border-border-subtle text-[11px] font-medium text-text-muted uppercase">
+          <span>Email</span><span>Họ tên</span><span>Role</span><span>Status</span><span></span>
         </div>
         <div className="divide-y divide-border-subtle">
           {users.map(u => (
-            <div key={u.id} className="grid grid-cols-[1fr_1fr_100px_80px] gap-3 px-4 py-3 items-center">
+            <div key={u.id} className="grid grid-cols-[1fr_1fr_100px_80px_70px] gap-3 px-4 py-3 items-center">
               <span className="text-[13px] text-text-primary truncate">{u.email}</span>
               <span className="text-[13px] text-text-secondary truncate">{u.full_name}</span>
               <select value={u.role} onChange={e => changeRole(u, e.target.value)} className={`text-[11px] font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer ${ROLE_BADGE[u.role] || ''}`}>
@@ -271,10 +294,40 @@ function UserManagement() {
               <button onClick={() => toggleActive(u)} className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
                 {u.is_active ? 'Active' : 'Inactive'}
               </button>
+              <div className="flex gap-1">
+                <button onClick={() => setEditingUser({ ...u })} className="text-[11px] text-accent hover:underline">Sửa</button>
+                <button onClick={() => handleDelete(u)} className="text-[11px] text-red-500 hover:underline">{u.is_active ? 'Xoá' : 'Kích hoạt'}</button>
+              </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Edit modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditingUser(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm m-4 p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-medium text-text-primary">Sửa user</h3>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Họ tên</label>
+              <input value={editingUser.full_name} onChange={e => setEditingUser({ ...editingUser, full_name: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-text-muted uppercase">Role</label>
+              <select value={editingUser.role} onChange={e => setEditingUser({ ...editingUser, role: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] bg-white">
+                <option value="interviewer">Interviewer</option>
+                <option value="hr">HR</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            {error && <p className="text-[12px] text-red-600">{error}</p>}
+            <div className="flex gap-2 pt-2">
+              <button onClick={handleEdit} disabled={saving} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">{saving ? 'Saving...' : 'Lưu'}</button>
+              <button onClick={() => setEditingUser(null)} className="px-4 py-2 text-[13px] text-text-muted border border-border-subtle rounded-lg">Huỷ</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

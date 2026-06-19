@@ -467,18 +467,24 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
           {interview.notes && <div className="text-[13px] text-text-secondary"><strong>Ghi chú:</strong> {interview.notes}</div>}
           {interview.feedback_score && (
             <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-              <div className="flex items-center gap-1 mb-1">
-                <Star size={12} className="text-amber-500" />
-                <span className="text-[12px] font-medium text-emerald-800">{interview.feedback_score}/5 — {interview.feedback_decision}</span>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <Star size={12} className="text-amber-500" />
+                  <span className="text-[12px] font-medium text-emerald-800">{interview.feedback_score}/10</span>
+                </div>
+                {interview.feedback_by && <span className="text-[11px] text-emerald-600">— {interview.feedback_by}</span>}
               </div>
               {interview.feedback_notes && <p className="text-[11px] text-emerald-700">{interview.feedback_notes}</p>}
             </div>
           )}
           <div className="flex gap-2 pt-2">
-            {!interview.feedback_score && (
+            {!interview.feedback_score && new Date(interview.end_time) < new Date() && (
               <button onClick={onFeedback} className="flex-1 py-2 text-[13px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover flex items-center justify-center gap-1">
                 <MessageSquare size={13} /> Feedback
               </button>
+            )}
+            {!interview.feedback_score && new Date(interview.end_time) >= new Date() && (
+              <span className="flex-1 py-2 text-[12px] text-text-muted text-center">Chờ kết thúc phỏng vấn</span>
             )}
             <button onClick={() => setConfirmDelete(true)} className="px-4 py-2 text-[13px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
               Xoá
@@ -609,7 +615,7 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: Interview; 
 function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Interview; onClose: () => void; onCreated: () => void }) {
   const nextRound = (interview.round || 1) + 1;
   const [date, setDate] = useState(() => {
-    let d = new Date(); 
+    let d = new Date(); d.setDate(d.getDate() + 1);
     while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
     return d.toISOString().slice(0, 10);
   });

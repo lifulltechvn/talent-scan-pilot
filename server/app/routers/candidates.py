@@ -126,6 +126,19 @@ async def list_candidates(
         jr = await db.execute(select(Job.id, Job.title).where(Job.id.in_(job_ids)))
         job_titles = {row[0]: row[1] for row in jr.all()}
 
+    # Batch fetch latest interview end_time for pending candidates
+    pending_ids = [c.id for c in candidates if c.status == 'pending']
+    interview_times = {}
+    if pending_ids:
+        from sqlalchemy import text as sql_text
+        iv_rows = await db.execute(sql_text("""
+            SELECT DISTINCT ON (candidate_id) candidate_id, end_time
+            FROM interviews WHERE candidate_id = ANY(:ids)
+            ORDER BY candidate_id, start_time DESC
+        """), {"ids": pending_ids})
+        for r in iv_rows.mappings().all():
+            interview_times[r["candidate_id"]] = r["end_time"].isoformat() if r["end_time"] else None
+
     for c in candidates:
         out.append({
             "id": c.id, "job_id": c.job_id,
@@ -135,6 +148,7 @@ async def list_candidates(
             "source_app_version": c.source_app_version, "scanned_at": c.scanned_at,
             "created_at": c.created_at,
             "updated_at": c.updated_at,
+            "interview_end_time": interview_times.get(c.id) if c.status == 'pending' else None,
         })
     return out
 
@@ -303,10 +317,11 @@ async def get_candidate_avatar(
 @router.get("/{candidate_id}/cv")
 async def download_candidate_cv(
     candidate_id: uuid.UUID,
+    inline: bool = False,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Download the original CV file for a candidate."""
+    """Download or view the original CV file for a candidate."""
     result = await db.execute(select(Candidate).where(Candidate.id == candidate_id))
     candidate = result.scalar_one_or_none()
     if not candidate:
@@ -319,11 +334,16 @@ async def download_candidate_cv(
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="CV file not found on disk")
 
-    # Determine original filename from structured_data or use stored name
-    original_name = candidate.structured_data.get("name", candidate.cv_file_path) if candidate.status == "processing" else None
-    filename = original_name if original_name and "." in original_name else candidate.cv_file_path
+    filename = candidate.cv_file_path
+    media_type = "application/pdf" if filename.endswith(".pdf") else "application/octet-stream"
 
-    return FileResponse(file_path, filename=filename, media_type="application/octet-stream")
+    if inline:
+        from starlette.responses import Response
+        with open(file_path, "rb") as f:
+            content = f.read()
+        return Response(content, media_type=media_type, headers={"Content-Disposition": f"inline; filename=\"{filename}\""})
+
+    return FileResponse(file_path, filename=filename, media_type=media_type)
 
 
 @router.patch("/{candidate_id}/status")

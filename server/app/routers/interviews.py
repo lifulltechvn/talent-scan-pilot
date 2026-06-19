@@ -86,6 +86,7 @@ async def list_interviews(
             "feedback_score": r["feedback_score"],
             "feedback_notes": r["feedback_notes"],
             "feedback_decision": r["feedback_decision"],
+            "feedback_by": r.get("feedback_by"),
         }
         for r in rows.mappings().all()
     ]
@@ -278,9 +279,9 @@ async def add_feedback(
     """Add feedback after an interview."""
     await db.execute(text("""
         UPDATE interviews SET feedback_score = :score, feedback_notes = :notes,
-            feedback_decision = :decision, status = 'completed'
+            feedback_decision = :decision, feedback_by = :by, status = 'completed'
         WHERE id = :id
-    """), {"score": body.score, "notes": body.notes, "decision": body.decision, "id": str(interview_id)})
+    """), {"score": body.score, "notes": body.notes, "decision": body.decision, "by": user.full_name, "id": str(interview_id)})
 
     # Update candidate status based on decision
     if body.decision in ('pass', 'fail'):
@@ -335,7 +336,7 @@ async def my_interviews(
 ):
     """Get interviews assigned to current user (for interviewer role)."""
     rows = await db.execute(text("""
-        SELECT i.*, c.structured_data as candidate_data, c.structured_data->>'name' as candidate_name, j.title as job_title, j.required_skills as job_skills
+        SELECT i.*, c.structured_data as candidate_data, c.structured_data->>'name' as candidate_name, c.cv_file_path, j.title as job_title, j.required_skills as job_skills
         FROM interviews i
         LEFT JOIN candidates c ON c.id = i.candidate_id
         LEFT JOIN jobs j ON j.id = i.job_id
@@ -362,7 +363,9 @@ async def my_interviews(
                 "education": (r["candidate_data"] or {}).get("education", []),
                 "experience_years": (r["candidate_data"] or {}).get("experience_years", 0),
                 "languages": (r["candidate_data"] or {}).get("languages", []),
+                "insight": (r["candidate_data"] or {}).get("insight"),
             },
+            "cv_file_path": r.get("cv_file_path"),
             "job_title": r["job_title"],
             "job_skills": r["job_skills"] or [],
             "title": r["title"],
@@ -376,6 +379,7 @@ async def my_interviews(
             "feedback_score": r["feedback_score"],
             "feedback_notes": r["feedback_notes"],
             "feedback_decision": r["feedback_decision"],
+            "feedback_by": r.get("feedback_by"),
             "previous_feedback": [
                 {"round": pf["round"], "score": pf["feedback_score"], "notes": pf["feedback_notes"], "decision": pf["feedback_decision"]}
                 for pf in prev_feedback.mappings().all()

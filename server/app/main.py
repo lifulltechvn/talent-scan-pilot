@@ -18,6 +18,9 @@ async def lifespan(app: FastAPI):
     # Retry stuck candidates on startup
     from app.services.task_recovery import recover_stuck_tasks
     await recover_stuck_tasks()
+    # Recover stale batch uploads
+    from app.services.cv_batch_worker import recover_stale_batches
+    await recover_stale_batches()
     yield
 
 
