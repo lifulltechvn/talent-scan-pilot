@@ -22,6 +22,7 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
     skills: (initialData?.required_skills || []) as string[],
     salaryRange: initialData?.salary_range || '',
     location: initialData?.location || '',
+    category: initialData?.category || '',
     deadline: initialData?.deadline || '',
   });
 
@@ -29,7 +30,7 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
     if (!form.title) return;
     setGenerating(true);
     try {
-      const { data } = await apiClient.post('/jobs/generate-jd', { title: form.title, keywords: form.skills.join(', ') });
+      const { data } = await apiClient.post('/jobs/generate-jd', { title: form.title, keywords: form.skills.join(', '), category: form.category });
       setForm(p => ({
         ...p,
         description: data.description || p.description,
@@ -55,7 +56,7 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
     if (Object.keys(errors).length > 0) return;
 
     createJob.mutate(
-      { title: form.title, description: form.description, requiredSkills: form.skills, salaryRange: form.salaryRange || undefined, location: form.location || undefined, deadline: form.deadline || undefined },
+      { title: form.title, description: form.description, requiredSkills: form.skills, salaryRange: form.salaryRange || undefined, location: form.location || undefined, category: form.category || undefined, deadline: form.deadline || undefined },
       { onSuccess: onClose },
     );
   };
@@ -75,6 +76,17 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
             </button>
           </div>
           {formErrors.title && <p className="text-[11px] text-red-500 -mt-2">{formErrors.title}</p>}
+          <div>
+            <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Position Category *</label>
+            <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 bg-white">
+              <option value="">Select category...</option>
+              <option value="application_engineer">Application Engineer</option>
+              <option value="bridge_se">Bridge System Engineer</option>
+              <option value="qa_engineer">QA Engineer</option>
+              <option value="admin">Admin</option>
+              <option value="hr">HR</option>
+            </select>
+          </div>
           <textarea value={form.description} onChange={e => { setForm(p => ({ ...p, description: e.target.value })); setFormErrors(p => ({ ...p, description: '' })); }} placeholder="Job description *" rows={3} className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.description ? 'border-red-400' : 'border-border-subtle'}`} />
           {formErrors.description && <p className="text-[11px] text-red-500 -mt-2">{formErrors.description}</p>}
           <div>

@@ -38,10 +38,35 @@ async def match_candidate_to_all_jobs(candidate_id: str, db: AsyncSession):
         row = sim_result.mappings().first()
         similarity = float(row["similarity"]) if row else 0.0
 
-        # Skill overlap
-        overlap = job_skills & cand_skills
-        skill_score = len(overlap) / len(job_skills) if job_skills else 0.0
-        combined = similarity * 0.6 + skill_score * 0.4
+        # Skill overlap (fuzzy: expand compound skills + substring match)
+        from app.services.scoring import _expand_skill
+        cand_expanded = set()
+        for cs in cand_skills:
+            cand_expanded.update(_expand_skill(cs))
+        matched_count = 0
+        for js in job_skills:
+            js_parts = _expand_skill(js)
+            found = False
+            for jp in js_parts:
+                if found:
+                    break
+                for cs in cand_expanded:
+                    if jp == cs or jp in cs or cs in jp:
+                        found = True
+                        break
+            if not found:
+                j_words = set(js.replace('/', ' ').replace('&', ' ').replace('(', ' ').replace(')', ' ').split())
+                j_words.discard('')
+                for cs in cand_expanded:
+                    c_words = set(cs.replace('/', ' ').replace('&', ' ').replace('(', ' ').replace(')', ' ').split())
+                    c_words.discard('')
+                    if j_words and c_words and len(j_words & c_words) / len(j_words) >= 0.5:
+                        found = True
+                        break
+            if found:
+                matched_count += 1
+        skill_score = matched_count / len(job_skills) if job_skills else 0.0
+        combined = similarity * 0.3 + skill_score * 0.7
 
         # Upsert into job_candidates
         existing = await db.execute(
@@ -93,9 +118,34 @@ async def match_job_to_all_candidates(job_id: str, db: AsyncSession):
     for c in candidates:
         cand_skills = {s.lower() for s in normalize_skills(c["structured_data"].get("skills") or [])}
         similarity = float(c["similarity"])
-        overlap = job_skills & cand_skills
-        skill_score = len(overlap) / len(job_skills) if job_skills else 0.0
-        combined = similarity * 0.6 + skill_score * 0.4
+        from app.services.scoring import _expand_skill
+        cand_expanded = set()
+        for cs in cand_skills:
+            cand_expanded.update(_expand_skill(cs))
+        matched_count = 0
+        for js in job_skills:
+            js_parts = _expand_skill(js)
+            found = False
+            for jp in js_parts:
+                if found:
+                    break
+                for cs in cand_expanded:
+                    if jp == cs or jp in cs or cs in jp:
+                        found = True
+                        break
+            if not found:
+                j_words = set(js.replace('/', ' ').replace('&', ' ').replace('(', ' ').replace(')', ' ').split())
+                j_words.discard('')
+                for cs in cand_expanded:
+                    c_words = set(cs.replace('/', ' ').replace('&', ' ').replace('(', ' ').replace(')', ' ').split())
+                    c_words.discard('')
+                    if j_words and c_words and len(j_words & c_words) / len(j_words) >= 0.5:
+                        found = True
+                        break
+            if found:
+                matched_count += 1
+        skill_score = matched_count / len(job_skills) if job_skills else 0.0
+        combined = similarity * 0.3 + skill_score * 0.7
 
         # Upsert
         existing = await db.execute(

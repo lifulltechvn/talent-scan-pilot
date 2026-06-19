@@ -44,6 +44,7 @@ def upgrade() -> None:
         sa.Column("required_education", sa.String(50), nullable=True),
         sa.Column("salary_range", sa.String(255), nullable=True),
         sa.Column("location", sa.String(255), nullable=True),
+        sa.Column("category", sa.String(50), nullable=True),
         sa.Column("deadline", sa.DateTime(timezone=True), nullable=True),
         sa.Column("embedding", Vector(1024), nullable=True),
         sa.Column("created_by", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),

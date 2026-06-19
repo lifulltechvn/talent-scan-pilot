@@ -142,7 +142,7 @@ def _process_ai_sync(masked_text: str, candidate_id: str | None = None) -> tuple
 
     # Run parse and embed in parallel
     # Embed uses raw text (first 500 chars) — doesn't need parsed output
-    embed_input = masked_text[:300]
+    embed_input = masked_text[:500]
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         parse_future = pool.submit(_parse_cv_text, masked_text, candidate_id)
@@ -152,11 +152,20 @@ def _process_ai_sync(masked_text: str, candidate_id: str | None = None) -> tuple
         structured, confidence = validate_and_normalize(structured)
         logger.info(f"CV parsed: {structured.get('name', '?')}, confidence: {confidence:.0%}, skills: {len(structured.get('skills', []))}")
 
-        # If parsed skills available, re-embed with better text (optional — use pre-computed for speed)
-        try:
-            embedding = embed_future.result()
-        except Exception:
-            embedding = None
+        # Re-embed with structured data for better matching
+        skills_text = " ".join(structured.get("skills", []))
+        roles_text = " ".join(e.get("role", "") for e in structured.get("experience", [])[:3])
+        better_embed = f"{roles_text} {skills_text}"
+        if better_embed.strip():
+            try:
+                embedding = get_embedding(better_embed, candidate_id=candidate_id)
+            except Exception:
+                embedding = embed_future.result()
+        else:
+            try:
+                embedding = embed_future.result()
+            except Exception:
+                embedding = None
 
     return structured, embedding
 
@@ -192,6 +201,12 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 avatar = _extract_avatar(file_bytes, candidate_id)
                 if avatar:
                     structured["avatar"] = avatar
+
+            # Assess skill level based on skill maps
+            from app.skill_maps import assess_skill_level
+            skill_level = assess_skill_level(structured, candidate_id=candidate_id)
+            if skill_level:
+                structured["skill_level"] = skill_level
 
             # Update candidate in DB
             async def _update():

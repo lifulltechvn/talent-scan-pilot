@@ -10,16 +10,66 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _expand_skill(skill: str) -> list[str]:
+    """Split compound skill into sub-parts for better matching.
+    E.g. 'Recruitment & Talent Acquisition' → ['recruitment & talent acquisition', 'recruitment', 'talent acquisition']
+    E.g. 'HRIS (Human Resource Information System)' → ['hris (human resource information system)', 'hris', 'human resource information system']
+    """
+    s = skill.lower().strip()
+    parts = [s]
+    # Split by & / , or
+    for sep in [' & ', ' / ', ', ', ' or ']:
+        if sep in s:
+            parts.extend(p.strip() for p in s.split(sep) if p.strip())
+    # Extract parenthetical
+    if '(' in s and ')' in s:
+        before = s[:s.index('(')].strip()
+        inside = s[s.index('(')+1:s.index(')')].strip()
+        if before:
+            parts.append(before)
+        if inside:
+            parts.append(inside)
+    return parts
+
+
 def score_skills(job_skills: list[str], candidate_skills: list[str]) -> tuple[float, dict]:
     from app.skill_normalizer import normalize_skills
     if not job_skills:
         return 50.0, {"matched": [], "missing": [], "note": "No skills required"}
-    job_set = {s.lower().strip() for s in normalize_skills(job_skills)}
-    cand_set = {s.lower().strip() for s in normalize_skills(candidate_skills)}
-    matched = job_set & cand_set
-    missing = job_set - cand_set
-    score = (len(matched) / len(job_set)) * 100
-    return round(score, 1), {"matched": list(matched), "missing": list(missing)}
+    job_normalized = [s.lower().strip() for s in normalize_skills(job_skills)]
+    cand_normalized = [s.lower().strip() for s in normalize_skills(candidate_skills)]
+    # Expand candidate skills too
+    cand_expanded = set()
+    for cs in cand_normalized:
+        cand_expanded.update(_expand_skill(cs))
+
+    matched = []
+    for js in job_normalized:
+        js_parts = _expand_skill(js)
+        found = False
+        for jp in js_parts:
+            if found:
+                break
+            for cs in cand_expanded:
+                if jp == cs or jp in cs or cs in jp:
+                    found = True
+                    break
+        if not found:
+            # Word overlap check on original
+            j_words = set(js.replace('/', ' ').replace('&', ' ').replace('(', ' ').replace(')', ' ').split())
+            j_words.discard('')
+            for cs in cand_expanded:
+                c_words = set(cs.replace('/', ' ').replace('&', ' ').replace('(', ' ').replace(')', ' ').split())
+                c_words.discard('')
+                if j_words and c_words and len(j_words & c_words) / len(j_words) >= 0.5:
+                    found = True
+                    break
+        if found:
+            matched.append(js)
+
+    missing = [js for js in job_normalized if js not in matched]
+    score = (len(matched) / len(job_normalized)) * 100
+    return round(score, 1), {"matched": matched, "missing": missing}
 
 
 def score_experience(required_years: int | None, candidate_years: int | None) -> tuple[float, str]:

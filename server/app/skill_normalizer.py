@@ -17,11 +17,13 @@ SKILL_ALIASES = {
     # DevOps
     "k8s": "Kubernetes", "kube": "Kubernetes",
     "docker-compose": "Docker", "docker compose": "Docker",
-    "aws": "AWS", "amazon web services": "AWS",
+    "aws": "AWS", "amazon web services": "AWS", "aws or cloud services": "AWS",
+    "cloud services": "AWS", "cloud": "AWS",
     "gcp": "Google Cloud", "google cloud platform": "Google Cloud",
     "ci/cd": "CI/CD", "cicd": "CI/CD", "ci cd": "CI/CD",
     # Databases
     "postgres": "PostgreSQL", "postgresql": "PostgreSQL", "pg": "PostgreSQL",
+    "postgresql/mysql": "PostgreSQL", "mysql/postgresql": "PostgreSQL",
     "mysql": "MySQL", "mongo": "MongoDB", "mongodb": "MongoDB",
     "redis": "Redis",
     # Frontend
@@ -30,9 +32,18 @@ SKILL_ALIASES = {
     # Other
     "git": "Git", "github": "Git",
     "rest api": "REST API", "restful": "REST API", "rest": "REST API",
+    "rest api design": "REST API", "api development": "REST API", "api design": "REST API",
     "graphql": "GraphQL",
     "linux": "Linux", "ubuntu": "Linux",
     "agile": "Agile", "scrum": "Agile",
+    # PHP
+    "php 7.4+": "PHP", "php 8": "PHP", "php8": "PHP", "php7": "PHP",
+    # Soft equivalents
+    "fullstack development": "Full-stack", "full-stack development": "Full-stack",
+    "frontend development": "Frontend", "front-end development": "Frontend",
+    "backend development": "Backend", "back-end development": "Backend",
+    "system architecture": "Architecture", "software architecture": "Architecture",
+    "database design": "Database Design", "db design": "Database Design",
 }
 
 

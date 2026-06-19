@@ -360,6 +360,7 @@ export function JobDetailPage() {
                       {c.structuredData.name.replace(/[\[\]NAME-]/g, '').trim().charAt(0) || 'C'}
                     </div>
                     <span className="text-[13px] font-medium text-accent hover:underline">{c.structuredData.name}</span>
+                    {c.structuredData.skill_level && <span className="ml-1.5 px-1.5 py-0 bg-purple-100 text-purple-700 text-[10px] font-bold rounded">{c.structuredData.skill_level.level}</span>}
                   </Link>
                 </td>
                 <td className="px-4 py-3"><ScoreBar score={c.score?.finalScore ?? 0} /></td>

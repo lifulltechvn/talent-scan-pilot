@@ -214,6 +214,23 @@ export function CandidateDetailPage() {
         )}
 
         {/* Profile */}
+        {d.skill_level && (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-[15px]">📊</span>
+            <h2 className="text-sm font-medium text-text-primary">Skill Level Assessment</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="px-3 py-1.5 bg-accent/10 text-accent text-[18px] font-bold rounded-lg">{d.skill_level.level}</span>
+            <div>
+              <p className="text-[12px] font-medium text-text-secondary capitalize">{d.skill_level.category?.replace('_', ' ')}</p>
+              <p className="text-[13px] text-text-tertiary mt-0.5">{d.skill_level.reason}</p>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* Profile */}
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
           <h2 className="text-sm font-medium text-text-primary mb-4">Profile</h2>
           <div className="space-y-4">

@@ -221,7 +221,10 @@ function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
         </div>
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
-          <p className="text-[11px] text-text-muted">{c.structuredData.totalYearsExperience ? `${c.structuredData.totalYearsExperience} năm KN` : ''}</p>
+          <p className="text-[11px] text-text-muted">
+            {c.structuredData.skill_level && <span className="inline-flex items-center px-1.5 py-0 bg-purple-100 text-purple-700 text-[10px] font-bold rounded mr-1.5">{c.structuredData.skill_level.level}</span>}
+            {c.structuredData.totalYearsExperience ? `${c.structuredData.totalYearsExperience} năm KN` : ''}
+          </p>
         </div>
       </Link>
       <div className="text-[12px] text-text-secondary truncate">{c.jobTitle || '—'}</div>
@@ -248,7 +251,10 @@ function CandidateRowMobile({ candidate: c }: { candidate: Candidate }) {
           </div>
           <div className="min-w-0">
             <p className="text-[14px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
-            <p className="text-[12px] text-text-muted">{c.structuredData.totalYearsExperience ? `${c.structuredData.totalYearsExperience} năm KN` : ''}</p>
+            <p className="text-[12px] text-text-muted">
+              {c.structuredData.skill_level && <span className="inline-flex items-center px-1.5 py-0 bg-purple-100 text-purple-700 text-[10px] font-bold rounded mr-1.5">{c.structuredData.skill_level.level}</span>}
+              {c.structuredData.totalYearsExperience ? `${c.structuredData.totalYearsExperience} năm KN` : ''}
+            </p>
           </div>
         </Link>
         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${badge.cls}`}>{badge.label}</span>
