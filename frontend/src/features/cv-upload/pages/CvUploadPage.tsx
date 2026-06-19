@@ -40,8 +40,8 @@ export function CvUploadPage() {
         setBatch(data);
         startBatchTracking(data.batch_id, data.total_files);
         pollBatch(data.batch_id);
-      } else if (data && data.status === 'done' && data.duplicates > 0) {
-        // Show completed batch with unresolved duplicates
+      } else if (data && data.status === 'done' && data.items?.some((i: any) => i.status === 'duplicate')) {
+        // Show completed batch only if has unresolved duplicates
         setBatch(data);
       }
     }).catch(() => {});
@@ -166,7 +166,12 @@ export function CvUploadPage() {
               <span className="text-sm font-medium text-text-primary">
                 {batch.status === 'done' && processing.length === 0 ? '✅ Xử lý hoàn tất' : '🔄 Đang xử lý...'}
               </span>
-              <span className="text-xs text-text-muted">{batch.processed}/{batch.total_files} file</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-muted">{batch.processed}/{batch.total_files} file</span>
+                {batch.status === 'done' && processing.length === 0 && (
+                  <button onClick={() => setBatch(null)} className="text-xs text-text-muted hover:text-text-primary">✕ Đóng</button>
+                )}
+              </div>
             </div>
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
               <div

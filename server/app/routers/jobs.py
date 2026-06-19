@@ -221,19 +221,47 @@ async def suggest_candidates(
                c.structured_data, c.status, c.created_at
         FROM job_candidates jc
         JOIN candidates c ON c.id = jc.candidate_id
-        WHERE jc.job_id = :jid AND c.status = 'reviewed'
+        WHERE jc.job_id = :jid
+          AND jc.status NOT IN ('removed')
+          AND c.status IN ('reviewed', 'rejected')
+          AND NOT EXISTS (
+            SELECT 1 FROM job_candidates jc2
+            JOIN candidates c2 ON c2.id = jc2.candidate_id
+            WHERE jc2.job_id = :jid AND jc2.candidate_id = jc.candidate_id
+              AND jc2.status = 'assigned' AND c2.status = 'rejected'
+          )
         ORDER BY jc.combined_score DESC
         LIMIT 20
     """), {"jid": str(job_id)})
     candidates = rows.mappings().all()
+
+    # Get rejection history for each candidate (from other jobs)
+    candidate_ids = [str(c["candidate_id"]) for c in candidates]
+    rejection_map: dict = {}
+    if candidate_ids:
+        rej_rows = await db.execute(text("""
+            SELECT jc.candidate_id, j.title AS job_title
+            FROM job_candidates jc
+            JOIN jobs j ON j.id = jc.job_id
+            WHERE jc.candidate_id = ANY(:cids)
+              AND jc.job_id != :jid
+              AND jc.status = 'assigned'
+              AND EXISTS (
+                SELECT 1 FROM interviews i WHERE i.candidate_id = jc.candidate_id AND i.job_id = jc.job_id AND i.feedback_decision = 'rejected'
+              )
+        """), {"cids": candidate_ids, "jid": str(job_id)})
+        for r in rej_rows.mappings().all():
+            cid = str(r["candidate_id"])
+            rejection_map.setdefault(cid, []).append(r["job_title"])
 
     job_skills = {s.lower() for s in job.required_skills}
     results = []
     for c in candidates:
         cand_skills = {s.lower() for s in (c["structured_data"].get("skills") or [])}
         matched = sorted(job_skills & cand_skills)
+        cid = str(c["candidate_id"])
         results.append({
-            "id": str(c["candidate_id"]),
+            "id": cid,
             "name": c["structured_data"].get("name", "Unknown"),
             "skills": c["structured_data"].get("skills", []),
             "experience_years": c["structured_data"].get("experience_years", 0),
@@ -243,6 +271,7 @@ async def suggest_candidates(
             "matched_skills": matched,
             "status": c["jc_status"],
             "created_at": str(c["created_at"]),
+            "rejected_from": rejection_map.get(cid),
         })
     return results
 

@@ -241,6 +241,9 @@ export function JobDetailPage() {
                 <span className="text-xs text-text-muted w-5">{i + 1}</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-text-primary truncate">{s.name}</div>
+                  {s.rejected_from && (
+                    <div className="text-[11px] text-red-500 mt-0.5">⚠️ Đã reject tại: {s.rejected_from.join(', ')}</div>
+                  )}
                   <div className="text-[11px] text-text-tertiary mt-0.5">
                     {s.experience_years}y exp · Score: {Math.round(s.combined_score * 100)}%
                     {s.matched_skills.length > 0 && <span className="text-emerald-600"> · Match: {s.matched_skills.join(', ')}</span>}
