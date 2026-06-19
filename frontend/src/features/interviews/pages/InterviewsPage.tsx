@@ -467,9 +467,12 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
           {interview.notes && <div className="text-[13px] text-text-secondary"><strong>Ghi chú:</strong> {interview.notes}</div>}
           {interview.feedback_score && (
             <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-              <div className="flex items-center gap-1 mb-1">
-                <Star size={12} className="text-amber-500" />
-                <span className="text-[12px] font-medium text-emerald-800">{interview.feedback_score}/5 — {interview.feedback_decision}</span>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <Star size={12} className="text-amber-500" />
+                  <span className="text-[12px] font-medium text-emerald-800">{interview.feedback_score}/10</span>
+                </div>
+                {interview.feedback_by && <span className="text-[11px] text-emerald-600">— {interview.feedback_by}</span>}
               </div>
               {interview.feedback_notes && <p className="text-[11px] text-emerald-700">{interview.feedback_notes}</p>}
             </div>
