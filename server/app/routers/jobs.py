@@ -223,7 +223,7 @@ async def suggest_candidates(
         JOIN candidates c ON c.id = jc.candidate_id
         WHERE jc.job_id = :jid
           AND jc.status NOT IN ('removed', 'rejected', 'assigned', 'scored')
-          AND c.status NOT IN ('pending', 'approved')
+          AND c.status IN ('reviewed', 'rejected')
         ORDER BY jc.combined_score DESC
         LIMIT 10
     """), {"jid": str(job_id)})

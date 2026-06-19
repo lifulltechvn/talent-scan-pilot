@@ -23,6 +23,18 @@ _engine = None
 _session_factory = None
 
 
+async def recover_stale_batches():
+    """Re-process batches stuck in 'processing' state (e.g., after server restart)."""
+    from app.database import async_session as main_session
+    async with main_session() as db:
+        result = await db.execute(text(
+            "SELECT id FROM cv_batches WHERE status = 'processing'"
+        ))
+        stale = [str(r[0]) for r in result.all()]
+    for batch_id in stale:
+        logger.info(f"Recovering stale batch: {batch_id}")
+        start_batch_processing(batch_id)
+
 def _get_session_factory():
     global _engine, _session_factory
     if _session_factory is None:
