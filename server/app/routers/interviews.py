@@ -239,10 +239,15 @@ async def update_interview(
     sets = []
     params = {"id": str(interview_id)}
     if body.title: sets.append("title = :title"); params["title"] = body.title
-    if body.start_time: sets.append("start_time = :start"); params["start"] = body.start_time
-    if body.end_time: sets.append("end_time = :end"); params["end"] = body.end_time
+    if body.start_time: sets.append("start_time = :start"); params["start"] = datetime.fromisoformat(body.start_time)
+    if body.end_time: sets.append("end_time = :end"); params["end"] = datetime.fromisoformat(body.end_time)
     if body.notes is not None: sets.append("notes = :notes"); params["notes"] = body.notes
     if body.status: sets.append("status = :status"); params["status"] = body.status
+    if body.round is not None: sets.append("round = :round"); params["round"] = body.round
+    if body.proposed_salary is not None: sets.append("proposed_salary = :salary"); params["salary"] = body.proposed_salary
+    if body.meeting_link is not None: sets.append("meeting_link = :link"); params["link"] = body.meeting_link
+    if body.interview_type is not None: sets.append("interview_type = :type"); params["type"] = body.interview_type
+    if body.interviewer_emails is not None: sets.append("interviewer_emails = :emails"); params["emails"] = json.dumps(body.interviewer_emails)
     if not sets:
         raise HTTPException(400, "Nothing to update")
     await db.execute(text(f"UPDATE interviews SET {', '.join(sets)} WHERE id = :id"), params)

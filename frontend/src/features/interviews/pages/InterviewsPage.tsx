@@ -227,7 +227,16 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
   const [candidateId, setCandidateId] = useState('');
   const [jobId, setJobId] = useState('');
   const [title, setTitle] = useState('Interview');
-  const [date, setDate] = useState(() => { if (defaultDate) return defaultDate; const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); });
+  const [date, setDate] = useState(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (defaultDate && defaultDate >= today) {
+      const d = new Date(defaultDate);
+      if (d.getDay() !== 0 && d.getDay() !== 6) return defaultDate;
+    }
+    let d = new Date(today);
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  });
   const [startTime, setStartTime] = useState(defaultTime || '09:00');
   const endHour = Math.min(parseInt(defaultTime || '09') + 1, 23);
   const [endTime, setEndTime] = useState(`${String(endHour).padStart(2, '0')}:00`);
@@ -248,7 +257,10 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
     if (!candidateId) return;
     const start = new Date(`${date}T${startTime}`);
     const end = new Date(`${date}T${endTime}`);
-    if (start < new Date()) { setValidationError('Không thể đặt lịch trong quá khứ'); return; }
+    const day = start.getDay();
+    if (day === 0 || day === 6) { setValidationError('Không thể đặt lịch vào thứ 7 / Chủ nhật'); return; }
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (start < today) { setValidationError('Không thể đặt lịch ngày trong quá khứ'); return; }
     if (end <= start) { setValidationError('Giờ kết thúc phải sau giờ bắt đầu'); return; }
     setValidationError('');
     setSaving(true);
@@ -270,7 +282,9 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
         candidate_id: candidateId, round: 1, start_time: startIso, end_time: endIso, title,
       });
       setEmailPreview({ ...data, bcc: [...interviewerEmails, ...selectedInterviewers.map(i => i.email)] });
-    } catch { onCreated(); }
+    } catch (err: any) {
+      setValidationError(err?.response?.data?.detail || 'Không thể tạo lịch phỏng vấn');
+    }
     setSaving(false);
   };
 
@@ -341,7 +355,7 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-[12px] font-medium text-text-muted uppercase">Ngày</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
             <div className="col-span-2">
               <label className="text-[12px] font-medium text-text-muted uppercase">Thời gian</label>
@@ -595,7 +609,11 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: Interview; 
 
 function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Interview; onClose: () => void; onCreated: () => void }) {
   const nextRound = (interview.round || 1) + 1;
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => {
+    let d = new Date(); 
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  });
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [meetingLink, setMeetingLink] = useState(interview.meeting_link || '');
@@ -604,20 +622,29 @@ function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Inte
   const [selectedInterviewers, setSelectedInterviewers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [availableInterviewers, setAvailableInterviewers] = useState<{ id: string; full_name: string; email: string }[]>([]);
   const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     apiClient.get('/users/interviewers').then(({ data }) => setAvailableInterviewers(data)).catch(() => {});
   }, []);
 
   const handleSave = async () => {
+    const start = new Date(`${date}T${startTime}`);
+    const end = new Date(`${date}T${endTime}`);
+    const day = start.getDay();
+    if (day === 0 || day === 6) { setValidationError('Không thể đặt lịch vào thứ 7 / Chủ nhật'); return; }
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (start < today) { setValidationError('Không thể đặt lịch ngày trong quá khứ'); return; }
+    if (end <= start) { setValidationError('Giờ kết thúc phải sau giờ bắt đầu'); return; }
+    setValidationError('');
     setSaving(true);
     try {
       await apiClient.post('/interviews', {
         candidate_id: interview.candidate_id,
         job_id: interview.job_id,
         title: `Round ${nextRound}: ${interview.job_title || 'Interview'}`,
-        start_time: new Date(`${date}T${startTime}`).toISOString(),
-        end_time: new Date(`${date}T${endTime}`).toISOString(),
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
         notes: notes || null,
         round: nextRound,
         meeting_link: meetingLink || null,
@@ -627,7 +654,9 @@ function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Inte
         interviewer_emails: [],
       });
       onCreated();
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      setValidationError(err?.response?.data?.detail || 'Không thể tạo lịch phỏng vấn');
+    }
     setSaving(false);
   };
 
@@ -652,7 +681,7 @@ function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Inte
             </div>
             <div>
               <label className="text-[11px] font-medium text-text-muted uppercase">Ngày</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
           </div>
 
@@ -695,6 +724,7 @@ function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Inte
             <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Focus vòng này: technical deep-dive..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
           </div>
 
+          {validationError && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">{validationError}</p>}
           <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-emerald-600 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-40">
             {saving ? 'Đang tạo...' : `Đặt lịch Round ${nextRound}`}
           </button>
