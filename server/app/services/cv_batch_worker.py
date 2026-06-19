@@ -145,10 +145,12 @@ async def _process_item(session_factory, batch_id: str, row):
             """), {"cid": str(candidate_id), "id": item_id})
             await db.commit()
 
-            # AI processing — synchronous in this worker (so batch tracks real progress)
+            # AI processing — run in thread executor to avoid blocking event loop
             try:
+                import asyncio
                 from app.services.cv_upload import _process_ai_sync, _extract_avatar
-                structured, embedding = _process_ai_sync(masked_text, candidate_id=str(candidate_id))
+                loop = asyncio.get_event_loop()
+                structured, embedding = await loop.run_in_executor(None, _process_ai_sync, masked_text, str(candidate_id))
 
                 # Inject PII back
                 if pii_data:
@@ -179,8 +181,9 @@ async def _process_item(session_factory, batch_id: str, row):
                 await db.commit()
             except Exception as ai_err:
                 logger.warning(f"AI parse failed for batch item {item_id}: {ai_err}")
+                from sqlalchemy import update as sql_update2
                 await db.execute(
-                    sql_update(Candidate)
+                    sql_update2(Candidate)
                     .where(Candidate.id == candidate_id)
                     .values(status="new", structured_data={"name": file_name, "parse_error": str(ai_err)})
                 )

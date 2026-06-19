@@ -1,5 +1,6 @@
 import json
 import logging
+import itertools
 import time
 
 import boto3
@@ -9,7 +10,24 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_client = None
+_clients: list = []
+_client_cycle = None
+
+
+def _init_clients():
+    global _clients, _client_cycle
+    regions = [r.strip() for r in settings.AWS_REGION.split(",") if r.strip()]
+    _clients = [
+        boto3.client(
+            "bedrock-runtime",
+            region_name=region,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        )
+        for region in regions
+    ]
+    _client_cycle = itertools.cycle(_clients)
+    logger.info(f"Bedrock clients initialized: {regions}")
 
 
 def _retry(func, max_retries=3, backoff=1.0):
@@ -56,15 +74,10 @@ def calculate_cost(model_id: str, input_tokens: int, output_tokens: int) -> floa
 
 
 def get_bedrock_client():
-    global _client
-    if _client is None:
-        _client = boto3.client(
-            "bedrock-runtime",
-            region_name=settings.AWS_REGION,
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        )
-    return _client
+    global _clients, _client_cycle
+    if not _clients:
+        _init_clients()
+    return next(_client_cycle)
 
 
 def _log_usage(model_id: str, feature: str, input_tokens: int, output_tokens: int, source: str = "server", candidate_id: str | None = None):
