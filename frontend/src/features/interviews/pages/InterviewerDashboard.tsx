@@ -9,6 +9,7 @@ interface CandidateProfile {
   education: { school: string; major: string; degree: string; year?: number }[];
   experience_years: number;
   languages: { language: string; level: string }[];
+  insight?: { strengths?: string; weaknesses?: string; recommendation?: string } | null;
 }
 
 interface PreviousFeedback {
@@ -37,6 +38,7 @@ interface MyInterview {
   feedback_score: number | null;
   feedback_decision: string | null;
   previous_feedback: PreviousFeedback[];
+  cv_file_path: string | null;
 }
 
 export function InterviewerDashboard() {
@@ -44,7 +46,6 @@ export function InterviewerDashboard() {
   const [interviews, setInterviews] = useState<MyInterview[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedbackModal, setFeedbackModal] = useState<MyInterview | null>(null);
-  const [decisionModal, setDecisionModal] = useState<MyInterview | null>(null);
   const [profileModal, setProfileModal] = useState<MyInterview | null>(null);
 
   const fetchData = () => {
@@ -98,7 +99,7 @@ export function InterviewerDashboard() {
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => setProfileModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">Profile</button>
-                    <button onClick={() => setDecisionModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">Đánh giá</button>
+                    <button onClick={() => setFeedbackModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">Nhận xét</button>
                   </div>
                 </div>
                 {i.feedback_notes && (
@@ -144,10 +145,7 @@ export function InterviewerDashboard() {
                     </a>
                   )}
                   <button onClick={() => setFeedbackModal(i)} className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100">
-                    <MessageSquare size={12} /> Ghi nhận xét
-                  </button>
-                  <button onClick={() => setDecisionModal(i)} className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100">
-                    <CheckCircle size={12} /> Đánh giá
+                    <MessageSquare size={12} /> Nhận xét
                   </button>
                   {i.previous_feedback.length > 0 && (
                     <span className="text-[11px] text-text-muted">📋 {i.previous_feedback.length} feedback trước</span>
@@ -182,7 +180,7 @@ export function InterviewerDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setProfileModal(i)} className="text-[11px] text-purple-600 hover:underline">Profile</button>
-                    <button onClick={() => setDecisionModal(i)} className="text-[11px] text-accent hover:underline">Sửa</button>
+                    <button onClick={() => setFeedbackModal(i)} className="text-[11px] text-accent hover:underline">Sửa</button>
                     <div className="flex items-center gap-1">
                       <Star size={12} className="text-amber-500" />
                       <span className="text-[12px] font-medium">{i.feedback_score}/5</span>
@@ -202,14 +200,9 @@ export function InterviewerDashboard() {
       {/* Profile Modal */}
       {profileModal && <ProfileModal interview={profileModal} onClose={() => setProfileModal(null)} />}
 
-      {/* Notes Modal (during interview) */}
+      {/* Feedback Modal */}
       {feedbackModal && (
-        <NotesModal interview={feedbackModal} onClose={() => setFeedbackModal(null)} onSaved={() => { setFeedbackModal(null); fetchData(); }} />
-      )}
-
-      {/* Decision Modal (after interview) */}
-      {decisionModal && (
-        <DecisionModal interview={decisionModal} onClose={() => setDecisionModal(null)} onSaved={() => { setDecisionModal(null); fetchData(); }} />
+        <FeedbackModal interview={feedbackModal} onClose={() => setFeedbackModal(null)} onSaved={() => { setFeedbackModal(null); fetchData(); }} />
       )}
     </div>
   );
@@ -287,6 +280,41 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
             </div>
           )}
 
+          {/* AI Insight */}
+          {p.insight && (p.insight.strengths || p.insight.weaknesses) && (
+            <div className="border-t border-border-subtle pt-4">
+              <span className="text-[11px] font-medium text-text-muted uppercase flex items-center gap-1">✨ AI Nhận xét</span>
+              <div className="mt-2 space-y-2">
+                {p.insight.strengths && (
+                  <div className="p-2.5 bg-emerald-50 rounded-lg">
+                    <span className="text-[10px] font-medium text-emerald-700 uppercase">Điểm mạnh</span>
+                    <p className="text-[12px] text-emerald-800 mt-0.5">{p.insight.strengths}</p>
+                  </div>
+                )}
+                {p.insight.weaknesses && (
+                  <div className="p-2.5 bg-amber-50 rounded-lg">
+                    <span className="text-[10px] font-medium text-amber-700 uppercase">Cần lưu ý</span>
+                    <p className="text-[12px] text-amber-800 mt-0.5">{p.insight.weaknesses}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* View CV */}
+          {interview.cv_file_path && (
+            <div className="border-t border-border-subtle pt-4">
+              <button onClick={() => {
+                const token = localStorage.getItem('token');
+                fetch(`/api/v1/candidates/${interview.candidate_id}/cv?inline=true`, { headers: { Authorization: `Bearer ${token}` } })
+                  .then(r => r.blob())
+                  .then(blob => { const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' })); window.open(url, '_blank'); });
+              }} className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
+                📄 Xem CV gốc
+              </button>
+            </div>
+          )}
+
           {/* Previous feedback */}
           {interview.previous_feedback.length > 0 && (
             <div className="border-t border-border-subtle pt-4">
@@ -313,52 +341,15 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
   );
 }
 
-function NotesModal({ interview, onClose, onSaved }: { interview: MyInterview; onClose: () => void; onSaved: () => void }) {
-  const [notes, setNotes] = useState(interview.feedback_notes || '');
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    if (!notes.trim()) return;
-    setSaving(true);
-    try {
-      await apiClient.post(`/interviews/${interview.id}/notes`, { notes });
-      onSaved();
-    } catch { /* ignore */ }
-    setSaving(false);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
-          <div>
-            <h2 className="text-[15px] font-semibold text-white">Ghi nhận xét</h2>
-            <p className="text-[12px] text-white/70">{interview.candidate_name} · Round {interview.round}</p>
-          </div>
-          <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
-        </div>
-        <div className="p-5 space-y-4">
-          <p className="text-[12px] text-text-muted">Ghi chú trong hoặc sau buổi phỏng vấn. Đánh giá & quyết định sẽ làm riêng.</p>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={5} className="w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder="Nhận xét về ứng viên: kỹ năng, thái độ, communication..." autoFocus />
-          <button onClick={handleSave} disabled={saving || !notes.trim()} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
-            {saving ? 'Đang lưu...' : 'Lưu nhận xét'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DecisionModal({ interview, onClose, onSaved }: { interview: MyInterview; onClose: () => void; onSaved: () => void }) {
-  const [score, setScore] = useState(3);
-  const [decision, setDecision] = useState('pass');
+function FeedbackModal({ interview, onClose, onSaved }: { interview: MyInterview; onClose: () => void; onSaved: () => void }) {
+  const [score, setScore] = useState(interview.feedback_score || 5);
   const [notes, setNotes] = useState(interview.feedback_notes || '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await apiClient.post(`/interviews/${interview.id}/feedback`, { score, notes: notes || null, decision });
+      await apiClient.post(`/interviews/${interview.id}/feedback`, { score, notes: notes || null, decision: 'pending' });
       onSaved();
     } catch { /* ignore */ }
     setSaving(false);
@@ -369,49 +360,39 @@ function DecisionModal({ interview, onClose, onSaved }: { interview: MyInterview
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm m-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
           <div>
-            <h2 className="text-[15px] font-semibold text-white">Đánh giá & Quyết định</h2>
+            <h2 className="text-[15px] font-semibold text-white">Đánh giá ứng viên</h2>
             <p className="text-[12px] text-white/70">{interview.candidate_name} · Round {interview.round}</p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
         <div className="p-5 space-y-4">
-          {/* Previous feedback reference */}
           {interview.previous_feedback.length > 0 && (
             <div className="bg-bg-surface rounded-lg p-3">
               <span className="text-[10px] font-medium text-text-muted uppercase">Vòng trước</span>
               {interview.previous_feedback.map(fb => (
                 <div key={fb.round} className="text-[11px] text-text-secondary mt-1">
-                  Round {fb.round}: ⭐{fb.score}/5 — {fb.decision}
+                  Round {fb.round}: {fb.score}/10
                 </div>
               ))}
             </div>
           )}
 
           <div>
-            <label className="text-[12px] font-medium text-text-muted uppercase">Đánh giá (1-5)</label>
-            <div className="flex gap-1 mt-1.5">
-              {[1, 2, 3, 4, 5].map(n => (
-                <button key={n} onClick={() => setScore(n)} className={`w-9 h-9 rounded-lg text-sm font-bold ${score >= n ? 'bg-amber-400 text-white' : 'bg-gray-100 text-text-muted'}`}>{n}</button>
+            <label className="text-[12px] font-medium text-text-muted uppercase">Điểm đánh giá: <span className="text-accent text-[14px]">{score}/10</span></label>
+            <div className="flex gap-1 mt-2">
+              {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                <button key={n} onClick={() => setScore(n)} className={`w-7 h-7 rounded-lg text-sm font-bold ${score >= n ? 'bg-amber-400 text-white' : 'bg-gray-100 text-text-muted'}`}>{n}</button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="text-[12px] font-medium text-text-muted uppercase">Quyết định</label>
-            <div className="flex gap-2 mt-1.5">
-              {[{ v: 'pass', l: '✅ Pass' }, { v: 'next_round', l: '🔄 Vòng tiếp' }, { v: 'fail', l: '❌ Fail' }].map(o => (
-                <button key={o.v} onClick={() => setDecision(o.v)} className={`flex-1 py-2 text-[12px] font-medium rounded-lg border ${decision === o.v ? 'border-accent bg-accent/10 text-accent' : 'border-border-subtle text-text-secondary'}`}>{o.l}</button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[12px] font-medium text-text-muted uppercase">Ghi chú thêm (tùy chọn)</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder="Bổ sung nhận xét..." />
+            <label className="text-[12px] font-medium text-text-muted uppercase">Nhận xét</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder="Nhận xét về kỹ năng, thái độ, communication..." autoFocus />
           </div>
 
           <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
-            {saving ? 'Đang lưu...' : 'Xác nhận đánh giá'}
+            {saving ? 'Đang lưu...' : 'Gửi đánh giá'}
           </button>
         </div>
       </div>

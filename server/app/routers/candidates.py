@@ -317,10 +317,11 @@ async def get_candidate_avatar(
 @router.get("/{candidate_id}/cv")
 async def download_candidate_cv(
     candidate_id: uuid.UUID,
+    inline: bool = False,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Download the original CV file for a candidate."""
+    """Download or view the original CV file for a candidate."""
     result = await db.execute(select(Candidate).where(Candidate.id == candidate_id))
     candidate = result.scalar_one_or_none()
     if not candidate:
@@ -333,11 +334,16 @@ async def download_candidate_cv(
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="CV file not found on disk")
 
-    # Determine original filename from structured_data or use stored name
-    original_name = candidate.structured_data.get("name", candidate.cv_file_path) if candidate.status == "processing" else None
-    filename = original_name if original_name and "." in original_name else candidate.cv_file_path
+    filename = candidate.cv_file_path
+    media_type = "application/pdf" if filename.endswith(".pdf") else "application/octet-stream"
 
-    return FileResponse(file_path, filename=filename, media_type="application/octet-stream")
+    if inline:
+        from starlette.responses import Response
+        with open(file_path, "rb") as f:
+            content = f.read()
+        return Response(content, media_type=media_type, headers={"Content-Disposition": f"inline; filename=\"{filename}\""})
+
+    return FileResponse(file_path, filename=filename, media_type=media_type)
 
 
 @router.patch("/{candidate_id}/status")

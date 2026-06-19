@@ -83,6 +83,23 @@ async def update_user(
     return {"id": str(target.id), "email": target.email, "full_name": target.full_name, "role": target.role, "is_active": target.is_active}
 
 
+@router.delete("/{user_id}")
+async def delete_user(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(require_role("admin")),
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.id == _user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    await db.delete(target)
+    await db.commit()
+    return {"status": "deleted"}
+
+
 @router.get("/interviewers")
 async def list_interviewers(
     db: AsyncSession = Depends(get_db),

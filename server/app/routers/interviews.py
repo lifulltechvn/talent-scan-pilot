@@ -335,7 +335,7 @@ async def my_interviews(
 ):
     """Get interviews assigned to current user (for interviewer role)."""
     rows = await db.execute(text("""
-        SELECT i.*, c.structured_data as candidate_data, c.structured_data->>'name' as candidate_name, j.title as job_title, j.required_skills as job_skills
+        SELECT i.*, c.structured_data as candidate_data, c.structured_data->>'name' as candidate_name, c.cv_file_path, j.title as job_title, j.required_skills as job_skills
         FROM interviews i
         LEFT JOIN candidates c ON c.id = i.candidate_id
         LEFT JOIN jobs j ON j.id = i.job_id
@@ -362,7 +362,9 @@ async def my_interviews(
                 "education": (r["candidate_data"] or {}).get("education", []),
                 "experience_years": (r["candidate_data"] or {}).get("experience_years", 0),
                 "languages": (r["candidate_data"] or {}).get("languages", []),
+                "insight": (r["candidate_data"] or {}).get("insight"),
             },
+            "cv_file_path": r.get("cv_file_path"),
             "job_title": r["job_title"],
             "job_skills": r["job_skills"] or [],
             "title": r["title"],
