@@ -12,6 +12,17 @@ interface BatchItem {
   candidate_name: string | null;
   duplicate_of: string | null;
   duplicate_name: string | null;
+  duplicate_reason: string | null;
+  duplicate_details: {
+    match_field?: string;
+    match_value?: string;
+    existing_status?: string;
+    new_skills_added?: string[];
+    skills_removed?: string[];
+    new_experience_count?: number;
+    old_experience_count?: number;
+  } | null;
+  duplicate_status: string | null;
   error: string | null;
 }
 
@@ -252,24 +263,44 @@ export function CvUploadPage() {
               {expandedSection === 'duplicates' && (
                 <div className="px-4 pb-3 space-y-1.5 max-h-64 overflow-y-auto">
                   {duplicates.map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-amber-100">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[12px] font-medium text-text-primary truncate">{item.file_name}</div>
-                        <div className="text-[10px] text-text-muted">
-                          Trùng với: <span className="font-medium">{item.duplicate_name}</span>
-                          {item.duplicate_of && <Link to={`/candidates/${item.duplicate_of}`} className="text-accent ml-1 hover:underline">xem ↗</Link>}
+                    <div key={item.id} className="p-2.5 bg-white rounded-lg border border-amber-100">
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[12px] font-medium text-text-primary truncate">{item.file_name}</div>
+                          <div className="text-[10px] text-text-muted">
+                            {item.duplicate_reason === 'hash_match' && '📄 File trùng hoàn toàn với: '}
+                            {item.duplicate_reason === 'email_match' && '📧 Trùng email với: '}
+                            {item.duplicate_reason === 'phone_match' && '📱 Trùng SĐT với: '}
+                            {!item.duplicate_reason && 'Trùng với: '}
+                            <span className="font-medium">{item.duplicate_name}</span>
+                            {item.duplicate_status && <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-medium ${item.duplicate_status === 'rejected' ? 'bg-red-100 text-red-700' : item.duplicate_status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{item.duplicate_status}</span>}
+                            {item.duplicate_of && <Link to={`/candidates/${item.duplicate_of}`} className="text-accent ml-1 hover:underline">xem ↗</Link>}
+                          </div>
+                          {item.duplicate_details && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {item.duplicate_details.new_skills_added && item.duplicate_details.new_skills_added.length > 0 && (
+                                <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded">+{item.duplicate_details.new_skills_added.length} skills mới</span>
+                              )}
+                              {item.duplicate_details.new_experience_count != null && item.duplicate_details.old_experience_count != null && item.duplicate_details.new_experience_count > item.duplicate_details.old_experience_count && (
+                                <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">+{item.duplicate_details.new_experience_count - item.duplicate_details.old_experience_count} experience mới</span>
+                              )}
+                              {item.duplicate_details.existing_status === 'rejected' && (
+                                <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Đã bị reject trước đó</span>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex gap-1 shrink-0 ml-2">
-                        <button onClick={() => handleResolve(item.id, 'update')} className="p-1.5 text-accent hover:bg-accent/10 rounded-md" title="Cập nhật hồ sơ cũ">
-                          <RefreshCw size={13} />
-                        </button>
-                        <button onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="Tạo ứng viên mới">
-                          <UserPlus size={13} />
-                        </button>
-                        <button onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md" title="Bỏ qua">
-                          <SkipForward size={13} />
-                        </button>
+                        <div className="flex gap-1 shrink-0 ml-2">
+                          <button onClick={() => handleResolve(item.id, 'update')} className="p-1.5 text-accent hover:bg-accent/10 rounded-md" title="Cập nhật CV mới cho hồ sơ cũ">
+                            <RefreshCw size={13} />
+                          </button>
+                          <button onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="Tạo ứng viên mới">
+                            <UserPlus size={13} />
+                          </button>
+                          <button onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md" title="Bỏ qua">
+                            <SkipForward size={13} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

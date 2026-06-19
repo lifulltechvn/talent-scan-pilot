@@ -192,6 +192,8 @@ def upgrade() -> None:
         sa.Column("status", sa.String(20), server_default=sa.text("'pending'")),
         sa.Column("candidate_id", UUID(as_uuid=True), sa.ForeignKey("candidates.id"), nullable=True),
         sa.Column("duplicate_of", UUID(as_uuid=True), sa.ForeignKey("candidates.id"), nullable=True),
+        sa.Column("duplicate_reason", sa.String(50), nullable=True),
+        sa.Column("duplicate_details", JSONB, nullable=True),
         sa.Column("error", sa.Text, nullable=True),
     )
 
