@@ -259,8 +259,7 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
     const end = new Date(`${date}T${endTime}`);
     const day = start.getDay();
     if (day === 0 || day === 6) { setValidationError('Không thể đặt lịch vào thứ 7 / Chủ nhật'); return; }
-    const today = new Date(); today.setHours(0,0,0,0);
-    if (start < today) { setValidationError('Không thể đặt lịch ngày trong quá khứ'); return; }
+    if (start < new Date()) { setValidationError('Không thể đặt lịch trong quá khứ'); return; }
     if (end <= start) { setValidationError('Giờ kết thúc phải sau giờ bắt đầu'); return; }
     setValidationError('');
     setSaving(true);
@@ -633,8 +632,7 @@ function BookNextRoundModal({ interview, onClose, onCreated }: { interview: Inte
     const end = new Date(`${date}T${endTime}`);
     const day = start.getDay();
     if (day === 0 || day === 6) { setValidationError('Không thể đặt lịch vào thứ 7 / Chủ nhật'); return; }
-    const today = new Date(); today.setHours(0,0,0,0);
-    if (start < today) { setValidationError('Không thể đặt lịch ngày trong quá khứ'); return; }
+    if (start < new Date()) { setValidationError('Không thể đặt lịch trong quá khứ'); return; }
     if (end <= start) { setValidationError('Giờ kết thúc phải sau giờ bắt đầu'); return; }
     setValidationError('');
     setSaving(true);
