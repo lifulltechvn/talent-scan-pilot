@@ -611,7 +611,6 @@ function MissingInfoPanel({ data }: { data: any }) {
   if (!Array.isArray(data.education) || data.education.length === 0) missing.push('Học vấn');
   if (!data.totalYearsExperience) missing.push('Số năm kinh nghiệm');
   if (!Array.isArray(data.languages) || data.languages.filter((l: any) => l.language && l.language !== 'null').length === 0) missing.push('Ngôn ngữ');
-  if (isEmpty(data.expectedSalary)) missing.push('Mức lương mong muốn');
   if (isEmpty(data.avatar)) missing.push('Ảnh chân dung');
 
   if (missing.length === 0) return null;
