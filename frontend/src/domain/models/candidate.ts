@@ -50,6 +50,7 @@ export interface Candidate {
   scannedAt: string;
   createdAt: string;
   updatedAt: string | null;
+  interviewEndTime: string | null;
 }
 
 export interface Score {

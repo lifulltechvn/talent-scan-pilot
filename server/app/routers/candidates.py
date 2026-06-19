@@ -126,6 +126,19 @@ async def list_candidates(
         jr = await db.execute(select(Job.id, Job.title).where(Job.id.in_(job_ids)))
         job_titles = {row[0]: row[1] for row in jr.all()}
 
+    # Batch fetch latest interview end_time for pending candidates
+    pending_ids = [c.id for c in candidates if c.status == 'pending']
+    interview_times = {}
+    if pending_ids:
+        from sqlalchemy import text as sql_text
+        iv_rows = await db.execute(sql_text("""
+            SELECT DISTINCT ON (candidate_id) candidate_id, end_time
+            FROM interviews WHERE candidate_id = ANY(:ids)
+            ORDER BY candidate_id, start_time DESC
+        """), {"ids": pending_ids})
+        for r in iv_rows.mappings().all():
+            interview_times[r["candidate_id"]] = r["end_time"].isoformat() if r["end_time"] else None
+
     for c in candidates:
         out.append({
             "id": c.id, "job_id": c.job_id,
@@ -135,6 +148,7 @@ async def list_candidates(
             "source_app_version": c.source_app_version, "scanned_at": c.scanned_at,
             "created_at": c.created_at,
             "updated_at": c.updated_at,
+            "interview_end_time": interview_times.get(c.id) if c.status == 'pending' else None,
         })
     return out
 

@@ -23,10 +23,18 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   new: { label: 'Mới', cls: 'bg-blue-100 text-blue-700' },
   reviewed: { label: 'Đã review', cls: 'bg-amber-100 text-amber-700' },
   assigned: { label: 'Đã assign', cls: 'bg-purple-100 text-purple-700' },
-  pending: { label: 'Phỏng vấn', cls: 'bg-cyan-100 text-cyan-700' },
+  pending: { label: 'Đang phỏng vấn', cls: 'bg-cyan-100 text-cyan-700' },
+  pending_feedback: { label: 'Đợi đánh giá', cls: 'bg-orange-100 text-orange-700' },
   approved: { label: 'Đạt', cls: 'bg-emerald-100 text-emerald-700' },
   rejected: { label: 'Từ chối', cls: 'bg-red-100 text-red-700' },
 };
+
+function getCandidateBadge(c: Candidate) {
+  if (c.status === 'pending' && c.interviewEndTime && new Date(c.interviewEndTime) < new Date()) {
+    return STATUS_BADGE.pending_feedback;
+  }
+  return STATUS_BADGE[c.status] || STATUS_BADGE.new;
+}
 
 type SortKey = 'name' | 'score' | 'date';
 
@@ -201,7 +209,7 @@ export function CandidatesPage() {
 
 /* Desktop row */
 function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
-  const badge = STATUS_BADGE[c.status] || STATUS_BADGE.new;
+  const badge = getCandidateBadge(c);
   const navigate = useNavigate();
   const updateStatus = useUpdateCandidateStatus();
 
@@ -227,7 +235,7 @@ function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
 
 /* Mobile card */
 function CandidateRowMobile({ candidate: c }: { candidate: Candidate }) {
-  const badge = STATUS_BADGE[c.status] || STATUS_BADGE.new;
+  const badge = getCandidateBadge(c);
   const navigate = useNavigate();
   const updateStatus = useUpdateCandidateStatus();
 
