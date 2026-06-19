@@ -232,7 +232,7 @@ def _ai_generate_outreach(name: str, job_title: str, skills: list[str]) -> Outre
             skills=", ".join(skills[:5]),
         )
 
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="outreach")
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="outreach", candidate_id=body.candidate_id)
         parts = {}
         for line in result.strip().split("\n"):
             for key in ["GREETING", "BODY", "HIGHLIGHTS", "CLOSING"]:

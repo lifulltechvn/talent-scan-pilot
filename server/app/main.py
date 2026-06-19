@@ -6,7 +6,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from app.routers import ai_usage, auth, candidates, cv_batch, cv_upload, dashboard, email_templates, interviews, jobs, master_data, outreach, quiz, scoring, timeline, users
+from app.routers import ai_usage, auth, candidates, cv_batch, cv_upload, dashboard, email_templates, interviews, jobs, master_data, outreach, scoring, timeline, users
 from app.scheduler import start_scheduler
 
 limiter = Limiter(key_func=get_remote_address)
@@ -54,7 +54,6 @@ app.include_router(cv_batch.router, prefix="/api/v1")
 app.include_router(scoring.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(interviews.router, prefix="/api/v1")
-app.include_router(quiz.router, prefix="/api/v1")
 
 app.include_router(outreach.router, prefix="/api/v1")
 app.include_router(ai_usage.router, prefix="/api/v1")

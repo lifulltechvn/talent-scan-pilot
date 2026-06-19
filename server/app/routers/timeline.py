@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import (
-    Candidate, InterviewFeedback, OutreachLog, Quiz, User,
+    Candidate, InterviewFeedback, OutreachLog, User,
 )
 
 router = APIRouter(tags=["candidates"])
@@ -17,7 +17,7 @@ router = APIRouter(tags=["candidates"])
 # --- Timeline ---
 
 class TimelineEvent(BaseModel):
-    type: str  # scanned | scored | quiz_sent | quiz_submitted | interview_booked | email_sent | feedback
+    type: str  # scanned | scored | email_sent | feedback
     title: str
     detail: str | None = None
     timestamp: str
@@ -45,13 +45,6 @@ async def get_timeline(
     score = score_result.scalar_one_or_none()
     if score and score.created_at:
         events.append(TimelineEvent(type="scored", title="Scored", detail=f"Final: {score.final_score}", timestamp=score.created_at.isoformat()))
-
-    # Quizzes
-    quiz_result = await db.execute(select(Quiz).where(Quiz.candidate_id == candidate_id).order_by(Quiz.created_at))
-    for quiz in quiz_result.scalars().all():
-        events.append(TimelineEvent(type="quiz_sent", title="Quiz Sent", detail=quiz.reason, timestamp=quiz.created_at.isoformat()))
-        if quiz.status == "submitted":
-            events.append(TimelineEvent(type="quiz_submitted", title="Quiz Submitted", timestamp=quiz.created_at.isoformat()))
 
     # Emails sent
     email_result = await db.execute(

@@ -67,7 +67,7 @@ export function JobDetailPage() {
   const { t } = useI18n();
   const [outreachModal, setOutreachModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
-  const [quizModal, setQuizModal] = useState(false);
+
   const updateStatus = useUpdateCandidateStatus();
   const updateJob = useUpdateJob();
   const deleteJob = useDeleteJob();
@@ -401,11 +401,6 @@ export function JobDetailPage() {
           updateJob.mutate({ id: id!, data });
           setEditModal(false);
         }} />
-      )}
-
-      {/* Quiz Modal */}
-      {quizModal && (
-        <QuizModal candidates={candidates} onClose={() => setQuizModal(false)} />
       )}
 
       {/* Approve/Reject Action Modal */}
@@ -809,88 +804,6 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
             <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
               {saving ? 'Đang tạo...' : `Đặt lịch Round ${round}`}
             </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function QuizModal({ candidates, onClose }: { candidates: any[]; onClose: () => void }) {
-  const [reason, setReason] = useState('insufficient_data');
-  const [selected, setSelected] = useState<string[]>(candidates.filter(c => c.status === 'new').map(c => c.id));
-  const [sending, setSending] = useState(false);
-  const [results, setResults] = useState<{ name: string; token: string }[]>([]);
-
-  const handleGenerate = async () => {
-    setSending(true);
-    const generated: { name: string; token: string }[] = [];
-    for (const cid of selected) {
-      try {
-        const { data } = await apiClient.post('/quiz/generate', { candidate_id: cid, reason });
-        const c = candidates.find(x => x.id === cid);
-        generated.push({ name: c?.structuredData.name || cid, token: data.token });
-      } catch { /* skip */ }
-    }
-    setResults(generated);
-    setSending(false);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
-          <div className="flex items-center gap-2">
-            <ClipboardCheck size={16} className="text-white" />
-            <h2 className="text-[15px] font-semibold text-white">Generate Quiz</h2>
-          </div>
-          <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
-        </div>
-
-        {results.length > 0 ? (
-          <div className="p-5">
-            <p className="text-[14px] font-medium text-text-primary mb-3">✅ {results.length} quiz(es) generated</p>
-            <div className="space-y-2">
-              {results.map(r => (
-                <div key={r.token} className="flex items-center justify-between p-3 bg-bg-surface rounded-lg">
-                  <span className="text-[13px] text-text-primary">{r.name}</span>
-                  <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/quiz/${r.token}`)} className="text-[12px] text-accent hover:underline">Copy link</button>
-                </div>
-              ))}
-            </div>
-            <button onClick={onClose} className="mt-4 w-full py-2.5 text-[13px] font-medium text-text-secondary bg-bg-surface rounded-lg hover:bg-bg-surface/80">Close</button>
-          </div>
-        ) : (
-          <div className="p-5 space-y-4">
-            {/* Reason */}
-            <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Reason</label>
-              <select value={reason} onChange={e => setReason(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40">
-                <option value="insufficient_data">Insufficient data — verify CV claims</option>
-                <option value="suspected_ai_cv">Suspected AI-generated CV</option>
-              </select>
-            </div>
-
-            {/* Candidate selection */}
-            <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Candidates ({selected.length}/{candidates.length})</label>
-              <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
-                {candidates.map(c => (
-                  <label key={c.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-bg-surface cursor-pointer">
-                    <input type="checkbox" checked={selected.includes(c.id)} onChange={() => setSelected(prev => prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id])} className="w-4 h-4 accent-[var(--color-accent)]" />
-                    <span className="text-[13px] text-text-primary">{c.structuredData.name}</span>
-                    <span className="text-[11px] text-text-muted ml-auto capitalize">{c.status}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button onClick={handleGenerate} disabled={sending || selected.length === 0} className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40 transition-colors">
-                <ClipboardCheck size={14} />
-                {sending ? 'Generating...' : `Generate ${selected.length} Quiz(es)`}
-              </button>
-            </div>
           </div>
         )}
       </div>

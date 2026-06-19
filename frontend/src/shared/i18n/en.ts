@@ -53,8 +53,6 @@ export const en = {
   unreviewedCVs: '{count} CVs not reviewed',
   staleWarning: '{count} waiting over 3 days',
   needsReview: 'Needs review and classification',
-  quizSubmitted: '{count} quizzes submitted — needs evaluation',
-  quizExpiring: '{count} quizzes expiring soon',
   upcomingInterviews: '{count} upcoming interviews',
   pendingBookings: '{count} candidates haven\'t picked interview slot',
   pendingBookingsDesc: 'Link sent but no response yet',
@@ -170,7 +168,6 @@ export const en = {
   sendBefore: 'Send before',
   checkInterval: 'Check interval',
   tokenExpiry: 'Token expiry',
-  quizDeadline: 'Quiz deadline',
 } as const;
 
 export type TranslationKey = keyof typeof en;

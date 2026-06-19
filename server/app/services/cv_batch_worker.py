@@ -34,13 +34,14 @@ def _get_session_factory():
 def start_batch_processing(batch_id: str):
     """Kick off background processing for a batch."""
     import asyncio
+    import threading
 
     def _run():
         loop = asyncio.new_event_loop()
         loop.run_until_complete(_process_batch(batch_id))
         loop.close()
 
-    _executor.submit(_run)
+    threading.Thread(target=_run, daemon=True).start()
 
 
 async def _process_batch(batch_id: str):
@@ -142,7 +143,7 @@ async def _process_item(session_factory, batch_id: str, row):
             # AI processing — synchronous in this worker (so batch tracks real progress)
             try:
                 from app.services.cv_upload import _process_ai_sync, _extract_avatar
-                structured, embedding = _process_ai_sync(masked_text)
+                structured, embedding = _process_ai_sync(masked_text, candidate_id=str(candidate_id))
 
                 # Inject PII back
                 if pii_data:

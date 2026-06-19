@@ -50,8 +50,6 @@ export interface Candidate {
   scannedAt: string;
   createdAt: string;
   updatedAt: string | null;
-  quizStatus: string | null;
-  quizReason: string | null;
 }
 
 export interface Score {

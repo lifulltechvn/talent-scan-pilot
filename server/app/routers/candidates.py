@@ -10,54 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import Candidate, Quiz, User
+from app.models import Candidate, User
 from app.schemas import CandidateCreate, CandidateRead
 from app.services.cv_upload import CV_UPLOAD_DIR
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
-
-# Thresholds for auto-triggering quiz
-QUIZ_LOW_SCORE_THRESHOLD = 50  # final_score < 50 → insufficient_data
-QUIZ_AI_CV_LLM_GAP = 30  # rule_score - llm_score > 30 → suspected_ai_cv
-QUIZ_DEADLINE_HOURS = 48
-
-
-async def _auto_trigger_quiz(candidate_id: uuid.UUID, job_id: uuid.UUID, reason: str, db: AsyncSession):
-    """Auto-generate a quiz for the candidate."""
-    from app.routers.quiz import _generate_questions
-    from app.models import Job, QuizQuestion
-
-    candidate = await db.get(Candidate, candidate_id)
-    job = await db.get(Job, job_id) if job_id else None
-
-    token = secrets.token_urlsafe(32)
-    deadline = datetime.now(timezone.utc) + timedelta(hours=QUIZ_DEADLINE_HOURS)
-
-    quiz = Quiz(
-        candidate_id=candidate_id,
-        job_id=job_id,
-        token=token,
-        reason=reason,
-        deadline=deadline,
-    )
-    db.add(quiz)
-    await db.flush()
-
-    skills = candidate.structured_data.get("skills", [])
-    experience = candidate.structured_data.get("experience", [])
-    job_title = job.title if job else "the position"
-
-    questions = _generate_questions(skills, experience, job_title, reason)
-    for i, q in enumerate(questions):
-        db.add(QuizQuestion(
-            quiz_id=quiz.id,
-            question_type=q["type"],
-            question=q["question"],
-            options=q.get("options"),
-            purpose=q["purpose"],
-            eval_criteria=q["eval_criteria"],
-            sort_order=i,
-        ))
 
 
 @router.post("", response_model=CandidateRead, status_code=status.HTTP_201_CREATED)
@@ -102,16 +59,6 @@ async def create_candidate(
                     details={"matching": match_result, "rule_scoring": score_result["details"], "llm_score": score_result["llm_score"], "llm_summary": score_result.get("llm_summary", "")},
                 )
                 db.add(score_obj)
-
-                # Auto-trigger quiz if needed
-                final = score_result["final_score"]
-                rule = score_result["rule_score"]
-                llm = score_result["llm_score"]
-
-                if final < QUIZ_LOW_SCORE_THRESHOLD:
-                    await _auto_trigger_quiz(candidate.id, candidate.job_id, "insufficient_data", db)
-                elif rule - llm > QUIZ_AI_CV_LLM_GAP:
-                    await _auto_trigger_quiz(candidate.id, candidate.job_id, "suspected_ai_cv", db)
 
                 await db.commit()
                 await db.refresh(candidate)
@@ -170,7 +117,6 @@ async def list_candidates(
     result = await db.execute(q)
     candidates = result.scalars().all()
 
-    # Attach quiz_status
     out = []
     # Batch fetch job titles
     job_ids = {c.job_id for c in candidates if c.job_id}
@@ -180,21 +126,7 @@ async def list_candidates(
         jr = await db.execute(select(Job.id, Job.title).where(Job.id.in_(job_ids)))
         job_titles = {row[0]: row[1] for row in jr.all()}
 
-    # Batch fetch latest quiz per candidate (fix N+1)
-    candidate_ids = [c.id for c in candidates]
-    quiz_map = {}
-    if candidate_ids:
-        from sqlalchemy import text as sql_text
-        quiz_rows = await db.execute(sql_text("""
-            SELECT DISTINCT ON (candidate_id) candidate_id, status, reason
-            FROM quizzes WHERE candidate_id = ANY(:ids)
-            ORDER BY candidate_id, created_at DESC
-        """), {"ids": candidate_ids})
-        for qr in quiz_rows.mappings().all():
-            quiz_map[qr["candidate_id"]] = qr
-
     for c in candidates:
-        quiz = quiz_map.get(c.id)
         out.append({
             "id": c.id, "job_id": c.job_id,
             "job_title": job_titles.get(c.job_id) if c.job_id else None,
@@ -203,8 +135,6 @@ async def list_candidates(
             "source_app_version": c.source_app_version, "scanned_at": c.scanned_at,
             "created_at": c.created_at,
             "updated_at": c.updated_at,
-            "quiz_status": quiz["status"] if quiz else None,
-            "quiz_reason": quiz["reason"] if quiz else None,
         })
     return out
 
@@ -292,11 +222,6 @@ async def get_candidate(
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
-    quiz_q = await db.execute(
-        select(Quiz).where(Quiz.candidate_id == candidate_id).order_by(Quiz.created_at.desc()).limit(1)
-    )
-    quiz = quiz_q.scalar_one_or_none()
-
     # Count matched jobs from Smart Pool
     from sqlalchemy import text as sa_text
     mc = await db.execute(sa_text("SELECT COUNT(*) FROM job_candidates WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
@@ -309,8 +234,6 @@ async def get_candidate(
         "cv_file_path": candidate.cv_file_path,
         "source_app_version": candidate.source_app_version,
         "scanned_at": candidate.scanned_at, "created_at": candidate.created_at,
-        "quiz_status": quiz.status if quiz else None,
-        "quiz_reason": quiz.reason if quiz else None,
         "matched_jobs_count": matched_jobs_count,
     }
 

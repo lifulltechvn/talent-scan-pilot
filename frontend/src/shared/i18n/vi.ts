@@ -55,8 +55,6 @@ export const vi: Record<TranslationKey, string> = {
   unreviewedCVs: '{count} CV chưa review',
   staleWarning: '{count} đã chờ hơn 3 ngày',
   needsReview: 'Cần xem xét và phân loại',
-  quizSubmitted: '{count} quiz đã nộp — cần đánh giá',
-  quizExpiring: '{count} quiz sắp hết hạn',
   upcomingInterviews: '{count} phỏng vấn sắp tới',
   pendingBookings: '{count} ứng viên chưa chọn lịch phỏng vấn',
   pendingBookingsDesc: 'Đã gửi link nhưng chưa có phản hồi',
@@ -172,5 +170,4 @@ export const vi: Record<TranslationKey, string> = {
   sendBefore: 'Gửi trước',
   checkInterval: 'Tần suất kiểm tra',
   tokenExpiry: 'Hết hạn token',
-  quizDeadline: 'Hạn nộp quiz',
 };

@@ -35,8 +35,6 @@ function mapCandidate(raw: any, score?: Score | null): Candidate {
     createdAt: raw.created_at,
     updatedAt: raw.updated_at ?? null,
     jobTitle: raw.job_title ?? null,
-    quizStatus: raw.quiz_status ?? null,
-    quizReason: raw.quiz_reason ?? null,
   };
 }
 

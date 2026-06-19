@@ -15,7 +15,6 @@ const InterviewsPage = lazy(() => import('@/features/interviews/pages/Interviews
 const InterviewerDashboard = lazy(() => import('@/features/interviews/pages/InterviewerDashboard').then(m => ({ default: m.InterviewerDashboard })));
 const SettingsPage = lazy(() => import('@/features/settings/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const CvUploadPage = lazy(() => import('@/features/cv-upload/pages/CvUploadPage').then(m => ({ default: m.CvUploadPage })));
-const QuizPublicPage = lazy(() => import('@/features/quiz/pages/QuizPublicPage').then(m => ({ default: m.QuizPublicPage })));
 
 function LazyLoad({ children }: { children: React.ReactNode }) {
   return (
@@ -56,6 +55,4 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  // Public pages (no auth required)
-  { path: '/quiz/:token', element: <LazyLoad><QuizPublicPage /></LazyLoad> },
 ]);

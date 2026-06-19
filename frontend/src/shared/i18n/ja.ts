@@ -55,8 +55,6 @@ export const ja: Record<TranslationKey, string> = {
   unreviewedCVs: '{count}件のCVが未レビュー',
   staleWarning: '{count}件が3日以上待機中',
   needsReview: 'レビューと分類が必要',
-  quizSubmitted: '{count}件のクイズ提出済み — 評価が必要',
-  quizExpiring: '{count}件のクイズが期限間近',
   upcomingInterviews: '{count}件の面接予定',
   pendingBookings: '{count}名の候補者が面接枠を未選択',
   pendingBookingsDesc: 'リンク送信済みだが未回答',
@@ -172,5 +170,4 @@ export const ja: Record<TranslationKey, string> = {
   sendBefore: '事前送信',
   checkInterval: 'チェック間隔',
   tokenExpiry: 'トークン有効期限',
-  quizDeadline: 'クイズ締切',
 };

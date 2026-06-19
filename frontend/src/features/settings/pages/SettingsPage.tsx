@@ -108,7 +108,6 @@ export function SettingsPage() {
           </Section>
           <Section icon={Shield} title="Security" description="Authentication settings">
             <Row label="Token expiry" value="30 minutes" />
-            <Row label="Quiz deadline" value="48 hours" />
           </Section>
         </div>
       )}
@@ -504,7 +503,6 @@ function featureColor(feature: string): string {
     embedding: 'bg-purple-100 text-purple-700',
     scoring: 'bg-amber-100 text-amber-700',
     ocr: 'bg-rose-100 text-rose-700',
-    quiz: 'bg-emerald-100 text-emerald-700',
     outreach: 'bg-cyan-100 text-cyan-700',
     jd_import: 'bg-indigo-100 text-indigo-700',
     jd_generate: 'bg-indigo-100 text-indigo-700',

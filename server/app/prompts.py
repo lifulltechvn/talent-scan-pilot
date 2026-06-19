@@ -96,45 +96,6 @@ Give a brief recommendation based strictly on the data above:
 
 Do not fabricate details not present in the data. Be concise and actionable. Reply in Vietnamese."""
 
-# --- Quiz Generation ---
-
-QUIZ_GENERATE_PROMPT = """Generate 5 personalized verification questions for a candidate.
-
-Candidate skills: {skills}
-Latest role: {latest_role}
-Job position: {job_title}
-Reason for quiz: {reason}
-
-Requirements:
-- Mix of question types: 1 radio, 1 checkbox, 3 text
-- Questions must reference specific skills from the CV
-- Text questions should require concrete details (numbers, timelines, specific tools)
-- If reason is "suspected_ai_cv", add questions that are hard to answer without real experience
-- Each question needs eval_criteria for automated evaluation
-- Keep questions under 50 words each"""
-
-# --- Quiz Evaluation ---
-
-QUIZ_EVAL_PROMPT = """Evaluate these quiz responses for candidate credibility.
-Quiz reason: {reason}
-
-<QUIZ_RESPONSES>
-{qa_text}
-</QUIZ_RESPONSES>
-
-Evaluation criteria:
-- Credible (70-100): Specific details, numbers, tool names, timelines, concrete examples
-- Suspicious (30-69): Vague or generic answers, buzzwords without specifics, inconsistencies
-- Insufficient (0-29): Empty, off-topic, or clearly copied generic text
-
-Example of credible answer: "I used Redis with 50ms TTL for session caching, handling ~10K RPM on 3 nodes"
-Example of suspicious answer: "I have extensive experience with caching solutions in production"
-
-Reply in this exact format:
-SCORE: <0-100 credibility score>
-VERDICT: <credible / suspicious / insufficient>
-REASON: <one sentence explanation, max 30 words>"""
-
 # --- Outreach Email ---
 
 OUTREACH_PROMPT = """Write a short, warm outreach email to a candidate.

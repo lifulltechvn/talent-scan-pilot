@@ -99,53 +99,6 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class Quiz(Base):
-    __tablename__ = "quizzes"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    candidate_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("candidates.id"))
-    job_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("jobs.id"), nullable=True)
-    token: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    reason: Mapped[str] = mapped_column(String(50))  # insufficient_data / suspected_ai_cv
-    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending / submitted / evaluated / expired
-    deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    credibility_score: Mapped[float | None] = mapped_column(Float)
-    ai_evaluation: Mapped[dict | None] = mapped_column(JSONB)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    questions = relationship("QuizQuestion", back_populates="quiz", order_by="QuizQuestion.sort_order")
-    candidate = relationship("Candidate")
-    job = relationship("Job")
-
-
-class QuizQuestion(Base):
-    __tablename__ = "quiz_questions"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    quiz_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("quizzes.id"))
-    question_type: Mapped[str] = mapped_column(String(30))  # text / radio / checkbox
-    question: Mapped[str] = mapped_column(Text)
-    options: Mapped[list | None] = mapped_column(JSONB, nullable=True)  # for radio/checkbox
-    purpose: Mapped[str | None] = mapped_column(Text)
-    eval_criteria: Mapped[str | None] = mapped_column(Text)
-    sort_order: Mapped[int] = mapped_column(Integer, default=0)
-
-    quiz = relationship("Quiz", back_populates="questions")
-    response = relationship("QuizResponse", back_populates="question", uselist=False)
-
-
-class QuizResponse(Base):
-    __tablename__ = "quiz_responses"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("quiz_questions.id"))
-    answer: Mapped[str] = mapped_column(Text)
-    verdict: Mapped[str | None] = mapped_column(String(20))  # credible / vague / suspicious
-    verdict_reason: Mapped[str | None] = mapped_column(Text)
-    responded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    question = relationship("QuizQuestion", back_populates="response")
-
 
 class OutreachLog(Base):
     __tablename__ = "outreach_logs"
@@ -169,7 +122,7 @@ class AIUsageLog(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     model_id: Mapped[str] = mapped_column(String(100))  # e.g. "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-    feature: Mapped[str] = mapped_column(String(50))  # scoring / quiz / outreach / parsing / embedding / ocr
+    feature: Mapped[str] = mapped_column(String(50))  # scoring / outreach / parsing / embedding / ocr
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)

@@ -66,30 +66,6 @@ export function ActionItemsPanel() {
     });
   }
 
-  // Submitted quizzes awaiting review
-  if (data.submitted_quizzes.length > 0) {
-    tasks.push({
-      icon: FileCheck,
-      iconColor: 'text-emerald-500 bg-emerald-50',
-      title: t('quizSubmitted', { count: data.submitted_quizzes.length }),
-      subtitle: data.submitted_quizzes.map(q => q.candidate_name).slice(0, 2).join(', ') +
-        (data.submitted_quizzes.length > 2 ? ` +${data.submitted_quizzes.length - 2}` : ''),
-      link: '/candidates',
-    });
-  }
-
-  // Expiring quizzes
-  if (data.expiring_quizzes.length > 0) {
-    tasks.push({
-      icon: AlertCircle,
-      iconColor: 'text-amber-500 bg-amber-50',
-      title: t('quizExpiring', { count: data.expiring_quizzes.length }),
-      subtitle: data.expiring_quizzes.map(q => `${q.candidate_name} (${timeUntil(q.deadline)})`).slice(0, 2).join(', '),
-      badge: t('expiring'),
-      badgeColor: 'bg-amber-100 text-amber-700',
-    });
-  }
-
   // Upcoming interviews
   if (data.upcoming_interviews.length > 0) {
     tasks.push({

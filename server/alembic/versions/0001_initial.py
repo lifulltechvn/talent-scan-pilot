@@ -110,45 +110,6 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
-    # Quizzes
-    op.create_table(
-        "quizzes",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("candidate_id", UUID(as_uuid=True), sa.ForeignKey("candidates.id"), nullable=False),
-        sa.Column("job_id", UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=True),
-        sa.Column("token", sa.String(255), unique=True, index=True, nullable=False),
-        sa.Column("reason", sa.String(50), nullable=False),
-        sa.Column("status", sa.String(20), server_default=sa.text("'pending'")),
-        sa.Column("deadline", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("credibility_score", sa.Float, nullable=True),
-        sa.Column("ai_evaluation", JSONB, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-    )
-
-    # Quiz Questions
-    op.create_table(
-        "quiz_questions",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("quiz_id", UUID(as_uuid=True), sa.ForeignKey("quizzes.id"), nullable=False),
-        sa.Column("question_type", sa.String(30), nullable=False),
-        sa.Column("question", sa.Text, nullable=False),
-        sa.Column("options", JSONB, nullable=True),
-        sa.Column("purpose", sa.Text, nullable=True),
-        sa.Column("eval_criteria", sa.Text, nullable=True),
-        sa.Column("sort_order", sa.Integer, server_default="0"),
-    )
-
-    # Quiz Responses
-    op.create_table(
-        "quiz_responses",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("question_id", UUID(as_uuid=True), sa.ForeignKey("quiz_questions.id"), nullable=False),
-        sa.Column("answer", sa.Text, nullable=False),
-        sa.Column("verdict", sa.String(20), nullable=True),
-        sa.Column("verdict_reason", sa.Text, nullable=True),
-        sa.Column("responded_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-    )
-
     # Outreach Logs
     op.create_table(
         "outreach_logs",
@@ -294,9 +255,6 @@ def downgrade() -> None:
     op.drop_table("interview_feedback")
     op.drop_table("ai_usage_logs")
     op.drop_table("outreach_logs")
-    op.drop_table("quiz_responses")
-    op.drop_table("quiz_questions")
-    op.drop_table("quizzes")
     op.drop_table("audit_logs")
     op.drop_table("job_candidates")
     op.drop_table("scores")

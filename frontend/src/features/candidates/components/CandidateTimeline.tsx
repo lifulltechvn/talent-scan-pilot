@@ -12,8 +12,6 @@ interface TimelineEvent {
 const iconMap: Record<string, { icon: typeof FileText; color: string; bg: string }> = {
   scanned: { icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
   scored: { icon: Star, color: 'text-amber-600', bg: 'bg-amber-50' },
-  quiz_sent: { icon: ClipboardCheck, color: 'text-purple-600', bg: 'bg-purple-50' },
-  quiz_submitted: { icon: ClipboardCheck, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   interview_booked: { icon: CalendarCheck, color: 'text-blue-600', bg: 'bg-blue-50' },
   email_sent: { icon: Mail, color: 'text-accent', bg: 'bg-orange-50' },
   feedback: { icon: MessageSquare, color: 'text-emerald-600', bg: 'bg-emerald-50' },

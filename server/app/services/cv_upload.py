@@ -101,27 +101,24 @@ def _parse_cv_text(text: str, candidate_id: str | None = None) -> dict:
                 "email": {"type": "string"},
                 "phone": {"type": "string"},
                 "skills": {"type": "array", "items": {"type": "string"}},
-                "experience": {"type": "array", "items": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}, "duration": {"type": "string"}, "description": {"type": "string", "description": "Key responsibilities and achievements in 1-2 sentences"}}}},
+                "experience": {"type": "array", "items": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}, "duration": {"type": "string"}, "description": {"type": "string"}}}},
                 "education": {"type": "array", "items": {"type": "object", "properties": {"school": {"type": "string"}, "degree": {"type": "string"}, "major": {"type": "string"}, "year": {"type": "string"}}}},
-                "certifications": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "issuer": {"type": "string"}, "year": {"type": "string"}}}},
+                "certifications": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "issuer": {"type": "string"}}}},
                 "languages": {"type": "array", "items": {"type": "object", "properties": {"language": {"type": "string"}, "level": {"type": "string"}}}},
-                "hometown": {"type": "string", "description": "City/province of origin or current address"},
-                "activities": {"type": "array", "items": {"type": "string"}, "description": "Volunteer work, community activities, personal projects, hobbies"},
                 "experience_years": {"type": "number"},
-                "expected_salary": {"type": "string"},
-                "insight": {"type": "object", "properties": {"strengths": {"type": "string"}, "weaknesses": {"type": "string"}, "recommendation": {"type": "string"}}},
+                "insight": {"type": "object", "properties": {"strengths": {"type": "string"}, "weaknesses": {"type": "string"}}},
             },
-            "required": ["name", "skills", "experience", "education", "experience_years", "insight"],
+            "required": ["name", "skills", "experience", "education", "experience_years"],
         },
     }]
     from app.prompts import CV_PARSE_SYSTEM, CV_PARSE_USER
     from app.injection_guard import sanitize_for_llm
 
-    cleaned = _clean_text(text)[:4000]
+    cleaned = _clean_text(text)[:2500]
     safe_text = sanitize_for_llm(cleaned, "CV_CONTENT")
     body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 2048,
+        "max_tokens": 1024,
         "temperature": 0,
         "system": CV_PARSE_SYSTEM,
         "messages": [{"role": "user", "content": CV_PARSE_USER.format(text=safe_text)}],
@@ -145,7 +142,7 @@ def _process_ai_sync(masked_text: str, candidate_id: str | None = None) -> tuple
 
     # Run parse and embed in parallel
     # Embed uses raw text (first 500 chars) — doesn't need parsed output
-    embed_input = masked_text[:500]
+    embed_input = masked_text[:300]
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         parse_future = pool.submit(_parse_cv_text, masked_text, candidate_id)
