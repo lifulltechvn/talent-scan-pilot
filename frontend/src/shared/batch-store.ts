@@ -62,10 +62,25 @@ function restore() {
   try {
     const saved = localStorage.getItem('active_batch');
     if (saved) {
-      currentBatch = JSON.parse(saved);
-      if (currentBatch && currentBatch.status !== 'done') {
-        startPolling(currentBatch.batchId);
+      const parsed = JSON.parse(saved);
+      if (!parsed || parsed.status === 'done') {
+        localStorage.removeItem('active_batch');
+        return;
       }
+      currentBatch = null; // Don't show until verified
+      // Verify batch still exists on server
+      apiClient.get(`/cv/batch/${parsed.batchId}`).then(({ data }) => {
+        if (data && data.status !== 'done') {
+          currentBatch = { batchId: data.batch_id, totalFiles: data.total_files, processed: data.processed, duplicates: data.duplicates, errors: data.errors, status: data.status };
+          localStorage.setItem('active_batch', JSON.stringify(currentBatch));
+          emit();
+          startPolling(parsed.batchId);
+        } else {
+          clearBatch();
+        }
+      }).catch(() => {
+        clearBatch();
+      });
     }
   } catch { /* ignore */ }
 }
