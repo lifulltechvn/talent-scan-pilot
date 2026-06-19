@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone, Eye, Globe } from 'lucide-react';
+import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone, Eye, Globe, AlertTriangle } from 'lucide-react';
 import { useCandidate, useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -180,27 +180,38 @@ export function CandidateDetailPage() {
         <div className="flex-1 min-w-0">
 
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-5">
+        {/* Missing Info Warning */}
+        <MissingInfoPanel data={d} />
+
         {/* AI Insight */}
+        {d.insight && (d.insight.strengths || d.insight.weaknesses) && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles size={16} className="text-accent" />
             <h2 className="text-sm font-medium text-text-primary">AI Insight</h2>
           </div>
           <div className="space-y-3">
+            {d.insight.strengths && (
             <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
               <span className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{t("strengths")}</span>
               <p className="text-[13px] text-emerald-800 mt-1">{d.insight.strengths}</p>
             </div>
+            )}
+            {d.insight.weaknesses && (
             <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
               <span className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">{t("weaknesses")}</span>
               <p className="text-[13px] text-amber-800 mt-1">{d.insight.weaknesses}</p>
             </div>
+            )}
+            {d.insight.recommendation && (
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
               <span className="text-[11px] font-medium text-blue-700 uppercase tracking-wider">{t("recommendation")}</span>
               <p className="text-[13px] text-blue-800 mt-1">{d.insight.recommendation}</p>
             </div>
+            )}
           </div>
         </div>
+        )}
 
         {/* Profile */}
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
@@ -275,13 +286,15 @@ export function CandidateDetailPage() {
                 </div>
               </div>
             )}
+            {Array.isArray(d.languages) && d.languages.filter(l => l.language && l.language !== 'null').length > 0 && (
             <div className="flex items-center gap-1.5">
               <Languages size={13} className="text-text-muted" />
               <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider mr-2">{t("languages")}</span>
-              {d.languages.map(l => (
-                <span key={l.language} className="text-[11px] bg-bg-surface text-text-secondary px-2 py-0.5 rounded">{l.language}{l.level && l.level !== '<UNKNOWN>' ? ` (${l.level})` : ''}</span>
+              {d.languages.filter(l => l.language && l.language !== 'null').map(l => (
+                <span key={l.language} className="text-[11px] bg-bg-surface text-text-secondary px-2 py-0.5 rounded">{l.language}{l.level && l.level !== '<UNKNOWN>' && l.level !== 'null' ? ` (${l.level})` : ''}</span>
               ))}
             </div>
+            )}
             {d.expectedSalary && (
               <div className="flex items-center gap-1.5">
                 <DollarSign size={13} className="text-text-muted" />
@@ -332,10 +345,10 @@ export function CandidateDetailPage() {
 
             <div className="space-y-2 text-[12px] text-text-secondary border-t border-border-subtle pt-3 mb-4">
               <div className="flex items-center gap-2"><Briefcase size={12} className="text-text-muted" /> {d.totalYearsExperience}y experience</div>
-              {d.hometown && <div className="flex items-center gap-2"><MapPin size={12} className="text-text-muted" /> {d.hometown}</div>}
-              <div className="flex items-center gap-2"><Languages size={12} className="text-text-muted" /> {d.languages.map(l => l.language).join(', ')}</div>
-              {d.email && d.email !== '<UNKNOWN>' && <div className="flex items-center gap-2"><Mail size={12} className="text-text-muted" /> <span className="truncate">{d.email}</span></div>}
-              {d.phone && d.phone !== '<UNKNOWN>' && <div className="flex items-center gap-2"><Phone size={12} className="text-text-muted" /> {d.phone}</div>}
+              {d.hometown && d.hometown !== 'null' && <div className="flex items-center gap-2"><MapPin size={12} className="text-text-muted" /> {d.hometown}</div>}
+              {Array.isArray(d.languages) && d.languages.filter(l => l.language && l.language !== 'null').length > 0 && <div className="flex items-center gap-2"><Languages size={12} className="text-text-muted" /> {d.languages.filter(l => l.language && l.language !== 'null').map(l => l.language).join(', ')}</div>}
+              {d.email && d.email !== '<UNKNOWN>' && d.email !== 'null' && <div className="flex items-center gap-2"><Mail size={12} className="text-text-muted" /> <span className="truncate">{d.email}</span></div>}
+              {d.phone && d.phone !== '<UNKNOWN>' && d.phone !== 'null' && <div className="flex items-center gap-2"><Phone size={12} className="text-text-muted" /> {d.phone}</div>}
               {d.profile_urls?.length > 0 && d.profile_urls.map((url: string, i: number) => (
                 <div key={i} className="flex items-center gap-2"><Globe size={12} className="text-text-muted" /> <a href={url} target="_blank" className="text-accent text-[11px] hover:underline truncate">{url.replace(/https?:\/\/(www\.)?/, '')}</a></div>
               ))}
@@ -587,3 +600,34 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
 }
 
 
+
+function MissingInfoPanel({ data }: { data: any }) {
+  const missing: string[] = [];
+  const isEmpty = (v: any) => !v || v === 'null' || v === '<UNKNOWN>';
+  if (isEmpty(data.email)) missing.push('Email');
+  if (isEmpty(data.phone)) missing.push('Số điện thoại');
+  if (!Array.isArray(data.skills) || data.skills.length === 0) missing.push('Skills');
+  if (!Array.isArray(data.experience) || data.experience.length === 0) missing.push('Kinh nghiệm làm việc');
+  if (!Array.isArray(data.education) || data.education.length === 0) missing.push('Học vấn');
+  if (!data.totalYearsExperience) missing.push('Số năm kinh nghiệm');
+  if (!Array.isArray(data.languages) || data.languages.filter((l: any) => l.language && l.language !== 'null').length === 0) missing.push('Ngôn ngữ');
+  if (isEmpty(data.expectedSalary)) missing.push('Mức lương mong muốn');
+  if (isEmpty(data.avatar)) missing.push('Ảnh chân dung');
+
+  if (missing.length === 0) return null;
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <AlertTriangle size={15} className="text-amber-600" />
+        <span className="text-[13px] font-medium text-amber-800">Thông tin còn thiếu ({missing.length})</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {missing.map(m => (
+          <span key={m} className="text-[11px] px-2 py-1 bg-amber-100 text-amber-700 rounded-md font-medium">{m}</span>
+        ))}
+      </div>
+      <p className="text-[11px] text-amber-600 mt-2">HR cần xác minh hoặc yêu cầu ứng viên bổ sung các thông tin trên.</p>
+    </div>
+  );
+}
