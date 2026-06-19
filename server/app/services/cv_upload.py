@@ -9,6 +9,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy import select
 
 from app.bedrock import get_bedrock_client, get_embedding, _log_usage
 from app.config import settings
@@ -64,7 +65,7 @@ def _clean_text(text: str) -> str:
     return text.strip()
 
 
-def _ocr_scanned_pdf(file_bytes: bytes) -> str:
+def _ocr_scanned_pdf(file_bytes: bytes, candidate_id: str | None = None) -> str:
     """OCR a scanned PDF using Claude Sonnet Vision."""
     client = get_bedrock_client()
     b64 = base64.b64encode(file_bytes).decode()
@@ -83,11 +84,11 @@ def _ocr_scanned_pdf(file_bytes: bytes) -> str:
     response = client.invoke_model(modelId=settings.BEDROCK_MODEL_SONNET, body=json.dumps(body))
     result = json.loads(response["body"].read())
     usage = result.get("usage", {})
-    _log_usage(settings.BEDROCK_MODEL_SONNET, "ocr", usage.get("input_tokens", 0), usage.get("output_tokens", 0))
+    _log_usage(settings.BEDROCK_MODEL_SONNET, "ocr", usage.get("input_tokens", 0), usage.get("output_tokens", 0), candidate_id=candidate_id)
     return result["content"][0]["text"]
 
 
-def _parse_cv_text(text: str) -> dict:
+def _parse_cv_text(text: str, candidate_id: str | None = None) -> dict:
     """Parse CV text into structured data using Claude Haiku with tool_use."""
     client = get_bedrock_client()
     tools = [{
@@ -130,14 +131,14 @@ def _parse_cv_text(text: str) -> dict:
     response = client.invoke_model(modelId=settings.BEDROCK_MODEL_HAIKU, body=json.dumps(body))
     result = json.loads(response["body"].read())
     usage = result.get("usage", {})
-    _log_usage(settings.BEDROCK_MODEL_HAIKU, "cv_parsing", usage.get("input_tokens", 0), usage.get("output_tokens", 0))
+    _log_usage(settings.BEDROCK_MODEL_HAIKU, "cv_parsing", usage.get("input_tokens", 0), usage.get("output_tokens", 0), candidate_id=candidate_id)
     for block in result["content"]:
         if block["type"] == "tool_use":
             return block["input"]
     return {}
 
 
-def _process_ai_sync(masked_text: str) -> tuple[dict, list[float] | None]:
+def _process_ai_sync(masked_text: str, candidate_id: str | None = None) -> tuple[dict, list[float] | None]:
     """Run AI parsing + embedding in parallel."""
     from app.cv_validator import validate_and_normalize
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -147,8 +148,8 @@ def _process_ai_sync(masked_text: str) -> tuple[dict, list[float] | None]:
     embed_input = masked_text[:500]
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        parse_future = pool.submit(_parse_cv_text, masked_text)
-        embed_future = pool.submit(get_embedding, embed_input)
+        parse_future = pool.submit(_parse_cv_text, masked_text, candidate_id)
+        embed_future = pool.submit(get_embedding, embed_input, candidate_id=candidate_id)
 
         structured = parse_future.result()
         structured, confidence = validate_and_normalize(structured)
@@ -172,9 +173,9 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
         try:
             text = masked_text
             if is_scanned and file_bytes:
-                text = _ocr_scanned_pdf(file_bytes)
+                text = _ocr_scanned_pdf(file_bytes, candidate_id=candidate_id)
 
-            structured, embedding = _process_ai_sync(text)
+            structured, embedding = _process_ai_sync(text, candidate_id=candidate_id)
 
             # Inject real PII back AFTER AI parsing (AI only saw masked text)
             if pii_data:

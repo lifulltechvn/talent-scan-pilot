@@ -352,7 +352,7 @@ function NotesModal({ interview, onClose, onSaved }: { interview: MyInterview; o
 function DecisionModal({ interview, onClose, onSaved }: { interview: MyInterview; onClose: () => void; onSaved: () => void }) {
   const [score, setScore] = useState(3);
   const [decision, setDecision] = useState('pass');
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(interview.feedback_notes || '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {

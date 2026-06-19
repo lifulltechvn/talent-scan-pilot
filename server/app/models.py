@@ -147,38 +147,6 @@ class QuizResponse(Base):
     question = relationship("QuizQuestion", back_populates="response")
 
 
-class ScheduleSlot(Base):
-    __tablename__ = "schedule_slots"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id"))
-    slot_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    slot_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    max_candidates: Mapped[int] = mapped_column(Integer, default=1)
-    booked_count: Mapped[int] = mapped_column(Integer, default=0)
-    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    job = relationship("Job")
-    bookings = relationship("ScheduleBooking", back_populates="slot")
-
-
-class ScheduleBooking(Base):
-    __tablename__ = "schedule_bookings"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    candidate_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("candidates.id"))
-    slot_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("schedule_slots.id"), nullable=True)
-    token: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending / booked / cancelled
-    reminder_sent: Mapped[bool] = mapped_column(default=False)
-    booked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    slot = relationship("ScheduleSlot", back_populates="bookings")
-    candidate = relationship("Candidate")
-
-
 class OutreachLog(Base):
     __tablename__ = "outreach_logs"
 
@@ -205,6 +173,7 @@ class AIUsageLog(Base):
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    candidate_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     source: Mapped[str] = mapped_column(String(20), default="server")  # server / desktop
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

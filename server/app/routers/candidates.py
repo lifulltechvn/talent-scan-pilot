@@ -493,48 +493,5 @@ async def get_notes(
     ]
 
 
-@router.delete("/{candidate_id}/erase")
-async def gdpr_erase_candidate(
-    candidate_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """GDPR erasure: permanently delete all candidate data including CV file."""
-    from sqlalchemy import text as sql_text
-    import os
-
-    candidate = (await db.execute(select(Candidate).where(Candidate.id == candidate_id))).scalar_one_or_none()
-    if not candidate:
-        raise HTTPException(404, "Candidate not found")
-
-    # Delete CV file from disk
-    if candidate.cv_file_path:
-        full_path = os.path.join(CV_UPLOAD_DIR, candidate.cv_file_path)
-        if os.path.exists(full_path):
-            os.remove(full_path)
-
-    # Delete avatar
-    avatar_path = os.path.join("/app/uploads/avatars", f"{candidate_id}.jpg")
-    if os.path.exists(avatar_path):
-        os.remove(avatar_path)
-
-    # Cascade delete related data
-    cid = str(candidate_id)
-    await db.execute(sql_text("UPDATE cv_batch_items SET duplicate_of = NULL WHERE duplicate_of = :cid"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM cv_batch_items WHERE candidate_id = :cid"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM quiz_responses WHERE question_id IN (SELECT id FROM quiz_questions WHERE quiz_id IN (SELECT id FROM quizzes WHERE candidate_id = :cid))"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM quiz_questions WHERE quiz_id IN (SELECT id FROM quizzes WHERE candidate_id = :cid)"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM quizzes WHERE candidate_id = :cid"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM scores WHERE candidate_id = :cid"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM job_candidates WHERE candidate_id = :cid"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM schedule_bookings WHERE candidate_id = :cid"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM outreach_logs WHERE candidate_id = :cid"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM interview_feedback WHERE candidate_id = :cid"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM interviews WHERE candidate_id = :cid"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM audit_logs WHERE entity_type = 'candidate' AND entity_id = :cid"), {"cid": cid})
-    await db.execute(sql_text("DELETE FROM candidates WHERE id = :cid"), {"cid": cid})
-
-    await db.commit()
-    return {"status": "erased", "candidate_id": cid}
 
 

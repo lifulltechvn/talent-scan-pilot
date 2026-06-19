@@ -209,10 +209,10 @@ export function CandidateDetailPage() {
             <div>
               <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t("skills")}</span>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
-                {d.skills.map(s => <span key={s} className="text-[11px] bg-accent/10 text-accent px-2 py-0.5 rounded-md font-medium">{s}</span>)}
+                {Array.isArray(d.skills) && d.skills.map(s => <span key={s} className="text-[11px] bg-accent/10 text-accent px-2 py-0.5 rounded-md font-medium">{s}</span>)}
               </div>
             </div>
-            {d.experience.length > 0 && (
+            {Array.isArray(d.experience) && d.experience.length > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Briefcase size={13} className="text-text-muted" />
@@ -227,7 +227,7 @@ export function CandidateDetailPage() {
                 ))}
               </div>
             )}
-            {d.education.length > 0 && (
+            {Array.isArray(d.education) && d.education.length > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <GraduationCap size={13} className="text-text-muted" />
@@ -241,7 +241,7 @@ export function CandidateDetailPage() {
                 ))}
               </div>
             )}
-            {d.certifications?.length > 0 && (
+            {Array.isArray(d.certifications) && d.certifications.length > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Award size={13} className="text-text-muted" />
@@ -262,7 +262,7 @@ export function CandidateDetailPage() {
                 <span className="text-[13px] text-text-primary">{d.hometown}</span>
               </div>
             )}
-            {d.activities?.length > 0 && (
+            {Array.isArray(d.activities) && d.activities.length > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Heart size={13} className="text-text-muted" />
@@ -376,15 +376,7 @@ export function CandidateDetailPage() {
                   </button>
                 </div>
               )}
-              <button onClick={async () => {
-                const ok = await confirm({ title: 'GDPR Erase', message: 'This will permanently delete ALL data for this candidate (CV, scores, notes). This cannot be undone.', confirmLabel: 'Erase permanently', variant: 'danger' });
-                if (!ok) return;
-                await apiClient.delete(`/candidates/${candidate.id}/erase`);
-                toast('success', 'Candidate data erased');
-                navigate('/candidates');
-              }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-red-400 border border-red-200 rounded-lg hover:bg-red-50 transition-colors mt-2">
-                <Trash2 size={14} /> GDPR Erase
-              </button>
+
             </div>
           </div>
         </div>
@@ -593,3 +585,5 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
     </div>
   );
 }
+
+

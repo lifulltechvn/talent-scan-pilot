@@ -38,7 +38,7 @@ async def match_and_score_candidates(
         cand_embedding = cand.embedding
         if cand_embedding is None:
             cand_text = " ".join(cand.structured_data.get("skills", []))
-            cand_embedding = get_embedding(cand_text)
+            cand_embedding = get_embedding(cand_text, candidate_id=str(cand.id))
 
         # Matching (cosine + keyword)
         cand_skills = cand.structured_data.get("skills", [])
@@ -51,6 +51,7 @@ async def match_and_score_candidates(
             required_years=cand.structured_data.get("required_years"),
             required_education=cand.structured_data.get("required_education"),
             job_title=job.title,
+            candidate_id=str(cand.id),
         )
 
         final_score = score_result["final_score"]

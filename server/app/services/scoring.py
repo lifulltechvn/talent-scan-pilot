@@ -54,7 +54,7 @@ def classify_candidate(final_score: float) -> str:
     return "bronze"
 
 
-def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str] | None = None) -> tuple[float, str]:
+def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str] | None = None, candidate_id: str | None = None) -> tuple[float, str]:
     """Use Claude Haiku to evaluate candidate (0-100 score + summary)."""
     from app.prompts import SCORING_PROMPT
 
@@ -73,7 +73,7 @@ def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str
     )
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="scoring")
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="scoring", candidate_id=candidate_id)
         lines = result.strip().split("\n")
         score = 60.0
         summary = result.strip()
@@ -114,6 +114,7 @@ def compute_rule_score(
     required_education: str | None = None,
     job_title: str = "",
     use_llm: bool = True,
+    candidate_id: str | None = None,
 ) -> dict:
     """
     Compute hybrid score: Rule-based 70% + LLM 30%.
@@ -147,7 +148,7 @@ def compute_rule_score(
     llm_score = 60.0
     llm_summary = ""
     if use_llm:
-        llm_score, llm_summary = llm_evaluate(candidate_data, job_title, job_skills)
+        llm_score, llm_summary = llm_evaluate(candidate_data, job_title, job_skills, candidate_id=candidate_id)
 
     # Final: 70% rule + 30% LLM
     final_score = round(rule_score * 0.7 + llm_score * 0.3, 2)

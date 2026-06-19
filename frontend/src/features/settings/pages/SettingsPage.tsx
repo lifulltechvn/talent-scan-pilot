@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Mail, Bell, Shield, Save, Check } from 'lucide-react';
+import { Settings as SettingsIcon, Mail, Bell, Shield, Save, Check, Activity } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
 import { useI18n } from '@/shared/i18n';
 import { TagInput } from '@/shared/components/ui/TagInput';
@@ -51,7 +51,7 @@ function ChangePasswordForm() {
 
 export function SettingsPage() {
   const { t } = useI18n();
-  const [tab, setTab] = useState<'general' | 'templates' | 'master' | 'users'>('general');
+  const [tab, setTab] = useState<'general' | 'templates' | 'master' | 'users' | 'ai-monitor'>('general');
   const [templates, setTemplates] = useState<Template[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<Template | null>(null);
@@ -90,6 +90,7 @@ export function SettingsPage() {
         <button onClick={() => setTab('templates')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'templates' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Email Templates</button>
         <button onClick={() => setTab('master')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'master' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Master Data</button>
         <button onClick={() => setTab('users')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'users' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Users</button>
+        <button onClick={() => setTab('ai-monitor')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'ai-monitor' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>AI Monitor</button>
       </div>
 
       {tab === 'general' && (
@@ -166,6 +167,9 @@ export function SettingsPage() {
       )}
       {tab === 'users' && (
         <UserManagement />
+      )}
+      {tab === 'ai-monitor' && (
+        <AIMonitor />
       )}
     </div>
   );
@@ -315,6 +319,213 @@ function MasterDataEditor() {
       </div>
     </div>
   );
+}
+
+function AIMonitor() {
+  const [days, setDays] = useState(30);
+  const [summary, setSummary] = useState<any>(null);
+  const [daily, setDaily] = useState<any[]>([]);
+  const [perCandidate, setPerCandidate] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      apiClient.get(`/ai-usage/summary?days=${days}`),
+      apiClient.get(`/ai-usage/daily?days=${Math.min(days, 90)}`),
+      apiClient.get(`/ai-usage/per-candidate?days=${days}`),
+      apiClient.get(`/ai-usage/logs?days=${days}`),
+    ]).then(([s, d, c, l]) => { setSummary(s.data); setDaily(d.data); setPerCandidate(c.data); setLogs(l.data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [days]);
+
+  if (loading) return <div className="text-[13px] text-text-muted py-4">Loading...</div>;
+  if (!summary) return <div className="text-[13px] text-text-muted py-4">No data</div>;
+
+  return (
+    <div className="space-y-4">
+      {/* Period selector */}
+      <div className="flex items-center gap-2">
+        <span className="text-[12px] text-text-muted">Period:</span>
+        {[7, 30, 90].map(d => (
+          <button key={d} onClick={() => setDays(d)} className={`px-3 py-1 text-[12px] font-medium rounded-md ${days === d ? 'bg-accent text-white' : 'bg-bg-surface text-text-muted hover:text-text-secondary'}`}>{d}d</button>
+        ))}
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-4 gap-3">
+        <SummaryCard label="Total Calls" value={summary.total.calls.toLocaleString()} />
+        <SummaryCard label="Input Tokens" value={formatTokens(summary.total.input_tokens)} />
+        <SummaryCard label="Output Tokens" value={formatTokens(summary.total.output_tokens)} />
+        <SummaryCard label="Total Cost" value={`$${summary.total.cost_usd.toFixed(4)}`} />
+      </div>
+
+      {/* Full Activity Log */}
+      {logs.length > 0 && (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+          <h3 className="text-sm font-medium text-text-primary mb-3">AI Activity Log ({logs.length} calls)</h3>
+          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+            <table className="w-full text-[11px]">
+              <thead className="sticky top-0 bg-bg-panel">
+                <tr className="border-b border-border-subtle text-left text-text-muted uppercase">
+                  <th className="pb-2 pr-3">Thời gian</th>
+                  <th className="pb-2 pr-3">Feature</th>
+                  <th className="pb-2 pr-3">Model</th>
+                  <th className="pb-2 pr-3">Candidate</th>
+                  <th className="pb-2 pr-3 text-right">Input</th>
+                  <th className="pb-2 pr-3 text-right">Output</th>
+                  <th className="pb-2 text-right">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((l: any) => (
+                  <tr key={l.id} className="border-b border-border-subtle last:border-0 hover:bg-bg-surface/50">
+                    <td className="py-1.5 pr-3 text-text-muted whitespace-nowrap">{l.created_at ? new Date(l.created_at).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}</td>
+                    <td className="py-1.5 pr-3"><span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${featureColor(l.feature)}`}>{l.feature}</span></td>
+                    <td className="py-1.5 pr-3 text-text-secondary">{l.model.replace(/-v\d.*/, '')}</td>
+                    <td className="py-1.5 pr-3 text-text-primary">{l.candidate_name || <span className="text-text-muted">—</span>}</td>
+                    <td className="py-1.5 pr-3 text-right text-text-secondary">{l.input_tokens.toLocaleString()}</td>
+                    <td className="py-1.5 pr-3 text-right text-text-secondary">{l.output_tokens.toLocaleString()}</td>
+                    <td className="py-1.5 text-right font-medium text-text-primary">${l.cost_usd.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Daily breakdown table */}
+      {daily.length > 0 && (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+          <h3 className="text-sm font-medium text-text-primary mb-3">Daily Breakdown</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="border-b border-border-subtle text-left text-text-muted uppercase">
+                  <th className="pb-2 pr-4">Date</th>
+                  <th className="pb-2 pr-4">Calls</th>
+                  <th className="pb-2 pr-4">Input Tokens</th>
+                  <th className="pb-2 pr-4">Output Tokens</th>
+                  <th className="pb-2">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {daily.slice().reverse().map(d => (
+                  <tr key={d.date} className="border-b border-border-subtle last:border-0">
+                    <td className="py-2 pr-4 text-text-secondary">{d.date}</td>
+                    <td className="py-2 pr-4 text-text-primary font-medium">{d.calls}</td>
+                    <td className="py-2 pr-4 text-text-secondary">{formatTokens(d.input_tokens)}</td>
+                    <td className="py-2 pr-4 text-text-secondary">{formatTokens(d.output_tokens)}</td>
+                    <td className="py-2 font-medium text-text-primary">${d.cost_usd.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Per Candidate cost */}
+      {perCandidate.length > 0 && (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+          <h3 className="text-sm font-medium text-text-primary mb-3">Cost per Candidate</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="border-b border-border-subtle text-left text-text-muted uppercase">
+                  <th className="pb-2 pr-4">Candidate</th>
+                  <th className="pb-2 pr-4">AI Calls</th>
+                  <th className="pb-2 pr-4">Tokens</th>
+                  <th className="pb-2">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {perCandidate.map(c => (
+                  <tr key={c.candidate_id} className="border-b border-border-subtle last:border-0">
+                    <td className="py-2 pr-4 text-text-primary font-medium">{c.candidate_name}</td>
+                    <td className="py-2 pr-4 text-text-secondary">{c.calls}</td>
+                    <td className="py-2 pr-4 text-text-secondary">{formatTokens(c.input_tokens + c.output_tokens)}</td>
+                    <td className="py-2 font-medium text-text-primary">${c.cost_usd.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* By Feature */}
+      {summary.by_feature.length > 0 && (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+          <h3 className="text-sm font-medium text-text-primary mb-3">Cost by Feature</h3>
+          <div className="space-y-2">
+            {summary.by_feature.sort((a: any, b: any) => b.cost_usd - a.cost_usd).map((f: any) => (
+              <div key={f.feature} className="flex items-center justify-between py-1.5 border-b border-border-subtle last:border-0">
+                <span className="text-[13px] text-text-secondary capitalize">{f.feature.replace(/_/g, ' ')}</span>
+                <div className="flex items-center gap-4 text-[12px]">
+                  <span className="text-text-muted">{f.calls} calls</span>
+                  <span className="text-text-muted">{formatTokens(f.input_tokens + f.output_tokens)} tok</span>
+                  <span className="font-medium text-text-primary">${f.cost_usd.toFixed(4)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* By Model */}
+      {summary.by_model.length > 0 && (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+          <h3 className="text-sm font-medium text-text-primary mb-3">Cost by Model</h3>
+          <div className="space-y-2">
+            {summary.by_model.sort((a: any, b: any) => b.cost_usd - a.cost_usd).map((m: any) => (
+              <div key={m.model_id} className="flex items-center justify-between py-1.5 border-b border-border-subtle last:border-0">
+                <span className="text-[13px] text-text-secondary">{m.model_id.split('.').pop() || m.model_id}</span>
+                <div className="flex items-center gap-4 text-[12px]">
+                  <span className="text-text-muted">{m.calls} calls</span>
+                  <span className="text-text-muted">{formatTokens(m.input_tokens + m.output_tokens)} tok</span>
+                  <span className="font-medium text-text-primary">${m.cost_usd.toFixed(4)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function featureColor(feature: string): string {
+  const map: Record<string, string> = {
+    cv_parsing: 'bg-blue-100 text-blue-700',
+    embedding: 'bg-purple-100 text-purple-700',
+    scoring: 'bg-amber-100 text-amber-700',
+    ocr: 'bg-rose-100 text-rose-700',
+    quiz: 'bg-emerald-100 text-emerald-700',
+    outreach: 'bg-cyan-100 text-cyan-700',
+    jd_import: 'bg-indigo-100 text-indigo-700',
+    jd_generate: 'bg-indigo-100 text-indigo-700',
+    recommendation: 'bg-orange-100 text-orange-700',
+  };
+  return map[feature] || 'bg-gray-100 text-gray-700';
+}
+
+function SummaryCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-bg-panel border border-border-subtle rounded-xl p-4 text-center">
+      <div className="text-[11px] font-medium text-text-muted uppercase">{label}</div>
+      <div className="text-lg font-semibold text-text-primary mt-1">{value}</div>
+    </div>
+  );
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+  return String(n);
 }
 
 function Section({ icon: Icon, title, description, children }: { icon: typeof SettingsIcon; title: string; description: string; children: React.ReactNode }) {

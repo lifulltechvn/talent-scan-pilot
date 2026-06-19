@@ -98,6 +98,13 @@ async def create_interview(
     user: User = Depends(get_current_user),
 ):
     """Create a new interview event. Email sent separately via /send-invitation."""
+    # Block scheduling if candidate was rejected for this specific job
+    if body.job_id:
+        rej_check = await db.execute(text("""
+            SELECT 1 FROM job_candidates WHERE candidate_id = :cid AND job_id = :jid AND status = 'rejected'
+        """), {"cid": body.candidate_id, "jid": body.job_id})
+        if rej_check.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Candidate was rejected for this job")
     from datetime import datetime as dt
     interview_id = uuid.uuid4()
     await db.execute(text("""
@@ -273,9 +280,22 @@ async def add_feedback(
     # Update candidate status based on decision
     if body.decision in ('pass', 'fail'):
         new_status = 'approved' if body.decision == 'pass' else 'rejected'
+        # Update job_candidates status for this specific job
+        await db.execute(text("""
+            UPDATE job_candidates SET status = :status
+            WHERE candidate_id = (SELECT candidate_id FROM interviews WHERE id = :iid)
+              AND job_id = (SELECT job_id FROM interviews WHERE id = :iid)
+        """), {"status": new_status, "iid": str(interview_id)})
+        # Only update global candidate status if not assigned/pending in another job
         await db.execute(text("""
             UPDATE candidates SET status = :status
             WHERE id = (SELECT candidate_id FROM interviews WHERE id = :iid)
+              AND NOT EXISTS (
+                SELECT 1 FROM job_candidates jc
+                WHERE jc.candidate_id = (SELECT candidate_id FROM interviews WHERE id = :iid)
+                  AND jc.job_id != (SELECT job_id FROM interviews WHERE id = :iid)
+                  AND jc.status IN ('assigned', 'scored')
+              )
         """), {"status": new_status, "iid": str(interview_id)})
 
     await db.commit()

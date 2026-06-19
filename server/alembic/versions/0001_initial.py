@@ -149,32 +149,6 @@ def upgrade() -> None:
         sa.Column("responded_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
-    # Schedule Slots
-    op.create_table(
-        "schedule_slots",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("job_id", UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=False),
-        sa.Column("slot_start", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("slot_end", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("max_candidates", sa.Integer, server_default="1"),
-        sa.Column("booked_count", sa.Integer, server_default="0"),
-        sa.Column("created_by", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-    )
-
-    # Schedule Bookings
-    op.create_table(
-        "schedule_bookings",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("candidate_id", UUID(as_uuid=True), sa.ForeignKey("candidates.id"), nullable=False),
-        sa.Column("slot_id", UUID(as_uuid=True), sa.ForeignKey("schedule_slots.id"), nullable=True),
-        sa.Column("token", sa.String(255), unique=True, index=True, nullable=False),
-        sa.Column("status", sa.String(20), server_default=sa.text("'pending'")),
-        sa.Column("reminder_sent", sa.Boolean, server_default="false"),
-        sa.Column("booked_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-    )
-
     # Outreach Logs
     op.create_table(
         "outreach_logs",
@@ -198,6 +172,7 @@ def upgrade() -> None:
         sa.Column("input_tokens", sa.Integer, server_default="0"),
         sa.Column("output_tokens", sa.Integer, server_default="0"),
         sa.Column("cost_usd", sa.Float, server_default="0.0"),
+        sa.Column("candidate_id", UUID(as_uuid=True), nullable=True),
         sa.Column("source", sa.String(20), server_default=sa.text("'server'")),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
@@ -319,8 +294,6 @@ def downgrade() -> None:
     op.drop_table("interview_feedback")
     op.drop_table("ai_usage_logs")
     op.drop_table("outreach_logs")
-    op.drop_table("schedule_bookings")
-    op.drop_table("schedule_slots")
     op.drop_table("quiz_responses")
     op.drop_table("quiz_questions")
     op.drop_table("quizzes")

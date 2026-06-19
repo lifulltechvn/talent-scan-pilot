@@ -222,16 +222,10 @@ async def suggest_candidates(
         FROM job_candidates jc
         JOIN candidates c ON c.id = jc.candidate_id
         WHERE jc.job_id = :jid
-          AND jc.status NOT IN ('removed')
-          AND c.status IN ('reviewed', 'rejected')
-          AND NOT EXISTS (
-            SELECT 1 FROM job_candidates jc2
-            JOIN candidates c2 ON c2.id = jc2.candidate_id
-            WHERE jc2.job_id = :jid AND jc2.candidate_id = jc.candidate_id
-              AND jc2.status = 'assigned' AND c2.status = 'rejected'
-          )
+          AND jc.status NOT IN ('removed', 'rejected', 'assigned', 'scored')
+          AND c.status NOT IN ('pending', 'approved')
         ORDER BY jc.combined_score DESC
-        LIMIT 20
+        LIMIT 10
     """), {"jid": str(job_id)})
     candidates = rows.mappings().all()
 
@@ -245,9 +239,11 @@ async def suggest_candidates(
             JOIN jobs j ON j.id = jc.job_id
             WHERE jc.candidate_id = ANY(:cids)
               AND jc.job_id != :jid
-              AND jc.status = 'assigned'
-              AND EXISTS (
-                SELECT 1 FROM interviews i WHERE i.candidate_id = jc.candidate_id AND i.job_id = jc.job_id AND i.feedback_decision = 'rejected'
+              AND (
+                jc.status = 'rejected'
+                OR EXISTS (
+                  SELECT 1 FROM interviews i WHERE i.candidate_id = jc.candidate_id AND i.job_id = jc.job_id AND i.feedback_decision IN ('fail', 'rejected')
+                )
               )
         """), {"cids": candidate_ids, "jid": str(job_id)})
         for r in rej_rows.mappings().all():

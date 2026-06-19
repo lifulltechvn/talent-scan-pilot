@@ -254,20 +254,13 @@ export function JobDetailPage() {
                     <span key={sk} className={`text-[10px] px-1.5 py-0.5 rounded ${s.matched_skills.includes(sk.toLowerCase()) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{sk}</span>
                   ))}
                 </div>
-                {s.status === 'suggested' ? (
+                {s.status === 'suggested' && (
                   <button
                     onClick={() => handleAssign(s.id)}
                     disabled={assigning === s.id}
                     className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50 shrink-0"
                   >
                     {assigning === s.id ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} Assign
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => { updateStatus.mutate({ id: s.id, status: 'approved' }); setSuggestions(prev => prev?.filter(x => x.id !== s.id) ?? null); }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shrink-0"
-                  >
-                    <CheckCircle size={12} /> Apply
                   </button>
                 )}
               </div>
