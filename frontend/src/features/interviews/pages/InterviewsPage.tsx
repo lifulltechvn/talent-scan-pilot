@@ -476,10 +476,13 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
             </div>
           )}
           <div className="flex gap-2 pt-2">
-            {!interview.feedback_score && (
+            {!interview.feedback_score && new Date(interview.end_time) < new Date() && (
               <button onClick={onFeedback} className="flex-1 py-2 text-[13px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover flex items-center justify-center gap-1">
                 <MessageSquare size={13} /> Feedback
               </button>
+            )}
+            {!interview.feedback_score && new Date(interview.end_time) >= new Date() && (
+              <span className="flex-1 py-2 text-[12px] text-text-muted text-center">Chờ kết thúc phỏng vấn</span>
             )}
             <button onClick={() => setConfirmDelete(true)} className="px-4 py-2 text-[13px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
               Xoá
