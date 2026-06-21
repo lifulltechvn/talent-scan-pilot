@@ -41,6 +41,7 @@ class JobCreate(BaseModel):
     required_education: Optional[str] = None
     salary_range: Optional[str] = None
     location: Optional[str] = None
+    category: Optional[str] = None
     deadline: Optional[datetime] = None
 
 
@@ -52,6 +53,7 @@ class JobUpdate(BaseModel):
     required_education: Optional[str] = None
     salary_range: Optional[str] = None
     location: Optional[str] = None
+    category: Optional[str] = None
     deadline: Optional[datetime] = None
 
 
@@ -64,6 +66,7 @@ class JobRead(BaseModel):
     required_education: Optional[str]
     salary_range: Optional[str]
     location: Optional[str]
+    category: Optional[str] = None
     deadline: Optional[datetime]
     created_by: uuid.UUID
     created_at: datetime

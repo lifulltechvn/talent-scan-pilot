@@ -64,18 +64,27 @@ async def generate_job_description(
     data: dict,
     _user: User = Depends(get_current_user),
 ):
-    """Generate a full JD from title + optional keywords using AI."""
+    """Generate a full JD from title + optional keywords + category skill map using AI."""
     from app.bedrock import invoke_claude
     from app.config import settings
+    from app.skill_maps import get_skill_map_context
 
     title = data.get("title", "")
     keywords = data.get("keywords", "")
+    category = data.get("category", "")
     if not title:
         raise HTTPException(400, "Title is required")
 
     from app.prompts import JD_GENERATE_PROMPT
 
-    context = f"Additional context/keywords: {keywords}" if keywords else ""
+    context_parts = []
+    if keywords:
+        context_parts.append(f"Additional context/keywords: {keywords}")
+    if category:
+        skill_map = get_skill_map_context(category)
+        if skill_map:
+            context_parts.append(f"Company skill map reference for this position:{skill_map}")
+    context = "\n".join(context_parts)
     prompt = JD_GENERATE_PROMPT.format(title=title, context=context)
 
     try:
@@ -223,7 +232,8 @@ async def suggest_candidates(
         JOIN candidates c ON c.id = jc.candidate_id
         WHERE jc.job_id = :jid
           AND jc.status NOT IN ('removed', 'rejected', 'assigned', 'scored')
-          AND c.status IN ('reviewed', 'rejected')
+          AND c.status IN ('new', 'reviewed', 'rejected')
+          AND jc.combined_score >= 0.15
         ORDER BY jc.combined_score DESC
         LIMIT 10
     """), {"jid": str(job_id)})

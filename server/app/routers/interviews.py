@@ -86,6 +86,7 @@ async def list_interviews(
             "feedback_score": r["feedback_score"],
             "feedback_notes": r["feedback_notes"],
             "feedback_decision": r["feedback_decision"],
+            "feedback_by": r.get("feedback_by"),
         }
         for r in rows.mappings().all()
     ]
@@ -278,9 +279,9 @@ async def add_feedback(
     """Add feedback after an interview."""
     await db.execute(text("""
         UPDATE interviews SET feedback_score = :score, feedback_notes = :notes,
-            feedback_decision = :decision, status = 'completed'
+            feedback_decision = :decision, feedback_by = :by, status = 'completed'
         WHERE id = :id
-    """), {"score": body.score, "notes": body.notes, "decision": body.decision, "id": str(interview_id)})
+    """), {"score": body.score, "notes": body.notes, "decision": body.decision, "by": user.full_name, "id": str(interview_id)})
 
     # Update candidate status based on decision
     if body.decision in ('pass', 'fail'):
@@ -378,6 +379,7 @@ async def my_interviews(
             "feedback_score": r["feedback_score"],
             "feedback_notes": r["feedback_notes"],
             "feedback_decision": r["feedback_decision"],
+            "feedback_by": r.get("feedback_by"),
             "previous_feedback": [
                 {"round": pf["round"], "score": pf["feedback_score"], "notes": pf["feedback_notes"], "decision": pf["feedback_decision"]}
                 for pf in prev_feedback.mappings().all()

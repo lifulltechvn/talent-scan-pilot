@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LF Talent Scan — AI CV Screening | Team Mansion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #ED6103;
+  --accent-bright: #ff7a1a;
+  --accent-hover: #d45600;
+  --bg-primary: #f8f9fb;
+  --bg-dark: #1a1d26;
+  --text-primary: #1a1d26;
+  --text-secondary: #4b5068;
+  --text-light: #ffffff;
+  --gold: #f59e0b;
+  --silver: #8a8f98;
+  --pool: #6366f1;
+  --success: #10b981;
+  --error: #ef4444;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); overflow: hidden; }
+.deck { position: relative; width: 100vw; height: 100vh; }
+.slide { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 60px 80px; opacity: 0; transform: translateX(100px); transition: all 0.5s cubic-bezier(0.4,0,0.2,1); pointer-events: none; }
+.slide.active { opacity: 1; transform: translateX(0); pointer-events: auto; }
+.slide.prev { opacity: 0; transform: translateX(-100px); }
+
+/* Slide themes */
+.slide-dark { background: var(--bg-dark); color: var(--text-light); }
+.slide-light { background: var(--bg-primary); color: var(--text-primary); }
+.slide-accent { background: linear-gradient(135deg, var(--accent) 0%, var(--accent-bright) 100%); color: white; }
+
+/* Typography */
+h1 { font-size: 3.2rem; font-weight: 800; line-height: 1.2; margin-bottom: 16px; }
+h2 { font-size: 2.4rem; font-weight: 700; line-height: 1.3; margin-bottom: 12px; }
+h3 { font-size: 1.5rem; font-weight: 600; margin-bottom: 8px; }
+p, li { font-size: 1.15rem; line-height: 1.7; }
+.subtitle { font-size: 1.3rem; opacity: 0.85; margin-bottom: 24px; }
+.small { font-size: 0.95rem; opacity: 0.7; }
+.accent-text { color: var(--accent); }
+.gold-text { color: var(--gold); }
+.success-text { color: var(--success); }
+
+/* Layout helpers */
+.content { max-width: 1100px; width: 100%; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+.flex-center { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.mt-4 { margin-top: 32px; }
+.mt-2 { margin-top: 16px; }
+.mb-2 { margin-bottom: 16px; }
+
+/* Cards */
+.card { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 24px; }
+.card-light { background: white; border: 1px solid #e5e7ef; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.card-accent { border-left: 4px solid var(--accent); }
+
+/* Tags */
+.tag { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; margin: 3px; }
+.tag-orange { background: rgba(237,97,3,0.15); color: var(--accent); }
+.tag-green { background: rgba(16,185,129,0.15); color: var(--success); }
+.tag-purple { background: rgba(99,102,241,0.15); color: var(--pool); }
+.tag-gold { background: rgba(245,158,11,0.15); color: var(--gold); }
+
+/* Lists */
+ul { list-style: none; padding: 0; }
+ul li { position: relative; padding-left: 24px; margin-bottom: 12px; }
+ul li::before { content: '▸'; position: absolute; left: 0; color: var(--accent); font-weight: bold; }
+ol { padding-left: 24px; }
+ol li { margin-bottom: 10px; }
+
+/* Code block */
+.code { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.6; overflow-x: auto; white-space: pre; }
+.slide-light .code { background: #1e293b; color: #e2e8f0; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; font-size: 1rem; }
+th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.slide-light th, .slide-light td { border-bottom: 1px solid #e5e7ef; }
+th { font-weight: 600; color: var(--accent); }
+
+/* Progress bar */
+.progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); transition: width 0.3s; z-index: 100; }
+
+/* Slide number */
+.slide-num { position: fixed; bottom: 20px; right: 30px; font-size: 0.85rem; color: rgba(255,255,255,0.5); z-index: 100; }
+
+/* Navigation */
+.nav-btn { position: fixed; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border: none; background: rgba(255,255,255,0.1); border-radius: 50%; cursor: pointer; color: white; font-size: 18px; backdrop-filter: blur(4px); transition: all 0.2s; z-index: 100; }
+.nav-btn:hover { background: var(--accent); }
+.nav-prev { left: 20px; }
+.nav-next { right: 20px; }
+
+/* Diagram boxes */
+.diagram-box { border: 2px solid var(--accent); border-radius: 8px; padding: 12px 16px; text-align: center; font-size: 0.9rem; font-weight: 500; }
+.diagram-arrow { color: var(--accent); font-size: 1.5rem; }
+
+/* Animation */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+.slide.active .animate { animation: fadeInUp 0.6s ease forwards; }
+.slide.active .delay-1 { animation-delay: 0.1s; opacity: 0; }
+.slide.active .delay-2 { animation-delay: 0.2s; opacity: 0; }
+.slide.active .delay-3 { animation-delay: 0.3s; opacity: 0; }
+.slide.active .delay-4 { animation-delay: 0.4s; opacity: 0; }
+
+/* Logo */
+.logo-icon { width: 48px; height: 48px; border: 3px solid var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progress"></div>
+<div class="slide-num" id="slideNum"></div>
+<button class="nav-btn nav-prev" onclick="prevSlide()">‹</button>
+<button class="nav-btn nav-next" onclick="nextSlide()">›</button>
+
+<div class="deck">
+
+<!-- Slide 1: Title -->
+<div class="slide slide-dark active">
+  <div class="content" style="text-align:center">
+    <div class="logo-icon" style="margin:0 auto 20px">
+      <svg width="24" height="24" viewBox="0 0 14 14" fill="none">
+        <rect x="3" y="1" width="8" height="12" rx="1" stroke="#ED6103" stroke-width="1.8"/>
+        <line x1="5" y1="4.5" x2="9" y2="4.5" stroke="#ED6103" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="5" y1="6.5" x2="9" y2="6.5" stroke="#ED6103" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="5" y1="8.5" x2="7.5" y2="8.5" stroke="#ED6103" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1 class="animate">LF Talent Scan</h1>
+    <p class="subtitle animate delay-1">AI-Powered CV Screening & Recruitment Automation</p>
+    <p class="animate delay-2" style="opacity:0.6">Team Mansion — AI Contest 2026</p>
+    <div class="mt-4 animate delay-3">
+      <span class="tag tag-orange">LIFULL Tech Vietnam</span>
+      <span class="tag tag-green">AWS Bedrock</span>
+      <span class="tag tag-purple">Claude + Titan</span>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 2: Team Introduction -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">👥 Team Mansion</h2>
+    <p class="subtitle animate delay-1" style="color:var(--text-secondary)">3 thành viên — 2.5 tháng phát triển (04/2026 → 06/2026)</p>
+    <div class="grid-3 mt-4">
+      <div class="card-light card-accent animate delay-2" style="text-align:center">
+        <h3>Nguyễn Thịnh</h3>
+        <p style="color:var(--accent);font-weight:600">Team Leader</p>
+      </div>
+      <div class="card-light card-accent animate delay-3" style="text-align:center">
+        <h3>Nguyễn Anh Hoàng</h3>
+        <p style="color:var(--accent);font-weight:600">Member</p>
+      </div>
+      <div class="card-light card-accent animate delay-4" style="text-align:center">
+        <h3>Nguyễn Bảo Hồng Minh</h3>
+        <p style="color:var(--accent);font-weight:600">Member</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 3: Problem Statement -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">🎯 Vấn đề</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3 style="color:var(--error)">Pain Points của HR</h3>
+        <ul class="mt-2">
+          <li>100–200 CV mỗi đợt tuyển dụng</li>
+          <li>Sàng lọc thủ công: 5–10 phút/CV</li>
+          <li>Đánh giá chủ quan, không nhất quán</li>
+          <li>Dễ bỏ sót ứng viên tốt</li>
+          <li>Khó so sánh ứng viên khách quan</li>
+        </ul>
+      </div>
+      <div class="animate delay-2">
+        <h3 class="success-text">Giải pháp: LF Talent Scan</h3>
+        <ul class="mt-2">
+          <li>AI tự động parse + đánh giá CV</li>
+          <li>~8–10 giây/CV (thay vì 5–10 phút)</li>
+          <li>Scoring nhất quán, có giải thích</li>
+          <li>Auto-match CV với JD bằng AI</li>
+          <li>Chi phí cực thấp: ~$60/năm</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 4: Context & Strengths -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">💪 Hoàn cảnh & Thế mạnh</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3 style="color:var(--text-primary)">Hoàn cảnh</h3>
+        <ul class="mt-2" style="color:var(--text-secondary)">
+          <li>Team 3 người, dev trong 2.5 tháng</li>
+          <li>Dự án nội bộ LFTV — cho HR team</li>
+          <li>Budget giới hạn (&lt; 4M VND/năm)</li>
+          <li>Chỉ sử dụng một số ngày nhất định trong năm (mùa tuyển dụng)</li>
+          <li>Phải tuân thủ quy định AI của công ty</li>
+        </ul>
+      </div>
+      <div class="animate delay-2">
+        <h3 style="color:var(--text-primary)">Thế mạnh Team</h3>
+        <ul class="mt-2" style="color:var(--text-secondary)">
+          <li>Teamwork chặt chẽ — chia task rõ ràng, sync daily</li>
+          <li>Hiểu rõ quy trình HR tại LFTV</li>
+          <li>Tự thiết kế AI pipeline end-to-end (OCR → Parse → Embed → Match → Score)</li>
+          <li>Tự xây dựng prompt engineering với tool_use để ép output chuẩn</li>
+          <li>Thiết kế hướng chi phí tối ưu từ đầu (two-tier model, EC2 Stop/Start)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="mt-4 animate delay-3" style="text-align:center">
+      <span class="tag tag-orange">Python + React</span>
+      <span class="tag tag-green">AWS Bedrock</span>
+      <span class="tag tag-purple">Prompt Engineering</span>
+      <span class="tag tag-gold">Cost Optimization</span>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 5: System Design Overview -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">🏗️ System Design</h2>
+    <p class="subtitle animate delay-1">Docker Compose — 4 Containers</p>
+    <div class="code animate delay-2">┌─────────────────────────────────────────────────────────────────┐
+│  FRONTEND — React 19 + Vite + Tailwind + i18n (EN/VI/JA)       │
+│  Dashboard │ Candidates │ Jobs │ Interviews │ CV Upload (batch) │
+│  Public: Schedule (token-based, no auth)                         │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ HTTPS
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  DOCKER COMPOSE — 4 Containers                                   │
+│  ├── Nginx (reverse proxy + serve React static)                  │
+│  ├── FastAPI (16 API routers)                                    │
+│  │     ├── CV Upload → PyMuPDF → PII mask → Injection Guard     │
+│  │     │   → Claude Haiku parse (tool_use) → Titan Embed        │
+│  │     ├── Matching (pgvector cosine + keyword overlap)          │
+│  │     ├── Scoring (Rule 70% + Claude Haiku 30%)                │
+│  │     ├── Smart Pool │ Schedule │ Timeline                       │
+│  │     ├── APScheduler (24h + 30min interview reminders)         │
+│  │     └── AI Usage tracking + WebSocket batch progress          │
+│  ├── PostgreSQL 16 + pgvector (1024-dim vectors)                 │
+│  └── Frontend (Vite HMR dev / Nginx static prod)                 │
+│                                                                  │
+│  External: AWS Bedrock (Claude Haiku 4.5 + Sonnet Vision + Titan)│
+│  Email: Mailtrap SMTP (dev) / AWS SES (prod)                     │
+└─────────────────────────────────────────────────────────────────┘</div>
+  </div>
+</div>
+
+<!-- Slide 6: Tech Stack -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">⚙️ Tech Stack</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <table>
+          <tr><th>Component</th><th>Technology</th></tr>
+          <tr><td>Backend</td><td>FastAPI (Python 3.11)</td></tr>
+          <tr><td>Frontend</td><td>React 19 + Vite + Tailwind v4</td></tr>
+          <tr><td>Database</td><td>PostgreSQL 16 + pgvector</td></tr>
+          <tr><td>AI / LLM</td><td>Claude Haiku 4.5 (Bedrock)</td></tr>
+          <tr><td>Embedding</td><td>Amazon Titan V2 (1024-dim)</td></tr>
+          <tr><td>OCR</td><td>Claude Sonnet Vision (Bedrock)</td></tr>
+          <tr><td>Scheduler</td><td>APScheduler</td></tr>
+          <tr><td>Email</td><td>SMTP / AWS SES</td></tr>
+        </table>
+      </div>
+      <div class="animate delay-2">
+        <h3 class="mb-2">Tại sao chọn stack này?</h3>
+        <ul style="color:var(--text-secondary)">
+          <li><strong>Tất cả AI qua AWS Bedrock</strong> — cùng account, IAM auth, data không rời AWS</li>
+          <li><strong>Two-tier model</strong> — Sonnet cho phức tạp, Haiku cho đơn giản → giảm 40% chi phí</li>
+          <li><strong>pgvector</strong> — vector search ngay trong PostgreSQL, không cần DB riêng</li>
+          <li><strong>FastAPI</strong> — Pydantic validate output LLM, auto docs</li>
+          <li><strong>Docker Compose</strong> — dễ deploy, dễ scale</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 7: AI Pipeline Overview -->
+<div class="slide slide-accent">
+  <div class="content" style="text-align:center">
+    <h2 class="animate">🤖 AI Pipeline — Trọng tâm dự án</h2>
+    <p class="subtitle animate delay-1">8 bước xử lý CV tự động — Web Upload → Server-side processing</p>
+    <div class="animate delay-2" style="display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:32px">
+      <div class="diagram-box" style="border-color:white;color:white">1. Web Upload PDF</div>
+      <div class="diagram-arrow" style="color:white">→</div>
+      <div class="diagram-box" style="border-color:white;color:white">2. PyMuPDF Extract</div>
+      <div class="diagram-arrow" style="color:white">→</div>
+      <div class="diagram-box" style="border-color:white;color:white">3. PII Regex Mask</div>
+      <div class="diagram-arrow" style="color:white">→</div>
+      <div class="diagram-box" style="border-color:white;color:white">4. Injection Guard</div>
+    </div>
+    <div class="animate delay-3" style="display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:16px">
+      <div class="diagram-box" style="border-color:white;color:white">5. Claude Haiku Parse</div>
+      <div class="diagram-arrow" style="color:white">→</div>
+      <div class="diagram-box" style="border-color:white;color:white">6. Titan Embed 1024-dim</div>
+      <div class="diagram-arrow" style="color:white">→</div>
+      <div class="diagram-box" style="border-color:white;color:white">7. PII Inject Back</div>
+      <div class="diagram-arrow" style="color:white">→</div>
+      <div class="diagram-box" style="border-color:white;color:white">8. Smart Pool Match</div>
+    </div>
+    <p class="mt-4 animate delay-4" style="font-size:1.1rem;opacity:0.9">⏱️ ~8-10 giây/CV (background thread) │ 🔒 PII không bao giờ gửi cho AI │ 🛡️ Injection guard trước khi gửi LLM</p>
+  </div>
+</div>
+
+<!-- Slide 8: AI Pipeline Detail - Parse -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">🧠 AI Parse — Claude Haiku + tool_use</h2>
+    <p class="subtitle animate delay-1">Structured Output: CV → JSON có schema cố định</p>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-2">
+        <h3>Cách hoạt động</h3>
+        <ol class="mt-2">
+          <li>Text đã masked PII gửi cho Claude Haiku</li>
+          <li>Dùng <code style="color:var(--accent)">tool_use</code> để ép output theo schema</li>
+          <li>Claude trả về JSON: name, skills, experience, education, insight...</li>
+          <li>Server validate + normalize (skill aliases, confidence score)</li>
+          <li>Inject PII thật trở lại sau khi AI trả kết quả</li>
+        </ol>
+      </div>
+      <div class="animate delay-3">
+        <h3>Output Schema</h3>
+        <div class="code" style="font-size:0.75rem">{
+  "name": "Nguyễn Văn A",
+  "skills": ["Python", "FastAPI", "PostgreSQL"],
+  "experience_years": 5,
+  "experience": [{
+    "company": "LFTV",
+    "role": "Backend Engineer",
+    "duration": "2021-2024"
+  }],
+  "education": [{
+    "school": "HCMUT",
+    "degree": "Bachelor CS"
+  }],
+  "insight": {
+    "strengths": "Strong backend...",
+    "weaknesses": "No frontend...",
+    "recommendation": "Good fit for..."
+  }
+}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 9: Scoring Algorithm -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">📊 Scoring — Hybrid Rule + LLM</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3>Rule-based (70% weight)</h3>
+        <table class="mt-2">
+          <tr><th>Factor</th><th>Weight</th></tr>
+          <tr><td>🎯 Skill match</td><td>30%</td></tr>
+          <tr><td>📐 Cosine similarity</td><td>25%</td></tr>
+          <tr><td>💼 Experience years</td><td>20%</td></tr>
+          <tr><td>🎓 Education match</td><td>15%</td></tr>
+          <tr><td>🌍 Language</td><td>10%</td></tr>
+        </table>
+        <div class="mt-2">
+          <h3>LLM Evaluation (30% weight)</h3>
+          <p class="small" style="color:var(--text-secondary)">Claude Haiku đánh giá: career progression, red flags, culture fit. temperature=0 để nhất quán.</p>
+        </div>
+      </div>
+      <div class="animate delay-2">
+        <h3>Auto Classification</h3>
+        <div class="card-light mt-2" style="text-align:center">
+          <p style="font-size:2rem">🥇</p>
+          <p><strong style="color:var(--gold)">Gold ≥ 80</strong></p>
+          <p class="small">Ứng viên xuất sắc — ưu tiên phỏng vấn</p>
+        </div>
+        <div class="card-light mt-2" style="text-align:center">
+          <p style="font-size:2rem">🥈</p>
+          <p><strong style="color:var(--silver)">Silver 50–79</strong></p>
+          <p class="small">Ứng viên tiềm năng — cần review</p>
+        </div>
+        <div class="card-light mt-2" style="text-align:center">
+          <p style="font-size:2rem">🥉</p>
+          <p><strong style="color:var(--pool)">Bronze &lt; 50</strong></p>
+          <p class="small">Lưu Talent Pool — auto re-match khi có JD mới</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 10: Prompt Engineering -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">🎛️ Prompt Tuning — Chiến lược chi tiết</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3>1. tool_use + tool_choice forced</h3>
+        <p style="opacity:0.8;font-size:0.9rem;margin-bottom:8px">Ép Claude điền đúng form, không trả text tự do</p>
+        <div class="code" style="font-size:0.7rem">tool_choice: {type: "tool", name: "save_cv_data"}
+// → Claude PHẢI gọi function này
+// → Output luôn đúng schema
+// → Không hallucinate thêm field lạ</div>
+
+        <h3 class="mt-4">2. XML delimiters chống injection</h3>
+        <p style="opacity:0.8;font-size:0.9rem;margin-bottom:8px">CV có thể chứa "Ignore instructions..." → bọc trong tag</p>
+        <div class="code" style="font-size:0.7rem">&lt;CV_CONTENT&gt;
+  {nội dung CV đã mask PII}
+&lt;/CV_CONTENT&gt;
+// Claude hiểu: trong tag = DATA, không phải lệnh</div>
+
+        <h3 class="mt-4">3. temperature=0</h3>
+        <p style="opacity:0.8;font-size:0.9rem">Cùng CV gọi 2 lần → cùng kết quả. HR tin tưởng scoring nhất quán.</p>
+      </div>
+      <div class="animate delay-2">
+        <h3>4. System prompt ngắn (tiết kiệm token)</h3>
+        <div class="code" style="font-size:0.7rem">system: "Parse the CV into structured data.
+Be concise in insight fields (1-2 sentences)."
+// Chỉ 20 tokens. Schema đã define trong tool_use.
+// Prompt dài 500 tokens × 1000 CV = $0.5 lãng phí</div>
+
+        <h3 class="mt-4">5. Post-validation (cv_validator)</h3>
+        <p style="opacity:0.8;font-size:0.9rem;margin-bottom:8px">AI trả "five" thay vì 5? skills là string? → Normalize hết</p>
+        <div class="code" style="font-size:0.7rem">// "five" → 5, "nodejs" → "Node.js"
+// skills string → split thành array
+// Tính confidence: 0.0 → 1.0
+// HR biết data đáng tin cỡ nào</div>
+
+        <h3 class="mt-4">6. Two-tier model (tiết kiệm 40%)</h3>
+        <p style="opacity:0.8;font-size:0.9rem;margin-bottom:8px">Task cần vision → Sonnet ($3). Task text đơn giản → Haiku ($1)</p>
+        <div class="code" style="font-size:0.7rem">OCR ảnh scan  → BEDROCK_MODEL_SONNET (cần vision)
+Parse CV text → BEDROCK_MODEL_HAIKU  (text thôi)
+Scoring       → BEDROCK_MODEL_HAIKU  (có rubric rõ)
+// 60% calls dùng Haiku → tiết kiệm 40% chi phí</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 11: Prompt Examples -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">📝 Prompt Tuning — Ví dụ thực tế</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3>CV Parse Prompt</h3>
+        <div class="code" style="font-size:0.7rem">system: "Parse the CV into structured data.
+Be concise in insight fields (1-2 sentences)."
+
+tools: [{
+  name: "save_cv_data",
+  input_schema: {
+    name: string,
+    skills: string[],
+    experience: [{company, role, duration}],
+    education: [{school, degree, major}],
+    experience_years: number,
+    insight: {strengths, weaknesses,
+              recommendation}
+  }
+}]
+tool_choice: {type: "tool", name: "save_cv_data"}
+
+user: "Parse this CV:\n\n&lt;CV_CONTENT&gt;
+{masked_text}
+&lt;/CV_CONTENT&gt;"</div>
+      </div>
+      <div class="animate delay-2">
+        <h3>Scoring Prompt</h3>
+        <div class="code" style="font-size:0.7rem">Evaluate this candidate for "{job_title}".
+
+Required skills: Python, FastAPI, PostgreSQL
+Candidate:
+- Skills: Python, FastAPI, React, Docker
+- Experience: 5 years
+- Insight: {parsed_insight}
+
+Score 0-100 based on:
+career progression, skill depth,
+red flags, culture fit.
+
+Reply in exactly this format:
+SCORE: &lt;number&gt;
+SUMMARY: &lt;one sentence&gt;
+STRENGTHS: &lt;comma-separated&gt;
+CONCERNS: &lt;comma-separated&gt;
+SUGGESTION: &lt;one recommendation&gt;</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 12: PII & Security -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">🔒 Security — Bảo mật PII</h2>
+    <p class="subtitle animate delay-1" style="color:var(--text-secondary)">AI không bao giờ thấy thông tin cá nhân thật</p>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-2">
+        <h3>PII Protection Flow</h3>
+        <div class="card-light card-accent mt-2">
+          <ol>
+            <li><strong>Regex extract</strong> — tìm email, phone, CCCD, URL, address</li>
+            <li><strong>Mask text</strong> — thay bằng [EMAIL], [PHONE], [CCCD]</li>
+            <li><strong>Gửi masked text cho AI</strong> — AI chỉ thấy placeholder</li>
+            <li><strong>AI trả structured data</strong></li>
+            <li><strong>Inject PII thật trở lại</strong> — sau khi AI xong</li>
+          </ol>
+        </div>
+        <div class="mt-2">
+          <h3>Prompt Injection Guard</h3>
+          <p class="small" style="color:var(--text-secondary)">Detect patterns: "ignore previous instructions", "you are now...", XML tags injection → sanitize + log warning</p>
+        </div>
+      </div>
+      <div class="animate delay-3">
+        <h3>Security Layers</h3>
+        <table class="mt-2">
+          <tr><th>Layer</th><th>Implementation</th></tr>
+          <tr><td>PII Protection</td><td>Regex mask → AI → Inject back</td></tr>
+          <tr><td>Authentication</td><td>JWT (access 24h + refresh 7d)</td></tr>
+          <tr><td>Injection Guard</td><td>XML delimiters + pattern detection</td></tr>
+          <tr><td>Rate Limiting</td><td>slowapi on public endpoints</td></tr>
+          <tr><td>HTTPS</td><td>Nginx reverse proxy</td></tr>
+          <tr><td>Data Isolation</td><td>Docker internal network</td></tr>
+          <tr><td>AWS Data</td><td>Không rời AWS (Bedrock same region)</td></tr>
+          <tr><td>File Validation</td><td>Max 10MB, chỉ PDF</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 13: Challenges -->
+<div class="slide slide-accent">
+  <div class="content">
+    <h2 class="animate">⚡ Quá trình khó khăn & Cách giải quyết</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3 style="margin-bottom:16px">Thách thức gặp phải</h3>
+        <div class="card" style="margin-bottom:12px;border-color:rgba(255,255,255,0.3)">
+          <p><strong>1. OCR tiếng Việt</strong></p>
+          <p style="opacity:0.8;font-size:0.95rem">CV scan chất lượng kém, pytesseract sai nhiều → Chuyển sang Claude Sonnet Vision — chính xác hơn hẳn</p>
+        </div>
+        <div class="card" style="margin-bottom:12px;border-color:rgba(255,255,255,0.3)">
+          <p><strong>2. LLM output không consistent</strong></p>
+          <p style="opacity:0.8;font-size:0.95rem">JSON thiếu field, format lỗi → Dùng tool_use để force schema + post-validation</p>
+        </div>
+        <div class="card" style="border-color:rgba(255,255,255,0.3)">
+          <p><strong>3. Scoring bias</strong></p>
+          <p style="opacity:0.8;font-size:0.95rem">LLM đánh giá không nhất quán → Hybrid: Rule 70% (deterministic) + LLM 30% (insight)</p>
+        </div>
+      </div>
+      <div class="animate delay-2">
+        <h3 style="margin-bottom:16px">&nbsp;</h3>
+        <div class="card" style="margin-bottom:12px;border-color:rgba(255,255,255,0.3)">
+          <p><strong>4. Chi phí AI cao ban đầu</strong></p>
+          <p style="opacity:0.8;font-size:0.95rem">Sonnet cho mọi thứ → tốn → Two-tier: Haiku cho 60% tasks đơn giản, giảm chi phí ~3x</p>
+        </div>
+        <div class="card" style="margin-bottom:12px;border-color:rgba(255,255,255,0.3)">
+          <p><strong>5. Bedrock throttling khi batch 100 CVs</strong></p>
+          <p style="opacity:0.8;font-size:0.95rem">Rate limit → Exponential backoff retry + ThreadPoolExecutor (max 10 workers) + Semaphore + WebSocket progress realtime</p>
+        </div>
+        <div class="card" style="border-color:rgba(255,255,255,0.3)">
+          <p><strong>6. Skill matching thiếu chính xác</strong></p>
+          <p style="opacity:0.8;font-size:0.95rem">"nodejs" ≠ "Node.js" → Skill Normalizer (alias dictionary 50+ entries) + semantic cosine matching (Titan 1024-dim)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 14: Smart Features -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">✨ Tính năng AI nổi bật</h2>
+    <div class="grid-3 mt-4">
+      <div class="card animate delay-1">
+        <h3 style="color:var(--accent)">🧩 Smart Pool</h3>
+        <p style="opacity:0.8;font-size:0.95rem">Khi tạo JD mới → tự động match top 50 ứng viên cũ bằng pgvector cosine similarity. Talent Pool "sống" — không bỏ sót ai.</p>
+      </div>
+      <div class="card animate delay-1">
+        <h3 style="color:var(--accent)">🔍 Duplicate Detection</h3>
+        <p style="opacity:0.8;font-size:0.95rem">2 lớp: MD5 file hash (exact match → block) + Name ILIKE fuzzy search (warn HR trước khi tạo). API check-duplicate riêng.</p>
+      </div>
+      <div class="card animate delay-2">
+        <h3 style="color:var(--accent)">📅 Self-Schedule</h3>
+        <p style="opacity:0.8;font-size:0.95rem">Gửi link token-based cho ứng viên tự chọn slot phỏng vấn. Block T7/CN + giờ quá khứ. Auto reminder 24h + 30min.</p>
+      </div>
+      <div class="card animate delay-3">
+        <h3 style="color:var(--accent)">🛡️ Injection Guard</h3>
+        <p style="opacity:0.8;font-size:0.95rem">Detect prompt injection trong CV (attacker nhúng "ignore instructions" vào CV). Sanitize bằng XML delimiter + log cảnh báo.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 15: Cost -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">💰 Chi phí vận hành</h2>
+    <p class="subtitle animate delay-1" style="color:var(--text-secondary)">Chiến lược: EC2 Stop/Start + Two-tier model = cực rẻ</p>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-2">
+        <h3>Chi phí hàng năm (1000 CVs)</h3>
+        <table class="mt-2">
+          <tr><th>Dịch vụ</th><th>Chi phí/năm</th></tr>
+          <tr><td>EC2 t3.medium (seasonal)</td><td>~$10</td></tr>
+          <tr><td>EBS gp3 20GB</td><td>~$19</td></tr>
+          <tr><td>Claude Haiku (parse + score)</td><td>~$8</td></tr>
+          <tr><td>Claude Sonnet (OCR scanned)</td><td>~$15</td></tr>
+          <tr><td>Titan Embedding V2</td><td>~$2</td></tr>
+          <tr><td>SSL</td><td>Let's Encrypt</td></tr>
+          <tr style="font-weight:700;color:var(--accent)"><td><strong>TỔNG</strong></td><td><strong>~$40–60/năm</strong></td></tr>
+        </table>
+      </div>
+      <div class="animate delay-3">
+        <h3>Chiến lược tiết kiệm</h3>
+        <ul style="color:var(--text-secondary)">
+          <li><strong>EC2 Stop/Start</strong> — chỉ bật khi tuyển dụng (một số ngày nhất định trong năm)</li>
+          <li><strong>Two-tier model</strong> — Haiku ($1/$5) cho 60% tasks thay Sonnet ($3/$15)</li>
+          <li><strong>No separate vector DB</strong> — pgvector in PostgreSQL, không cần Pinecone ($15/mo saved)</li>
+          <li><strong>pgvector in PostgreSQL</strong> — không cần separate vector DB ($15/mo saved)</li>
+          <li><strong>No Redis</strong> — dùng in-memory TTLCache cho internal tool</li>
+          <li><strong>Token logging</strong> — track mọi AI call, optimize prompt length</li>
+        </ul>
+        <div class="card-light card-accent mt-2" style="text-align:center">
+          <p style="font-size:1.3rem;font-weight:700;color:var(--accent)">~$0.05 / CV</p>
+          <p class="small" style="color:var(--text-secondary)">So với manual: 5-10 phút × lương HR</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 16: Matching & Embedding -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">🔗 Matching — Cosine + Keyword</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3>Thuật toán</h3>
+        <div class="code mt-2">// Matching formula
+match_score = 0.6 × cosine(CV_vector, JD_vector)
+            + 0.4 × keyword_overlap
+
+// Scoring formula  
+FINAL = 0.7 × Rule_Score + 0.3 × LLM_Score
+
+// Rule Score breakdown
+Rule = Skill×30% + Cosine×25% + Exp×20%
+     + Edu×15% + Lang×10%
+
+// Classification
+≥80 → 🥇 Gold (auto-prioritize)
+50–79 → 🥈 Silver (HR review)
+&lt;50 → 🥉 Bronze (Talent Pool, auto re-match)</div>
+      </div>
+      <div class="animate delay-2">
+        <h3>Embedding Strategy</h3>
+        <ul class="mt-2">
+          <li><strong>Amazon Titan V2</strong> — 1024-dim, multilingual</li>
+          <li><strong>CV embedding:</strong> skills + experience text (first 500 chars)</li>
+          <li><strong>JD embedding:</strong> title + description + required_skills</li>
+          <li><strong>pgvector:</strong> cosine distance operator <code>&lt;=&gt;</code></li>
+          <li><strong>Smart Pool:</strong> khi tạo JD → query top 50 candidates gần nhất</li>
+        </ul>
+        <h3 class="mt-4">Skill Normalizer</h3>
+        <div class="code mt-2" style="font-size:0.75rem">// Alias dictionary
+"nodejs" → "Node.js"
+"js" → "JavaScript"  
+"k8s" → "Kubernetes"
+"postgres" → "PostgreSQL"
+
+// Normalize trước khi match
+→ "nodejs" == "Node.js" ✓</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 17: Demo Features -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">🖥️ Demo — Các chức năng đã implement</h2>
+    <div class="grid-3 mt-4">
+      <div class="card-light card-accent animate delay-1">
+        <h3>📊 Dashboard</h3>
+        <p class="small" style="color:var(--text-secondary)">Stats tổng quan, funnel chart, hiring analytics, action items</p>
+      </div>
+      <div class="card-light card-accent animate delay-1">
+        <h3>📤 CV Upload + Batch</h3>
+        <p class="small" style="color:var(--text-secondary)">Drag-drop 100 files, WebSocket progress realtime, duplicate check, background AI</p>
+      </div>
+      <div class="card-light card-accent animate delay-2">
+        <h3>👤 Candidates</h3>
+        <p class="small" style="color:var(--text-secondary)">Pipeline view, detail + sidebar, score breakdown, compare mode, timeline</p>
+      </div>
+      <div class="card-light card-accent animate delay-2">
+        <h3>💼 Jobs</h3>
+        <p class="small" style="color:var(--text-secondary)">CRUD, auto-embed JD, Smart Pool suggest candidates, assign & score</p>
+      </div>
+      <div class="card-light card-accent animate delay-3">
+        <h3>📅 Interviews</h3>
+        <p class="small" style="color:var(--text-secondary)">Schedule (block T7/CN + quá khứ), round-based email compose, feedback (1-5 + decision), interviewer dashboard</p>
+      </div>
+      <div class="card-light card-accent animate delay-3">
+        <h3>⚙️ Settings + Public Pages</h3>
+        <p class="small" style="color:var(--text-secondary)">Email templates editor, AI usage log. Public: Schedule (/schedule/:token)</p>
+      </div>
+    </div>
+    <div class="mt-4 animate delay-4" style="text-align:center">
+      <p style="color:var(--text-secondary)"><strong>i18n 3 ngôn ngữ:</strong> 🇬🇧 English &nbsp;│&nbsp; 🇻🇳 Tiếng Việt &nbsp;│&nbsp; 🇯🇵 日本語 &nbsp;&nbsp;│&nbsp;&nbsp; <strong>16 API routers</strong> &nbsp;│&nbsp; <strong>Role-based:</strong> admin / hr / interviewer</p>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 18: Workflow -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">🔄 Recruitment Workflow</h2>
+    <div class="code animate delay-1" style="font-size:0.85rem;text-align:center">
+Upload CV → [processing] → AI Parse Done → [new]
+  → HR Review → [reviewed] → Assign to Job → [assigned]
+    → Schedule Interview → [pending]
+      → Feedback → [approved ✓ / rejected ✗]
+
+Job-Candidate: [suggested] → [assigned] → [scored] → [approved/rejected]
+Schedule: [pending] → [booked] / [cancelled]
+  ⛔ Validation: block weekends (T7/CN) + past datetime + rejected candidates
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Email sent automatically at:
+  📨 Interview scheduled (round-based: R1, R2, R3+)
+  🎉 Feedback pass → congratulations
+  😔 Feedback fail → rejection (editable template)
+  ⏰ 24h + 30min before → auto reminder (APScheduler)
+    </div>
+    <div class="grid-3 mt-4">
+      <div class="card animate delay-2" style="text-align:center">
+        <p style="font-size:1.5rem">🤖</p>
+        <p><strong>AI-Powered</strong></p>
+        <p style="opacity:0.7;font-size:0.9rem">Parse, Score, Match — tự động</p>
+      </div>
+      <div class="card animate delay-3" style="text-align:center">
+        <p style="font-size:1.5rem">👁️</p>
+        <p><strong>HR-in-the-Loop</strong></p>
+        <p style="opacity:0.7;font-size:0.9rem">Review, Edit email, Final decision</p>
+      </div>
+      <div class="card animate delay-4" style="text-align:center">
+        <p style="font-size:1.5rem">📧</p>
+        <p><strong>Auto Communication</strong></p>
+        <p style="opacity:0.7;font-size:0.9rem">Email templates, reminders, self-schedule</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 19: Technical Lessons -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">📚 Bài học Technical</h2>
+    <p class="subtitle animate delay-1" style="color:var(--text-secondary)">Trước khi làm hiểu gì → Sau khi làm hiểu thêm gì</p>
+    <div class="animate delay-2 mt-4" style="overflow-x:auto">
+      <table>
+        <tr><th>#</th><th>Bài học</th><th>Trước</th><th>Sau</th><th>Áp dụng tương lai</th></tr>
+        <tr><td>1</td><td><strong>tool_use > JSON mode</strong></td><td>Nghĩ JSON mode đủ cho structured output</td><td>JSON mode vẫn hallucinate field, tool_use enforce schema cứng</td><td>Luôn dùng tool_use cho critical parsing</td></tr>
+        <tr><td>2</td><td><strong>PII cần tách trước AI</strong></td><td>Nghĩ có thể dặn AI "đừng output PII"</td><td>LLM không đáng tin để giữ PII — regex tách trước là deterministic</td><td>Design principle: never trust LLM with sensitive data</td></tr>
+        <tr><td>3</td><td><strong>Hybrid > Pure LLM scoring</strong></td><td>Nghĩ LLM đủ thông minh để score nhất quán</td><td>temperature=0 vẫn fluctuate 10-15 điểm giữa các lần gọi</td><td>Rule-based baseline + LLM insight layer</td></tr>
+        <tr><td>4</td><td><strong>Background > Sync processing</strong></td><td>Nghĩ user chờ 10s OK</td><td>UX tốt hơn nhiều khi return ngay + poll/WebSocket</td><td>Async-first cho mọi AI call > 3s</td></tr>
+        <tr><td>5</td><td><strong>Skill normalization quan trọng</strong></td><td>Nghĩ embedding đủ để match "nodejs" với "Node.js"</td><td>Cosine similarity giảm 15-20% nếu skill name khác format</td><td>Normalize trước, embed sau</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 20: Alternatives & Trade-off -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">⚖️ Tại sao chọn kỹ thuật này? — Alternatives & Trade-off</h2>
+    <div class="animate delay-1 mt-4" style="overflow-x:auto">
+      <table>
+        <tr><th>Quyết định</th><th>Alternatives</th><th>Lý do chọn</th><th>Trade-off</th></tr>
+        <tr><td><strong>Claude Haiku (Bedrock)</strong> thay vì GPT-4o</td><td>GPT-4o, Gemini, local LLM</td><td>Cùng AWS account, IAM auth, data không rời AWS, tool_use ổn định</td><td>Chi phí cao hơn GPT-3.5, phụ thuộc AWS</td></tr>
+        <tr><td><strong>pgvector</strong> thay vì Pinecone/Qdrant</td><td>Pinecone, Qdrant, FAISS</td><td>Tích hợp sẵn PostgreSQL, 0 chi phí thêm, đủ cho ~1000 CVs</td><td>Không scale bằng managed vector DB ở volume lớn</td></tr>
+        <tr><td><strong>tool_use</strong> thay vì JSON mode</td><td>JSON mode, regex parse, fine-tune</td><td>Schema enforcement mạnh, không hallucinate field, validate được</td><td>Tốn token hơn free-form (schema trong prompt)</td></tr>
+        <tr><td><strong>Hybrid Scoring</strong> (Rule 70% + LLM 30%)</td><td>100% LLM, 100% Rule, ML model</td><td>Rule = baseline nhất quán, LLM = insight bổ sung</td><td>Phức tạp hơn single approach, cần tune weights</td></tr>
+        <tr><td><strong>Titan Embedding V2</strong> thay vì OpenAI</td><td>OpenAI ada-002, sentence-transformers</td><td>Cùng Bedrock ecosystem, 1024-dim đủ, ~$0.02/1K tokens</td><td>1024-dim < OpenAI 1536-dim (quality slightly lower)</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 21: Error Handling & Fallback -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">🛟 Error Handling & Fallback</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3>Xử lý lỗi AI</h3>
+        <table class="mt-2">
+          <tr><th>Tình huống</th><th>Xử lý</th></tr>
+          <tr><td>Bedrock timeout/throttle</td><td>Exponential backoff retry (3 lần, 1s→2s→4s)</td></tr>
+          <tr><td>LLM output thiếu field</td><td>cv_validator normalize + set defaults, confidence score</td></tr>
+          <tr><td>LLM trả format sai</td><td>tool_use enforce schema, fallback parse with regex</td></tr>
+          <tr><td>Embedding API fail</td><td>Candidate lưu với embedding=None, skip matching</td></tr>
+          <tr><td>Batch processing stuck</td><td>Task recovery on startup (retry status="processing")</td></tr>
+          <tr><td>Prompt injection in CV</td><td>Detect + sanitize (XML delimiters) + log warning</td></tr>
+        </table>
+      </div>
+      <div class="animate delay-2">
+        <h3>Logging & Monitoring</h3>
+        <table class="mt-2">
+          <tr><th>Mục</th><th>Chi tiết</th></tr>
+          <tr><td><strong>Log gì?</strong></td><td>Mọi AI call (model, tokens, cost, feature), request timing >100ms, errors</td></tr>
+          <tr><td><strong>Monitor gì?</strong></td><td>AI Usage dashboard (token/cost per day), response time header (X-Response-Time-Ms)</td></tr>
+          <tr><td><strong>AI Cost tracking</strong></td><td>ai_usage_logs table: model_id, input/output tokens, cost_usd, feature tag</td></tr>
+          <tr><td><strong>Batch progress</strong></td><td>WebSocket realtime: processed/total/errors/duplicates</td></tr>
+        </table>
+        <div class="card mt-4" style="border-left:4px solid var(--gold)">
+          <p style="font-size:0.95rem"><strong>⚠️ Chưa có:</strong> Alerting (cost threshold), AI quality monitoring (drift detection), uptime monitoring. Đây là hạng mục production-readiness.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 22: Kết quả & Metrics -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">📈 Kết quả & Metrics</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3>Performance Metrics</h3>
+        <table class="mt-2">
+          <tr><th>Metric</th><th>Mục tiêu</th><th>Thực tế</th></tr>
+          <tr><td>Thời gian/CV</td><td>< 15s</td><td>~8-10s (background)</td></tr>
+          <tr><td>Batch 100 CVs</td><td>< 10 phút</td><td>~5-7 phút (10 workers)</td></tr>
+          <tr><td>AI calls/CV</td><td>≤ 3</td><td>2 (parse + embed)</td></tr>
+          <tr><td>Tokens/CV</td><td>< 2000</td><td>~1300 (800 in + 500 out)</td></tr>
+          <tr><td>Chi phí/CV</td><td>< $0.1</td><td>~$0.04-0.05</td></tr>
+          <tr><td>Chi phí/năm</td><td>≤ 4M VNĐ</td><td>~$65 (~1.6M VNĐ)</td></tr>
+        </table>
+      </div>
+      <div class="animate delay-2">
+        <h3>So sánh Trước/Sau</h3>
+        <table class="mt-2">
+          <tr><th>Mục</th><th>Trước (thủ công)</th><th>Sau (AI)</th><th>Cải thiện</th></tr>
+          <tr><td>Thời gian/CV</td><td>5-10 phút</td><td>~10 giây</td><td><strong style="color:var(--success)">50-60x nhanh hơn</strong></td></tr>
+          <tr><td>Consistency</td><td>Chủ quan, mood-dependent</td><td>Rule-based + LLM</td><td><strong style="color:var(--success)">Nhất quán</strong></td></tr>
+          <tr><td>Scalability</td><td>1 HR = 30 CVs/ngày</td><td>200 CVs/batch, parallel</td><td><strong style="color:var(--success)">6x capacity</strong></td></tr>
+          <tr><td>Matching</td><td>Đọc JD → nhớ → so</td><td>Cosine + keyword auto</td><td><strong style="color:var(--success)">Objective</strong></td></tr>
+          <tr><td>Re-match</td><td>Không (quên ứng viên cũ)</td><td>Smart Pool auto</td><td><strong style="color:var(--success)">Không bỏ sót</strong></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 23: Chi phí khi Scale -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">📊 Chi phí khi Scale</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3>Ước tính theo Scenario</h3>
+        <table class="mt-2">
+          <tr><th>Scenario</th><th>CVs/năm</th><th>Chi phí AI</th><th>Infra</th><th>Tổng/năm</th></tr>
+          <tr><td><strong>Contest (hiện tại)</strong></td><td>100-200</td><td>~$8</td><td>~$20</td><td>~$28</td></tr>
+          <tr><td><strong>Production LFTV</strong></td><td>500-1000</td><td>~$43</td><td>~$20</td><td>~$63</td></tr>
+          <tr><td><strong>Scale (multi-team)</strong></td><td>5000</td><td>~$250</td><td>~$50 (always-on)</td><td>~$300</td></tr>
+        </table>
+        <div class="card mt-4">
+          <p style="font-size:0.9rem"><strong>Chi phí/request breakdown:</strong></p>
+          <p style="font-size:0.85rem;opacity:0.8">• Parse (Haiku): ~$0.002/CV<br>• Embed (Titan): ~$0.0004/CV<br>• Score (Haiku): ~$0.003/CV<br>• OCR scan (Sonnet): ~$0.02/page (chỉ CV scan)</p>
+        </div>
+      </div>
+      <div class="animate delay-2">
+        <h3>Chi phí VNĐ (tỷ giá ~25,000)</h3>
+        <table class="mt-2">
+          <tr><th>Service</th><th>VNĐ/tháng</th><th>VNĐ/năm</th></tr>
+          <tr><td>AWS Bedrock (AI)</td><td>~90K</td><td>~1.1M</td></tr>
+          <tr><td>EC2 + EBS (seasonal)</td><td>~42K</td><td>~500K</td></tr>
+          <tr><td>SSL (Let's Encrypt)</td><td>0</td><td>0</td></tr>
+          <tr><td>Mailtrap SMTP (dev)</td><td>0</td><td>0</td></tr>
+          <tr style="font-weight:700"><td><strong>TỔNG</strong></td><td><strong>~132K</strong></td><td><strong>~1.6M VNĐ</strong></td></tr>
+        </table>
+        <div class="card mt-4" style="border-left:4px solid var(--success)">
+          <p style="text-align:center;font-size:1.2rem;font-weight:700;color:var(--success)">✅ Dưới budget 4M VNĐ/năm</p>
+          <p style="text-align:center;font-size:0.9rem;opacity:0.8">Còn dư ~2.5M VNĐ cho scale hoặc tính năng mới</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 24: Security chi tiết (bảng rủi ro) -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">🔐 Security & AI Safety — Chi tiết</h2>
+    <div class="animate delay-1 mt-4" style="overflow-x:auto">
+      <table>
+        <tr><th>Rủi ro</th><th>Biện pháp đối phó</th><th>Status</th></tr>
+        <tr><td><strong>Prompt Injection</strong></td><td>XML delimiter wrap, pattern detection (10+ patterns), log warning</td><td style="color:var(--success)">✅</td></tr>
+        <tr><td><strong>Data Leakage (PII)</strong></td><td>Regex mask email/phone/CCCD trước khi gửi AI. AI chỉ thấy [EMAIL]</td><td style="color:var(--success)">✅</td></tr>
+        <tr><td><strong>Unauthorized Access</strong></td><td>JWT auth (access 24h + refresh 7d), role-based (admin/hr/interviewer)</td><td style="color:var(--success)">✅</td></tr>
+        <tr><td><strong>EDoS (AI cost attack)</strong></td><td>slowapi rate limiting on public endpoints, file size limit 10MB</td><td style="color:var(--success)">✅</td></tr>
+        <tr><td><strong>Hallucination</strong></td><td>tool_use schema enforcement, cv_validator confidence score, post-validation</td><td style="color:var(--gold)">⚠️ Partial</td></tr>
+        <tr><td><strong>CV File Malware</strong></td><td>Chỉ accept PDF, PyMuPDF parse (không execute)</td><td style="color:var(--success)">✅</td></tr>
+        <tr><td><strong>Duplicate/Spam Upload</strong></td><td>MD5 hash check + name ILIKE check trước khi tạo candidate</td><td style="color:var(--success)">✅</td></tr>
+        <tr><td><strong>Schedule Token Abuse</strong></td><td>Token unique + one-time use + rate limited</td><td style="color:var(--success)">✅</td></tr>
+      </table>
+    </div>
+    <div class="mt-4 animate delay-2">
+      <p style="color:var(--text-secondary);font-size:0.95rem"><strong>⚠️ Chưa implement:</strong> SSRF protection (không relevant — không fetch external URLs), audit log chi tiết (có AuditLog model nhưng chưa ghi đầy đủ), penetration testing</p>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 25: Hạn chế & Hướng phát triển -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">🚧 Hạn chế & Hướng phát triển</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3 style="color:var(--error)">Hạn chế hiện tại</h3>
+        <table class="mt-2">
+          <tr><th>#</th><th>Hạn chế</th><th>Nguyên nhân</th></tr>
+          <tr><td>1</td><td>Chưa có unit/integration test đầy đủ</td><td>Ưu tiên features trong thời gian ngắn</td></tr>
+          <tr><td>2</td><td>Chưa deploy EC2 production</td><td>Đang chạy Docker local, DEPLOYMENT.md đã có guide</td></tr>
+          <tr><td>3</td><td>Hallucination chưa detect hoàn toàn</td><td>LLM có thể infer sai từ CV mơ hồ</td></tr>
+          <tr><td>4</td><td>Chưa có AI quality monitoring</td><td>Cần data thực tế để đo accuracy theo thời gian</td></tr>
+        </table>
+      </div>
+      <div class="animate delay-2">
+        <h3 class="success-text">Hướng phát triển Production</h3>
+        <table class="mt-2">
+          <tr><th>Hạng mục</th><th>Cần làm thêm</th></tr>
+          <tr><td>Testing</td><td>Unit tests, integration tests, load test batch 200 CVs</td></tr>
+          <tr><td>Security</td><td>Audit log đầy đủ, penetration testing, GDPR erase endpoint</td></tr>
+          <tr><td>Monitoring</td><td>AI quality tracking, cost alerts, uptime check</td></tr>
+          <tr><td>Scalability</td><td>Auto-scaling workers, Redis queue thay thread</td></tr>
+          <tr><td>Features</td><td>Embedding similarity duplicate, AI interview summary, multi-language CV</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 26: Bài học Process & Tâm đắc -->
+<div class="slide slide-accent">
+  <div class="content">
+    <h2 class="animate">💡 Bài học & Tâm đắc</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3>Process & Teamwork</h3>
+        <ul class="mt-2">
+          <li><strong>Chia task theo layer</strong> — Backend/Frontend/AI Pipeline song song, merge cuối sprint</li>
+          <li><strong>Demo sớm, iterate nhanh</strong> — Mock data trước → real AI sau → feedback → adjust</li>
+          <li><strong>Document-first</strong> — Viết Tech Stack doc trước code → align team từ đầu</li>
+          <li><strong>AI-assisted development</strong> — Dùng AI để code nhanh hơn, focus vào architecture decisions</li>
+        </ul>
+      </div>
+      <div class="animate delay-2">
+        <h3>Điều tâm đắc nhất</h3>
+        <div class="card" style="border-color:rgba(255,255,255,0.3);margin-bottom:12px">
+          <p style="font-size:0.95rem"><strong>🎯 PII Protection design:</strong> Ý tưởng đơn giản (regex mask → AI → inject back) nhưng giải quyết compliance rất hiệu quả. AI không bao giờ thấy data thật.</p>
+        </div>
+        <div class="card" style="border-color:rgba(255,255,255,0.3);margin-bottom:12px">
+          <p style="font-size:0.95rem"><strong>🧩 Smart Pool:</strong> Talent Pool "sống" — ứng viên cũ tự động match khi có JD mới. HR không bỏ sót ai, zero manual effort.</p>
+        </div>
+        <div class="card" style="border-color:rgba(255,255,255,0.3)">
+          <p style="font-size:0.95rem"><strong>💰 $60/năm cho full AI system:</strong> Chứng minh internal tool không cần đắt. EC2 Stop/Start + Haiku + pgvector = production-ready với ngân sách gần zero.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 27: Đóng góp thành viên -->
+<div class="slide slide-light">
+  <div class="content">
+    <h2 class="animate">👥 Đóng góp từng thành viên</h2>
+    <div class="animate delay-1 mt-4" style="overflow-x:auto">
+      <table>
+        <tr><th>Thành viên</th><th>Vai trò</th><th>Phạm vi công việc</th><th>Đóng góp AI-related</th></tr>
+        <tr><td><strong>Nguyễn Thịnh</strong></td><td>Team Leader + Backend</td><td>System architecture, FastAPI 16 routers, Docker, DB schema, deployment</td><td>AI Pipeline design, Bedrock integration, Prompt engineering (parse + score), PII flow, Smart Pool, Injection Guard</td></tr>
+        <tr><td><strong>Nguyễn Anh Hoàng</strong></td><td>Frontend</td><td>React 19 SPA, all pages (Dashboard, Candidates, Jobs, Interviews, CV Upload), i18n, responsive UI</td><td>AI result display, score visualization, batch upload UX, WebSocket progress, Schedule public page</td></tr>
+        <tr><td><strong>Nguyễn Bảo Hồng Minh</strong></td><td>AI + QA</td><td>Scoring algorithm, matching logic, skill normalizer, CV validator, testing, benchmark</td><td>Hybrid scoring (Rule+LLM), Titan embedding integration, keyword matching, classification logic, evaluation script</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 28: Phụ lục -->
+<div class="slide slide-dark">
+  <div class="content">
+    <h2 class="animate">📎 Phụ lục — Links & References</h2>
+    <div class="grid-2 mt-4">
+      <div class="animate delay-1">
+        <h3>Repository & Documentation</h3>
+        <table class="mt-2">
+          <tr><th>Mục</th><th>Link</th></tr>
+          <tr><td>GitHub Repository</td><td>github.com/lifulltechvn</td></tr>
+          <tr><td>Confluence — Project Overview</td><td>M1. Project Overview</td></tr>
+          <tr><td>Confluence — Technical Design</td><td>M2. Technical Design</td></tr>
+          <tr><td>Confluence — Tech Stack</td><td>Tech Stack (evaluation table)</td></tr>
+          <tr><td>Confluence — Cost Estimate</td><td>M3. Cost Estimate</td></tr>
+          <tr><td>Confluence — Schedule</td><td>M4. Schedule and Milestones</td></tr>
+        </table>
+      </div>
+      <div class="animate delay-2">
+        <h3>AI Services</h3>
+        <table class="mt-2">
+          <tr><th>Service</th><th>Model</th></tr>
+          <tr><td>CV Parse + Score</td><td>Claude Haiku 4.5 (Bedrock)</td></tr>
+          <tr><td>OCR (scanned PDF)</td><td>Claude Sonnet 4.5 Vision (Bedrock)</td></tr>
+          <tr><td>Embedding</td><td>Amazon Titan Embed V2 (1024-dim)</td></tr>
+          <tr><td>Scoring</td><td>Claude Haiku 4.5 (Bedrock)</td></tr>
+        </table>
+        <div class="mt-4">
+          <p style="opacity:0.7;font-size:0.9rem">Tuân thủ: <a href="#" style="color:var(--accent)">AIサービス利用ガイドライン</a> + <a href="#" style="color:var(--accent)">AIサービス利用一覧</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 29: Thank you -->
+<div class="slide slide-accent">
+  <div class="content" style="text-align:center">
+    <div class="logo-icon" style="margin:0 auto 20px;border-color:white">
+      <svg width="24" height="24" viewBox="0 0 14 14" fill="none">
+        <rect x="3" y="1" width="8" height="12" rx="1" stroke="white" stroke-width="1.8"/>
+        <line x1="5" y1="4.5" x2="9" y2="4.5" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="5" y1="6.5" x2="9" y2="6.5" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+        <line x1="5" y1="8.5" x2="7.5" y2="8.5" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1 class="animate">Cảm ơn!</h1>
+    <p class="subtitle animate delay-1">LF Talent Scan — Team Mansion</p>
+    <div class="mt-4 animate delay-2">
+      <p style="font-size:1.1rem;opacity:0.9">AI CV Screening hoàn chỉnh chỉ với ~1.6M VNĐ/năm</p>
+      <p style="font-size:1.1rem;opacity:0.9">3 người × 2.5 tháng × Full-stack AI</p>
+    </div>
+    <div class="mt-4 animate delay-3" style="opacity:0.8">
+      <p>Nguyễn Thịnh &nbsp;│&nbsp; Nguyễn Anh Hoàng &nbsp;│&nbsp; Nguyễn Bảo Hồng Minh</p>
+      <p class="mt-2 small">LIFULL Tech Vietnam — AI Contest 2026</p>
+    </div>
+    <div class="mt-4 animate delay-4">
+      <span class="tag" style="background:rgba(255,255,255,0.2);color:white">Q&A</span>
+    </div>
+  </div>
+</div>
+
+</div><!-- end deck -->
+
+<script>
+const slides = document.querySelectorAll('.slide');
+let current = 0;
+const total = slides.length;
+
+function showSlide(n) {
+  slides.forEach((s, i) => {
+    s.classList.remove('active', 'prev');
+    if (i === n) s.classList.add('active');
+    else if (i < n) s.classList.add('prev');
+  });
+  document.getElementById('progress').style.width = ((n + 1) / total * 100) + '%';
+  document.getElementById('slideNum').textContent = (n + 1) + ' / ' + total;
+}
+
+function nextSlide() { if (current < total - 1) { current++; showSlide(current); } }
+function prevSlide() { if (current > 0) { current--; showSlide(current); } }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); nextSlide(); }
+  if (e.key === 'ArrowLeft' || e.key === 'Backspace') { e.preventDefault(); prevSlide(); }
+  if (e.key === 'Home') { current = 0; showSlide(current); }
+  if (e.key === 'End') { current = total - 1; showSlide(current); }
+});
+
+// Touch support
+let touchStartX = 0;
+document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', (e) => {
+  const diff = touchStartX - e.changedTouches[0].clientX;
+  if (diff > 50) nextSlide();
+  else if (diff < -50) prevSlide();
+});
+
+showSlide(0);
+</script>
+</body>
+</html>

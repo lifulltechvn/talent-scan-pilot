@@ -43,6 +43,7 @@ class Job(Base):
     required_education: Mapped[str | None] = mapped_column(String(50), nullable=True)
     salary_range: Mapped[str | None] = mapped_column(String(255))
     location: Mapped[str | None] = mapped_column(String(255))
+    category: Mapped[str | None] = mapped_column(String(50), nullable=True)  # application_engineer / bridge_se / qa_engineer / admin / hr
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     embedding = mapped_column(Vector(1024), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))

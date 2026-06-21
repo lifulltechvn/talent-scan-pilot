@@ -12,7 +12,7 @@ export function useJob(id: string) {
 export function useCreateJob() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; deadline?: string }) =>
+    mutationFn: (data: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; category?: string; deadline?: string }) =>
       jobRepo.create(data),
     onSuccess: () => {
       qc.refetchQueries({ queryKey: ['jobs'] });

@@ -183,6 +183,12 @@ async def _process_item(session_factory, batch_id: str, row):
                     if avatar:
                         structured["avatar"] = avatar
 
+                # Assess skill level
+                from app.skill_maps import assess_skill_level
+                skill_level = assess_skill_level(structured, candidate_id=str(candidate_id))
+                if skill_level:
+                    structured["skill_level"] = skill_level
+
                 # Update candidate with parsed data
                 from sqlalchemy import update as sql_update
 
@@ -252,7 +258,8 @@ async def _process_item(session_factory, batch_id: str, row):
                         "recommendation": recommendation,
                         "recommendation_reason": recommendation_reason,
                     }
-                    # Delete the newly created candidate
+                    # Delete the newly created candidate (nullify FK reference first)
+                    await db.execute(text("UPDATE cv_batch_items SET candidate_id = NULL WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
                     await db.execute(text("DELETE FROM candidates WHERE id = :cid"), {"cid": str(candidate_id)})
                     await db.execute(text("""
                         UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id,

@@ -147,9 +147,6 @@ export function InterviewerDashboard() {
                   <button onClick={() => setFeedbackModal(i)} className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100">
                     <MessageSquare size={12} /> Nhận xét
                   </button>
-                  {i.previous_feedback.length > 0 && (
-                    <span className="text-[11px] text-text-muted">📋 {i.previous_feedback.length} feedback trước</span>
-                  )}
                 </div>
                 {i.notes && <p className="text-[11px] text-text-muted mt-2 bg-bg-surface px-3 py-1.5 rounded">{i.notes}</p>}
                 {i.feedback_notes && (
@@ -316,25 +313,6 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
           )}
 
           {/* Previous feedback */}
-          {interview.previous_feedback.length > 0 && (
-            <div className="border-t border-border-subtle pt-4">
-              <span className="text-[11px] font-medium text-text-muted uppercase">Feedback vòng trước</span>
-              <div className="mt-2 space-y-2">
-                {interview.previous_feedback.map(fb => (
-                  <div key={fb.round} className="p-3 bg-bg-surface rounded-lg">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[12px] font-medium text-text-primary">Round {fb.round}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px]">⭐ {fb.score}/5</span>
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full ${fb.decision === 'pass' ? 'bg-emerald-100 text-emerald-700' : fb.decision === 'fail' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{fb.decision}</span>
-                      </div>
-                    </div>
-                    {fb.notes && <p className="text-[11px] text-text-secondary">{fb.notes}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -366,17 +344,6 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: MyInterview
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
         <div className="p-5 space-y-4">
-          {interview.previous_feedback.length > 0 && (
-            <div className="bg-bg-surface rounded-lg p-3">
-              <span className="text-[10px] font-medium text-text-muted uppercase">Vòng trước</span>
-              {interview.previous_feedback.map(fb => (
-                <div key={fb.round} className="text-[11px] text-text-secondary mt-1">
-                  Round {fb.round}: {fb.score}/10
-                </div>
-              ))}
-            </div>
-          )}
-
           <div>
             <label className="text-[12px] font-medium text-text-muted uppercase">Điểm đánh giá: <span className="text-accent text-[14px]">{score}/10</span></label>
             <div className="flex gap-1 mt-2">

@@ -10,7 +10,7 @@ export interface ICandidateRepository {
 export interface IJobRepository {
   getAll(): Promise<Job[]>;
   getById(id: string): Promise<Job | undefined>;
-  create(data: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; deadline?: string }): Promise<Job>;
-  update(id: string, data: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; deadline?: string }): Promise<Job>;
+  create(data: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; category?: string; deadline?: string }): Promise<Job>;
+  update(id: string, data: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; category?: string; deadline?: string }): Promise<Job>;
   delete(id: string): Promise<void>;
 }

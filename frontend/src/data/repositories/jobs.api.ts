@@ -10,6 +10,7 @@ function mapJob(raw: any): Job {
     requiredSkills: raw.required_skills ?? [],
     salaryRange: raw.salary_range,
     location: raw.location,
+    category: raw.category,
     deadline: raw.deadline,
     candidateCount: 0,
     createdBy: raw.created_by,
@@ -29,25 +30,27 @@ export const jobApiRepo: IJobRepository = {
     return mapJob(data);
   },
 
-  async create(payload: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; deadline?: string }) {
+  async create(payload: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; category?: string; deadline?: string }) {
     const { data } = await apiClient.post('/jobs', {
       title: payload.title,
       description: payload.description,
       required_skills: payload.requiredSkills,
       salary_range: payload.salaryRange,
       location: payload.location,
+      category: payload.category,
       deadline: payload.deadline,
     });
     return mapJob(data);
   },
 
-  async update(id: string, payload: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; deadline?: string }) {
+  async update(id: string, payload: { title: string; description: string; requiredSkills: string[]; salaryRange?: string; location?: string; category?: string; deadline?: string }) {
     const { data } = await apiClient.put(`/jobs/${id}`, {
       title: payload.title,
       description: payload.description,
       required_skills: payload.requiredSkills,
       salary_range: payload.salaryRange,
       location: payload.location,
+      category: payload.category,
       deadline: payload.deadline,
     });
     return mapJob(data);
