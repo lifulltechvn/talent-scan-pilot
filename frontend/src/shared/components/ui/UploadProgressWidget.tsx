@@ -24,16 +24,16 @@ export function UploadProgressWidget() {
     <div className="fixed bottom-4 right-4 z-50 w-80 bg-bg-panel border border-border-subtle rounded-xl shadow-lg overflow-hidden">
       {/* Batch progress */}
       {batch && (
-        <div className="px-3 py-2.5 border-b border-border-subtle">
+        <div className="px-3 py-2.5 border-b border-border-subtle cursor-pointer" onClick={() => { window.location.href = '/upload'; }}>
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1.5">
               <FileText size={13} className="text-accent" />
               <span className="text-xs font-medium text-text-primary">
-                {batch.status === 'done' ? 'Xử lý xong' : 'Đang xử lý CV...'}
+                {batch.status === 'done' ? (batch.duplicates > 0 ? `${batch.duplicates} CV trùng — nhấn để xử lý` : 'Xử lý xong') : 'Đang xử lý CV...'}
               </span>
             </div>
             {batch.status === 'done' && (
-              <button onClick={clearBatch} className="text-text-muted hover:text-text-primary">
+              <button onClick={(e) => { e.stopPropagation(); clearBatch(); }} className="text-text-muted hover:text-text-primary">
                 <X size={13} />
               </button>
             )}

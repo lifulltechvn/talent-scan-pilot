@@ -107,16 +107,24 @@ export function CvUploadPage() {
 
   const handleResolve = async (itemId: string, action: string) => {
     if (!batch) return;
-    await apiClient.post(`/cv/batch/${batch.batch_id}/items/${itemId}/resolve?action=${action}`);
-    const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
-    setBatch(data);
+    try {
+      await apiClient.post(`/cv/batch/${batch.batch_id}/items/${itemId}/resolve?action=${action}`);
+      const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
+      setBatch(data);
+    } catch (e: any) {
+      console.error('Resolve failed:', e?.response?.data || e);
+    }
   };
 
   const handleResolveAll = async (action: string) => {
     if (!batch) return;
-    await apiClient.post(`/cv/batch/${batch.batch_id}/resolve-all?action=${action}`);
-    const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
-    setBatch(data);
+    try {
+      await apiClient.post(`/cv/batch/${batch.batch_id}/resolve-all?action=${action}`);
+      const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
+      setBatch(data);
+    } catch (e: any) {
+      console.error('Resolve all failed:', e?.response?.data || e);
+    }
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -277,15 +285,27 @@ export function CvUploadPage() {
                             {item.duplicate_of && <Link to={`/candidates/${item.duplicate_of}`} className="text-accent ml-1 hover:underline">xem ↗</Link>}
                           </div>
                           {item.duplicate_details && (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {item.duplicate_details.new_skills_added && item.duplicate_details.new_skills_added.length > 0 && (
-                                <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded">+{item.duplicate_details.new_skills_added.length} skills mới</span>
-                              )}
-                              {item.duplicate_details.new_experience_count != null && item.duplicate_details.old_experience_count != null && item.duplicate_details.new_experience_count > item.duplicate_details.old_experience_count && (
-                                <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">+{item.duplicate_details.new_experience_count - item.duplicate_details.old_experience_count} experience mới</span>
-                              )}
-                              {item.duplicate_details.existing_status === 'rejected' && (
-                                <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Đã bị reject trước đó</span>
+                            <div className="mt-1 space-y-1">
+                              <div className="flex flex-wrap gap-1">
+                                {item.duplicate_details.days_since_original > 0 && (
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded">
+                                    {item.duplicate_details.days_since_original >= 365 ? `${Math.floor(item.duplicate_details.days_since_original / 365)} năm trước` : item.duplicate_details.days_since_original >= 30 ? `${Math.floor(item.duplicate_details.days_since_original / 30)} tháng trước` : `${item.duplicate_details.days_since_original} ngày trước`}
+                                  </span>
+                                )}
+                                {item.duplicate_details.new_skills_added && item.duplicate_details.new_skills_added.length > 0 && (
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded">+{item.duplicate_details.new_skills_added.length} skills mới</span>
+                                )}
+                                {item.duplicate_details.new_experience_count != null && item.duplicate_details.old_experience_count != null && item.duplicate_details.new_experience_count > item.duplicate_details.old_experience_count && (
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">+{item.duplicate_details.new_experience_count - item.duplicate_details.old_experience_count} experience mới</span>
+                                )}
+                                {item.duplicate_details.existing_status === 'rejected' && (
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Đã bị reject trước đó</span>
+                                )}
+                              </div>
+                              {item.duplicate_details.recommendation_reason && (
+                                <div className={`text-[10px] px-2 py-1 rounded ${item.duplicate_details.recommendation === 'update' ? 'bg-accent/10 text-accent' : 'bg-gray-100 text-text-muted'}`}>
+                                  💡 {item.duplicate_details.recommendation_reason}
+                                </div>
                               )}
                             </div>
                           )}

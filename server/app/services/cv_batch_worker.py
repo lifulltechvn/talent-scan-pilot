@@ -208,15 +208,36 @@ async def _process_item(session_factory, batch_id: str, row):
                 if dup_candidate:
                     # Person-level duplicate found — mark item and delete the new candidate
                     import json as json_mod
+                    from datetime import datetime, timezone
                     old_skills = set()
                     new_skills = set(structured.get("skills") or [])
                     # Get old candidate data for diff
-                    old_q = await db.execute(text("SELECT structured_data FROM candidates WHERE id = :id"), {"id": str(dup_candidate["id"])})
+                    old_q = await db.execute(text("SELECT structured_data, created_at FROM candidates WHERE id = :id"), {"id": str(dup_candidate["id"])})
                     old_row = old_q.mappings().first()
                     old_data = old_row["structured_data"] if old_row else {}
                     old_skills = set(old_data.get("skills") or [])
                     added_skills = list(new_skills - old_skills)
                     removed_skills = list(old_skills - new_skills)
+
+                    # Calculate time gap
+                    days_since = 0
+                    if old_row and old_row["created_at"]:
+                        days_since = (datetime.now(timezone.utc) - old_row["created_at"]).days
+
+                    # Generate recommendation
+                    has_new_content = len(added_skills) > 0 or len(structured.get("experience") or []) > len(old_data.get("experience") or [])
+                    if dup_candidate["status"] == "rejected" and days_since > 180 and has_new_content:
+                        recommendation = "update"
+                        recommendation_reason = f"Đã {days_since // 30} tháng từ lần trước, có thêm kỹ năng/kinh nghiệm mới. Nên cập nhật để xét lại."
+                    elif dup_candidate["status"] == "rejected" and days_since <= 180:
+                        recommendation = "skip"
+                        recommendation_reason = f"Bị reject {days_since} ngày trước, chưa đủ thời gian. Nên bỏ qua."
+                    elif has_new_content:
+                        recommendation = "update"
+                        recommendation_reason = "CV mới có thêm kỹ năng/kinh nghiệm. Nên cập nhật hồ sơ."
+                    else:
+                        recommendation = "skip"
+                        recommendation_reason = "CV không có thay đổi đáng kể so với bản cũ."
 
                     details = {
                         "match_field": dup_reason.replace("_match", ""),
@@ -227,6 +248,9 @@ async def _process_item(session_factory, batch_id: str, row):
                         "skills_removed": removed_skills[:10],
                         "new_experience_count": len(structured.get("experience") or []),
                         "old_experience_count": len(old_data.get("experience") or []),
+                        "days_since_original": days_since,
+                        "recommendation": recommendation,
+                        "recommendation_reason": recommendation_reason,
                     }
                     # Delete the newly created candidate
                     await db.execute(text("DELETE FROM candidates WHERE id = :cid"), {"cid": str(candidate_id)})
