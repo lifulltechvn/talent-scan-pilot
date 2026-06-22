@@ -492,34 +492,44 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
               )}
             </div>
           )}
-          <div className="flex gap-2 pt-2">
-            {!interview.feedback_score && new Date(interview.end_time) < new Date() && (
-              <button onClick={onFeedback} className="flex-1 py-2 text-[13px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover flex items-center justify-center gap-1">
-                <MessageSquare size={13} /> Feedback
-              </button>
-            )}
-            {(interview.interviewer_feedback || []).length > 0 && (
-              <button onClick={() => setCoachingId(interview.id)} className="flex-1 py-2 text-[13px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 flex items-center justify-center gap-1">
-                🧠 AI Coaching
-              </button>
-            )}
+          <div className="space-y-2 pt-2">
+            {/* HR Decision */}
             {(interview.interviewer_feedback || []).length > 0 && !interview.feedback_decision && (
-              <HRDecisionButtons interviewId={interview.id} onDecided={onDeleted} />
+              <div>
+                <span className="text-[11px] text-text-muted uppercase font-medium">Quyết định</span>
+                <div className="flex gap-2 mt-1.5">
+                  <HRDecisionButtons interviewId={interview.id} onDecided={onDeleted} />
+                </div>
+              </div>
             )}
             {interview.feedback_decision && (
-              <span className={`flex-1 py-2 text-[13px] font-medium text-center rounded-lg ${interview.feedback_decision === 'pass' ? 'bg-emerald-50 text-emerald-700' : interview.feedback_decision === 'next_round' ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>
+              <div className={`py-2.5 text-[13px] font-medium text-center rounded-lg ${interview.feedback_decision === 'pass' ? 'bg-emerald-50 text-emerald-700' : interview.feedback_decision === 'next_round' ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>
                 {interview.feedback_decision === 'pass' ? '✅ Passed' : interview.feedback_decision === 'next_round' ? '🔄 Next Round' : '❌ Failed'}
-              </span>
+              </div>
             )}
-            {!interview.feedback_score && new Date(interview.end_time) >= new Date() && (
-              <span className="flex-1 py-2 text-[12px] text-text-muted text-center">Chờ kết thúc phỏng vấn</span>
-            )}
-            <button onClick={() => setConfirmDelete(true)} className="px-4 py-2 text-[13px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
-              Xoá
-            </button>
-            <button onClick={onClose} className="px-4 py-2 text-[13px] font-medium text-text-secondary border border-border-subtle rounded-lg hover:bg-bg-surface">
-              Đóng
-            </button>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              {!interview.feedback_score && new Date(interview.end_time) < new Date() && (
+                <button onClick={onFeedback} className="flex-1 py-2 text-[13px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover flex items-center justify-center gap-1">
+                  <MessageSquare size={13} /> Feedback
+                </button>
+              )}
+              {(interview.interviewer_feedback || []).length > 0 && (
+                <button onClick={() => setCoachingId(interview.id)} className="flex-1 py-2 text-[13px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 flex items-center justify-center gap-1">
+                  🧠 AI Coaching
+                </button>
+              )}
+              {!interview.feedback_score && new Date(interview.end_time) >= new Date() && (
+                <span className="flex-1 py-2 text-[12px] text-text-muted text-center">Chờ kết thúc phỏng vấn</span>
+              )}
+              <button onClick={() => setConfirmDelete(true)} className="px-4 py-2 text-[13px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
+                Xoá
+              </button>
+              <button onClick={onClose} className="px-4 py-2 text-[13px] font-medium text-text-secondary border border-border-subtle rounded-lg hover:bg-bg-surface">
+                Đóng
+              </button>
+            </div>
           </div>
         </div>
       </div>
