@@ -18,11 +18,30 @@ router = APIRouter(prefix="/ai-advanced", tags=["ai-advanced"])
 
 
 def _parse_json_response(text: str) -> dict:
-    """Parse JSON from Claude response, stripping markdown code blocks if present."""
+    """Parse JSON from Claude response, handling markdown blocks and minor format issues."""
     import re
     cleaned = re.sub(r'^```(?:json)?\s*', '', text.strip())
     cleaned = re.sub(r'\s*```$', '', cleaned)
-    return json.loads(cleaned)
+    # Try direct parse
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+    # Fix common issues: trailing commas, single quotes
+    cleaned = re.sub(r',\s*}', '}', cleaned)
+    cleaned = re.sub(r',\s*]', ']', cleaned)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+    # Last resort: extract first JSON object
+    match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+    raise ValueError(f"Cannot parse JSON from: {cleaned[:200]}")
 
 
 # ============ #1: AI Detect CV giả ============
@@ -98,7 +117,7 @@ Reply ONLY valid JSON:
 {{"score": <0-100, 100=authentic>, "verdict": "<authentic|suspicious|likely_ai>", "reasons": ["specific evidence 1", "specific evidence 2", ...], "red_flags": ["concrete flag with quote from CV"], "green_flags": ["concrete positive sign with quote"]}}"""
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=600, feature="cv_authenticity", candidate_id=candidate_id)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=800, feature="cv_authenticity", candidate_id=candidate_id)
         logger.info(f"CV authenticity raw response: {result[:200]}")
         data = _parse_json_response(result)
         return {
