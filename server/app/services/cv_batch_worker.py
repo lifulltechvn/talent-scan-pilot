@@ -71,12 +71,19 @@ async def _process_batch(batch_id: str):
         ), {"bid": batch_id})
         rows = items.mappings().all()
 
-    # Process items in parallel (up to 10 concurrent)
-    sem = asyncio.Semaphore(15)
-    async def _bounded(row):
-        async with sem:
-            await _process_item(session_factory, batch_id, row)
-    await asyncio.gather(*[_bounded(row) for row in rows])
+    # Process items in TRUE parallel using thread pool (not asyncio)
+    from concurrent.futures import as_completed
+    futures = []
+    for row in rows:
+        f = _executor.submit(_process_item_sync, batch_id, dict(row))
+        futures.append(f)
+
+    # Wait for all to complete
+    for f in as_completed(futures):
+        try:
+            f.result()
+        except Exception as e:
+            logger.error(f"Batch item failed: {e}")
 
     # Update batch status
     async with session_factory() as db:
@@ -98,71 +105,72 @@ async def _process_batch(batch_id: str):
         await db.commit()
 
 
-async def _process_item(session_factory, batch_id: str, row):
-    """Process a single batch item."""
+def _process_item_sync(batch_id: str, row: dict):
+    """Process a single batch item SYNCHRONOUSLY in its own thread."""
+    import time
+    import asyncio
+
+    t0 = time.time()
     item_id = str(row["id"])
     file_path = row["file_path"]
     file_name = row["file_name"]
     file_hash = row["file_hash"]
 
-    try:
-        async with session_factory() as db:
-            # Check duplicate by hash
-            existing = await db.execute(text(
-                "SELECT id, structured_data->>'name' as name FROM candidates WHERE cv_hash = :h"
-            ), {"h": file_hash})
-            dup = existing.mappings().first()
+    async def _run():
+        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+        engine = create_async_engine(settings.DATABASE_URL, pool_size=1)
+        sf = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with sf() as db:
+                # Check duplicate by hash
+                existing = await db.execute(text(
+                    "SELECT id, structured_data->>'name' as name FROM candidates WHERE cv_hash = :h"
+                ), {"h": file_hash})
+                dup = existing.mappings().first()
 
-            if dup:
-                await db.execute(text("""
-                    UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id, duplicate_reason = 'hash_match' WHERE id = :id
-                """), {"dup_id": str(dup["id"]), "id": item_id})
-                await _update_batch_counts(db, batch_id)
+                if dup:
+                    await db.execute(text("""
+                        UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id, duplicate_reason = 'hash_match' WHERE id = :id
+                    """), {"dup_id": str(dup["id"]), "id": item_id})
+                    await db.commit()
+                    print(f"[TIMING] {file_name}: DUP {time.time()-t0:.1f}s", flush=True)
+                    return
+
+                # Extract
+                t1 = time.time()
+                with open(file_path, "rb") as f:
+                    file_bytes = f.read()
+                result = extract(file_bytes, file_name)
+                masked_text, pii_data = filter_pii(result.text)
+                print(f"[TIMING] {file_name}: extract {time.time()-t1:.1f}s", flush=True)
+
+                # Save candidate
+                candidate_id = uuid.uuid4()
+                ext = os.path.splitext(file_name)[1].lower()
+                stored_filename = f"{candidate_id}{ext}"
+                dest = os.path.join(CV_UPLOAD_DIR, stored_filename)
+                os.makedirs(CV_UPLOAD_DIR, exist_ok=True)
+                with open(dest, "wb") as f2:
+                    f2.write(file_bytes)
+
+                candidate = Candidate(
+                    id=candidate_id, job_id=None,
+                    structured_data={"name": file_name, "status": "processing"},
+                    embedding=None, cv_file_path=stored_filename, cv_hash=file_hash,
+                    source_app_version="web", status="processing",
+                )
+                db.add(candidate)
+                await db.flush()  # Ensure candidate is persisted before FK reference
+                await db.execute(text(
+                    "UPDATE cv_batch_items SET status = 'processing', candidate_id = :cid WHERE id = :id"
+                ), {"cid": str(candidate_id), "id": item_id})
                 await db.commit()
-                return
 
-            # Extract and process
-            with open(file_path, "rb") as f:
-                file_bytes = f.read()
-
-            result = extract(file_bytes, file_name)
-            masked_text, pii_data = filter_pii(result.text)
-
-            # Save to CV_UPLOAD_DIR
-            candidate_id = uuid.uuid4()
-            ext = os.path.splitext(file_name)[1].lower()
-            stored_filename = f"{candidate_id}{ext}"
-            dest = os.path.join(CV_UPLOAD_DIR, stored_filename)
-            os.makedirs(CV_UPLOAD_DIR, exist_ok=True)
-            with open(dest, "wb") as f:
-                f.write(file_bytes)
-
-            # Create candidate
-            candidate = Candidate(
-                id=candidate_id,
-                job_id=None,
-                structured_data={"name": file_name, "status": "processing"},
-                embedding=None,
-                cv_file_path=stored_filename,
-                cv_hash=file_hash,
-                source_app_version="web",
-                status="processing",
-            )
-            db.add(candidate)
-            await db.commit()
-
-            # Update batch item — still processing (AI running)
-            await db.execute(text("""
-                UPDATE cv_batch_items SET status = 'processing', candidate_id = :cid WHERE id = :id
-            """), {"cid": str(candidate_id), "id": item_id})
-            await db.commit()
-
-            # AI processing — run in thread executor to avoid blocking event loop
-            try:
-                import asyncio
+                # AI processing (blocking in this thread — that's fine, each item has its own thread)
+                t2 = time.time()
                 from app.services.cv_upload import _process_ai_sync, _extract_avatar
-                loop = asyncio.get_event_loop()
-                structured, embedding = await loop.run_in_executor(_executor, _process_ai_sync, masked_text, str(candidate_id))
+                structured, embedding = _process_ai_sync(masked_text, str(candidate_id))
+                print(f"[TIMING] {file_name}: AI {time.time()-t2:.1f}s TOTAL={time.time()-t0:.1f}s", flush=True)
 
                 # Inject PII back
                 if pii_data:
@@ -183,128 +191,35 @@ async def _process_item(session_factory, batch_id: str, row):
                     if avatar:
                         structured["avatar"] = avatar
 
-                # Assess skill level
-                from app.skill_maps import assess_skill_level
-                skill_level = assess_skill_level(structured, candidate_id=str(candidate_id))
-                if skill_level:
-                    structured["skill_level"] = skill_level
-
-                # Update candidate with parsed data
+                # Update candidate
                 from sqlalchemy import update as sql_update
-
-                # Check person-level duplicate (email/phone match)
-                dup_candidate = None
-                dup_reason = None
-                if structured.get("email") and structured["email"] != "null":
-                    dup_q = await db.execute(text(
-                        "SELECT id, structured_data->>'name' as name, status FROM candidates WHERE structured_data->>'email' = :email AND id != :cid LIMIT 1"
-                    ), {"email": structured["email"], "cid": str(candidate_id)})
-                    dup_candidate = dup_q.mappings().first()
-                    if dup_candidate:
-                        dup_reason = "email_match"
-
-                if not dup_candidate and structured.get("phone") and structured["phone"] != "null":
-                    dup_q = await db.execute(text(
-                        "SELECT id, structured_data->>'name' as name, status FROM candidates WHERE structured_data->>'phone' = :phone AND id != :cid LIMIT 1"
-                    ), {"phone": structured["phone"], "cid": str(candidate_id)})
-                    dup_candidate = dup_q.mappings().first()
-                    if dup_candidate:
-                        dup_reason = "phone_match"
-
-                if dup_candidate:
-                    # Person-level duplicate found — mark item and delete the new candidate
-                    import json as json_mod
-                    from datetime import datetime, timezone
-                    old_skills = set()
-                    new_skills = set(structured.get("skills") or [])
-                    # Get old candidate data for diff
-                    old_q = await db.execute(text("SELECT structured_data, created_at FROM candidates WHERE id = :id"), {"id": str(dup_candidate["id"])})
-                    old_row = old_q.mappings().first()
-                    old_data = old_row["structured_data"] if old_row else {}
-                    old_skills = set(old_data.get("skills") or [])
-                    added_skills = list(new_skills - old_skills)
-                    removed_skills = list(old_skills - new_skills)
-
-                    # Calculate time gap
-                    days_since = 0
-                    if old_row and old_row["created_at"]:
-                        days_since = (datetime.now(timezone.utc) - old_row["created_at"]).days
-
-                    # Generate recommendation
-                    has_new_content = len(added_skills) > 0 or len(structured.get("experience") or []) > len(old_data.get("experience") or [])
-                    if dup_candidate["status"] == "rejected" and days_since > 180 and has_new_content:
-                        recommendation = "update"
-                        recommendation_reason = f"Đã {days_since // 30} tháng từ lần trước, có thêm kỹ năng/kinh nghiệm mới. Nên cập nhật để xét lại."
-                    elif dup_candidate["status"] == "rejected" and days_since <= 180:
-                        recommendation = "skip"
-                        recommendation_reason = f"Bị reject {days_since} ngày trước, chưa đủ thời gian. Nên bỏ qua."
-                    elif has_new_content:
-                        recommendation = "update"
-                        recommendation_reason = "CV mới có thêm kỹ năng/kinh nghiệm. Nên cập nhật hồ sơ."
-                    else:
-                        recommendation = "skip"
-                        recommendation_reason = "CV không có thay đổi đáng kể so với bản cũ."
-
-                    details = {
-                        "match_field": dup_reason.replace("_match", ""),
-                        "match_value": structured.get("email") if dup_reason == "email_match" else structured.get("phone"),
-                        "existing_status": dup_candidate["status"],
-                        "existing_name": dup_candidate["name"],
-                        "new_skills_added": added_skills[:10],
-                        "skills_removed": removed_skills[:10],
-                        "new_experience_count": len(structured.get("experience") or []),
-                        "old_experience_count": len(old_data.get("experience") or []),
-                        "days_since_original": days_since,
-                        "recommendation": recommendation,
-                        "recommendation_reason": recommendation_reason,
-                    }
-                    # Delete the newly created candidate (nullify FK reference first)
-                    await db.execute(text("UPDATE cv_batch_items SET candidate_id = NULL WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
-                    await db.execute(text("DELETE FROM candidates WHERE id = :cid"), {"cid": str(candidate_id)})
-                    await db.execute(text("""
-                        UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id,
-                            duplicate_reason = :reason, duplicate_details = :details
-                        WHERE id = :id
-                    """), {"dup_id": str(dup_candidate["id"]), "reason": dup_reason, "details": json_mod.dumps(details), "id": item_id})
-                    await _update_batch_counts(db, batch_id)
-                    await db.commit()
-                    return
-
                 await db.execute(
-                    sql_update(Candidate)
-                    .where(Candidate.id == candidate_id)
+                    sql_update(Candidate).where(Candidate.id == candidate_id)
                     .values(structured_data=structured, embedding=embedding, status="new")
                 )
-                await db.commit()
-            except Exception as ai_err:
-                logger.warning(f"AI parse failed for batch item {item_id}: {ai_err}")
-                from sqlalchemy import update as sql_update2
-                await db.execute(
-                    sql_update2(Candidate)
-                    .where(Candidate.id == candidate_id)
-                    .values(status="new", structured_data={"name": file_name, "parse_error": str(ai_err)})
-                )
+                await db.execute(text("UPDATE cv_batch_items SET status = 'done' WHERE id = :id"), {"id": item_id})
                 await db.commit()
 
-            # Now mark batch item done
-            await db.execute(text("""
-                UPDATE cv_batch_items SET status = 'done' WHERE id = :id
-            """), {"id": item_id})
-            await _update_batch_counts(db, batch_id)
-            await db.commit()
+                # Smart pool
+                from app.services.smart_pool import background_match_candidate
+                background_match_candidate(str(candidate_id))
 
-            # Smart pool matching in background (non-blocking)
-            from app.services.smart_pool import background_match_candidate
-            background_match_candidate(str(candidate_id))
+        except Exception as e:
+            logger.error(f"_process_item_sync {item_id} failed: {e}")
+            try:
+                async with sf() as db2:
+                    await db2.execute(text("UPDATE cv_batch_items SET status = 'error', error = :err WHERE id = :id"), {"err": str(e)[:500], "id": item_id})
+                    await db2.commit()
+            except Exception:
+                pass
+        finally:
+            await engine.dispose()
 
-    except Exception as e:
-        logger.error(f"Batch item {item_id} failed: {e}")
-        async with session_factory() as db:
-            await db.execute(text(
-                "UPDATE cv_batch_items SET status = 'error', error = :err WHERE id = :id"
-            ), {"err": str(e)[:500], "id": item_id})
-            await _update_batch_counts(db, batch_id)
-            await db.commit()
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(_run())
+    finally:
+        loop.close()
 
 
 async def _update_batch_counts(db, batch_id: str):

@@ -43,6 +43,7 @@ export function CvUploadPage() {
   const [batch, setBatch] = useState<BatchStatus | null>(null);
   const [error, setError] = useState('');
   const [expandedSection, setExpandedSection] = useState<string | null>('duplicates');
+  const [resolving, setResolving] = useState(false);
 
   // Restore active batch on mount — fetch latest from server
   useEffect(() => {
@@ -106,24 +107,38 @@ export function CvUploadPage() {
   };
 
   const handleResolve = async (itemId: string, action: string) => {
-    if (!batch) return;
+    if (!batch || resolving) return;
+    setResolving(true);
     try {
       await apiClient.post(`/cv/batch/${batch.batch_id}/items/${itemId}/resolve?action=${action}`);
-      const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
-      setBatch(data);
+      await _waitAndRefresh();
     } catch (e: any) {
       console.error('Resolve failed:', e?.response?.data || e);
     }
+    setResolving(false);
   };
 
   const handleResolveAll = async (action: string) => {
-    if (!batch) return;
+    if (!batch || resolving) return;
+    setResolving(true);
     try {
       await apiClient.post(`/cv/batch/${batch.batch_id}/resolve-all?action=${action}`);
-      const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
-      setBatch(data);
+      await _waitAndRefresh();
     } catch (e: any) {
       console.error('Resolve all failed:', e?.response?.data || e);
+    }
+    setResolving(false);
+  };
+
+  const _waitAndRefresh = async () => {
+    if (!batch) return;
+    // Poll until no more 'duplicate' items or timeout
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
+      const hasDup = data.items?.some((it: any) => it.status === 'duplicate');
+      setBatch(data);
+      if (!hasDup) break;
     }
   };
 
@@ -221,9 +236,9 @@ export function CvUploadPage() {
           </div>
 
           {/* Currently processing files */}
-          {processing.length > 0 && (
+          {(processing.length > 0 || (batch.status === 'processing' && batch.processed < batch.total_files)) && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <h3 className="text-xs font-medium text-blue-800 mb-2">🔄 Đang xử lý ({processing.length} file)</h3>
+              <h3 className="text-xs font-medium text-blue-800 mb-2">🔄 Đang xử lý ({batch.total_files - batch.processed} file còn lại)</h3>
               <div className="space-y-1.5">
                 {processing.slice(0, 5).map((item, i) => (
                   <div key={item.id} className="flex items-center gap-2">
@@ -255,13 +270,13 @@ export function CvUploadPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1.5">
-                    <button onClick={(e) => { e.stopPropagation(); handleResolveAll('update_all'); }} className="text-[10px] px-2 py-1 bg-accent text-white rounded-md hover:bg-accent-hover">
-                      Cập nhật tất cả
+                    <button disabled={resolving} onClick={(e) => { e.stopPropagation(); handleResolveAll('update_all'); }} className="text-[10px] px-2 py-1 bg-accent text-white rounded-md hover:bg-accent-hover disabled:opacity-40">
+                      {resolving ? 'Đang xử lý...' : 'Cập nhật tất cả'}
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); handleResolveAll('create_all'); }} className="text-[10px] px-2 py-1 bg-white border border-amber-300 text-amber-800 rounded-md hover:bg-amber-100">
+                    <button disabled={resolving} onClick={(e) => { e.stopPropagation(); handleResolveAll('create_all'); }} className="text-[10px] px-2 py-1 bg-white border border-amber-300 text-amber-800 rounded-md hover:bg-amber-100 disabled:opacity-40">
                       Tạo mới tất cả
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); handleResolveAll('skip_all'); }} className="text-[10px] px-2 py-1 text-amber-700 hover:text-amber-900">
+                    <button disabled={resolving} onClick={(e) => { e.stopPropagation(); handleResolveAll('skip_all'); }} className="text-[10px] px-2 py-1 text-amber-700 hover:text-amber-900 disabled:opacity-40">
                       Bỏ qua
                     </button>
                   </div>
@@ -311,13 +326,13 @@ export function CvUploadPage() {
                           )}
                         </div>
                         <div className="flex gap-1 shrink-0 ml-2">
-                          <button onClick={() => handleResolve(item.id, 'update')} className="p-1.5 text-accent hover:bg-accent/10 rounded-md" title="Cập nhật CV mới cho hồ sơ cũ">
+                          <button disabled={resolving} onClick={() => handleResolve(item.id, 'update')} className="p-1.5 text-accent hover:bg-accent/10 rounded-md disabled:opacity-40" title="Cập nhật CV mới cho hồ sơ cũ">
                             <RefreshCw size={13} />
                           </button>
-                          <button onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="Tạo ứng viên mới">
+                          <button disabled={resolving} onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md disabled:opacity-40" title="Tạo ứng viên mới">
                             <UserPlus size={13} />
                           </button>
-                          <button onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md" title="Bỏ qua">
+                          <button disabled={resolving} onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md disabled:opacity-40" title="Bỏ qua">
                             <SkipForward size={13} />
                           </button>
                         </div>

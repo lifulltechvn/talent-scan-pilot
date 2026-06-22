@@ -73,11 +73,27 @@ def calculate_cost(model_id: str, input_tokens: int, output_tokens: int) -> floa
     return (input_tokens * p["input"] + output_tokens * p["output"]) / 1000
 
 
+import threading
+
+_thread_local = threading.local()
+
+
 def get_bedrock_client():
-    global _clients, _client_cycle
+    """Get a thread-local Bedrock client for true parallel calls."""
+    global _clients
     if not _clients:
         _init_clients()
-    return next(_client_cycle)
+    # Each thread gets its own client to avoid contention
+    if not hasattr(_thread_local, 'client'):
+        import random
+        region = random.choice([r.strip() for r in settings.AWS_REGION.split(",") if r.strip()])
+        _thread_local.client = boto3.client(
+            "bedrock-runtime",
+            region_name=region,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        )
+    return _thread_local.client
 
 
 def _log_usage(model_id: str, feature: str, input_tokens: int, output_tokens: int, source: str = "server", candidate_id: str | None = None):
