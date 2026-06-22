@@ -134,7 +134,7 @@ Reply ONLY valid JSON:
             "green_flags": data.get("green_flags", []),
         }
         # Cache result
-        await db.execute(text("UPDATE candidates SET structured_data = jsonb_set(structured_data, '{_ai_authenticity}', :val::jsonb) WHERE id = :cid"),
+        await db.execute(text("UPDATE candidates SET structured_data = jsonb_set(structured_data, '{_ai_authenticity}', CAST(:val AS jsonb)) WHERE id = :cid"),
             {"val": json.dumps(response), "cid": candidate_id})
         await db.commit()
         return {"candidate_id": candidate_id, "candidate_name": d.get("name", "Unknown"), **response}
@@ -273,7 +273,7 @@ Reply ONLY valid JSON:
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="culture_fit", candidate_id=candidate_id)
         data = _parse_json_response(result)
         # Cache result
-        await db.execute(text("UPDATE candidates SET structured_data = jsonb_set(structured_data, '{_ai_culture_fit}', :val::jsonb) WHERE id = :cid"),
+        await db.execute(text("UPDATE candidates SET structured_data = jsonb_set(structured_data, '{_ai_culture_fit}', CAST(:val AS jsonb)) WHERE id = :cid"),
             {"val": json.dumps(data), "cid": candidate_id})
         await db.commit()
         return {
