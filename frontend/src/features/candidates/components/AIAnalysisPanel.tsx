@@ -122,28 +122,34 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
               {/* Scores */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="p-3 bg-bg-surface rounded-lg text-center">
-                  <div className="text-[18px] font-bold text-accent">{cultureResult.culture_score}</div>
-                  <div className="text-[10px] text-text-muted">Culture Fit</div>
-                </div>
-                <div className="p-3 bg-bg-surface rounded-lg text-center">
                   <div className={`text-[14px] font-bold ${cultureResult.retention_risk === 'low' ? 'text-emerald-600' : cultureResult.retention_risk === 'medium' ? 'text-amber-600' : 'text-red-600'}`}>
-                    {cultureResult.retention_risk === 'low' ? '✓ Thấp' : cultureResult.retention_risk === 'medium' ? '⚠ Trung bình' : '⚠ Cao'}
+                    {cultureResult.retention_risk === 'low' ? '✓ Thấp' : cultureResult.retention_risk === 'medium' ? '⚠ TB' : '⚠ Cao'}
                   </div>
                   <div className="text-[10px] text-text-muted">Rủi ro nghỉ</div>
                 </div>
                 <div className="p-3 bg-bg-surface rounded-lg text-center">
-                  <div className={`text-[14px] font-bold ${cultureResult.growth_potential === 'high' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {cultureResult.growth_potential === 'high' ? '↑ Cao' : cultureResult.growth_potential === 'medium' ? '→ TB' : '↓ Thấp'}
-                  </div>
-                  <div className="text-[10px] text-text-muted">Tiềm năng</div>
+                  <div className="text-[14px] font-bold text-text-primary">{cultureResult.avg_tenure_years || '?'}y</div>
+                  <div className="text-[10px] text-text-muted">TB mỗi job</div>
+                </div>
+                <div className="p-3 bg-bg-surface rounded-lg text-center">
+                  <div className="text-[14px] font-bold text-accent">{cultureResult.career_trajectory === 'growing' ? '↑' : cultureResult.career_trajectory === 'lateral' ? '→' : '↓'}</div>
+                  <div className="text-[10px] text-text-muted">{cultureResult.career_trajectory || 'N/A'}</div>
                 </div>
               </div>
 
-              {/* Fit reasons */}
-              {cultureResult.fit_reasons?.length > 0 && (
+              {/* Work style */}
+              {cultureResult.work_style && (
+                <div className="p-2.5 bg-blue-50 rounded-lg">
+                  <span className="text-[10px] font-medium text-blue-700 uppercase">Phong cách làm việc</span>
+                  <p className="text-[12px] text-blue-800 mt-0.5">{cultureResult.work_style === 'leader' ? '👥 Thiên hướng leadership' : cultureResult.work_style === 'individual_contributor' ? '🎯 Individual Contributor' : '⚡ Linh hoạt cả hai'}</p>
+                </div>
+              )}
+
+              {/* Strengths */}
+              {cultureResult.strengths?.length > 0 && (
                 <div className="p-2.5 bg-emerald-50 rounded-lg">
-                  <span className="text-[10px] font-medium text-emerald-700 uppercase">Phù hợp</span>
-                  {cultureResult.fit_reasons.map((r: string, i: number) => (
+                  <span className="text-[10px] font-medium text-emerald-700 uppercase">Điểm mạnh</span>
+                  {cultureResult.strengths.map((r: string, i: number) => (
                     <p key={i} className="text-[11px] text-emerald-700 mt-0.5">✓ {r}</p>
                   ))}
                 </div>
@@ -161,9 +167,9 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
 
               {/* Recommendation */}
               {cultureResult.recommendation && (
-                <div className="p-2.5 bg-blue-50 rounded-lg">
-                  <span className="text-[10px] font-medium text-blue-700 uppercase">Khuyến nghị</span>
-                  <p className="text-[12px] text-blue-800 mt-0.5">{cultureResult.recommendation}</p>
+                <div className="p-2.5 bg-bg-surface rounded-lg border border-border-subtle">
+                  <span className="text-[10px] font-medium text-text-muted uppercase">Khuyến nghị</span>
+                  <p className="text-[12px] text-text-primary mt-0.5 font-medium">{cultureResult.recommendation}</p>
                 </div>
               )}
 

@@ -32,46 +32,65 @@ async def check_cv_authenticity(
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
-    """AI-powered CV authenticity check. Detects AI-generated or fake CVs."""
+    """AI-powered CV authenticity check. Analyzes raw CV text for AI-generated patterns."""
     candidate = await db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(404, "Candidate not found")
 
+    # Get raw CV text from file (not parsed data — that's already AI-processed)
+    import os
+    raw_text = ""
+    if candidate.cv_file_path:
+        from app.extractor import extract
+        file_path = os.path.join("/app/uploads/cv", candidate.cv_file_path)
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as f:
+                result = extract(f.read(), candidate.cv_file_path)
+                raw_text = result.text[:3000]
+
+    if not raw_text:
+        raise HTTPException(400, "CV file not available for analysis")
+
     d = candidate.structured_data or {}
-    cv_text = json.dumps({
-        "name": d.get("name"),
-        "skills": d.get("skills", []),
-        "experience": d.get("experience", []),
-        "education": d.get("education", []),
-        "experience_years": d.get("experience_years"),
-    }, ensure_ascii=False)
+    # Compute concrete signals
+    experience = d.get("experience", [])
+    signals = []
+    # Check description patterns
+    descriptions = [e.get("description", "") for e in experience if e.get("description")]
+    if descriptions:
+        avg_len = sum(len(desc) for desc in descriptions) / len(descriptions)
+        if avg_len > 150:
+            signals.append(f"Average description length: {avg_len:.0f} chars (AI tends to write longer)")
+        # Check if all descriptions have similar structure
+        starts = [desc[:20] for desc in descriptions]
+        if len(set(starts)) < len(starts) * 0.5:
+            signals.append("Descriptions have repetitive structure")
+    # Check skill count
+    skills = d.get("skills", [])
+    if len(skills) > 15:
+        signals.append(f"Unusually high skill count: {len(skills)} (may be inflated)")
 
-    prompt = f"""Analyze this CV data for authenticity. Detect if it was likely AI-generated or contains fake/exaggerated information.
+    prompt = f"""You are an expert CV fraud detector. Analyze this RAW CV text (not AI-parsed) for authenticity.
 
-<CV_DATA>
-{cv_text[:3000]}
-</CV_DATA>
+<RAW_CV_TEXT>
+{raw_text}
+</RAW_CV_TEXT>
 
-Check for:
-1. Language too polished/generic (AI-written patterns)
-2. Unrealistic achievements (e.g. "increased revenue 500% in 1 month")
-3. Timeline inconsistencies (overlapping jobs, impossible progression)
-4. Vague descriptions without concrete details (buzzwords without substance)
-5. Missing specifics (no tool versions, no team sizes, no metrics)
-6. Copy-paste patterns (same sentence structure repeated)
+Pre-computed signals: {json.dumps(signals)}
 
-Reply in this exact JSON format:
-{{"score": <0-100 where 100=definitely authentic>, "verdict": "<authentic|suspicious|likely_ai>", "reasons": ["reason1", "reason2", ...], "red_flags": ["flag1", ...], "green_flags": ["flag1", ...]}}
+Detect these SPECIFIC patterns of AI-generated or fake CVs:
+1. WRITING STYLE: Does it read like ChatGPT? (overly formal, perfect grammar, buzzword-heavy, no personality)
+2. SPECIFICITY: Are achievements vague ("improved efficiency") or concrete ("reduced API latency from 200ms to 80ms for 1M daily users")?
+3. CONSISTENCY: Do experience years match timeline? Does skill level match claimed experience?
+4. REALISM: Are metrics believable? ("Led team of 50" for a 2-year junior dev?)
+5. FORMATTING: Human CVs have inconsistencies (typos, mixed formatting). AI-written ones are suspiciously perfect.
+6. LANGUAGE NATURALNESS: Real humans write "used Redis for caching" not "leveraged Redis to implement a distributed caching layer"
 
-Rules:
-- score 80-100: authentic (real human CV)
-- score 50-79: suspicious (some red flags)
-- score 0-49: likely AI-generated or fake
-- Provide 2-5 specific reasons
-- Be fair: many real CVs are well-written"""
+Reply ONLY valid JSON:
+{{"score": <0-100, 100=authentic>, "verdict": "<authentic|suspicious|likely_ai>", "reasons": ["specific evidence 1", "specific evidence 2", ...], "red_flags": ["concrete flag with quote from CV"], "green_flags": ["concrete positive sign with quote"]}}"""
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="cv_authenticity", candidate_id=candidate_id)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=600, feature="cv_authenticity", candidate_id=candidate_id)
         data = json.loads(result)
         return {
             "candidate_id": candidate_id,
@@ -157,53 +176,55 @@ async def assess_culture_fit(
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
-    """Assess candidate's culture fit based on CV patterns vs company profile."""
+    """Assess candidate's retention risk and team fit based on concrete CV patterns."""
     candidate = await db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(404, "Candidate not found")
 
     d = candidate.structured_data or {}
-
-    # Get company context (top performers pattern)
-    top_candidates = await db.execute(text("""
-        SELECT structured_data FROM candidates
-        WHERE status = 'approved' AND structured_data IS NOT NULL
-        ORDER BY match_score DESC NULLS LAST LIMIT 5
-    """))
-    top_profiles = [r["structured_data"] for r in top_candidates.mappings().all()]
-
-    top_summary = ""
-    if top_profiles:
-        avg_years = sum(p.get("experience_years", 0) for p in top_profiles) / len(top_profiles)
-        all_skills = [s for p in top_profiles for s in (p.get("skills") or [])]
-        common_skills = sorted(set(s for s in all_skills if all_skills.count(s) >= 2))[:10]
-        top_summary = f"Avg experience: {avg_years:.0f} years. Common skills: {', '.join(common_skills)}"
-
-    # Analyze job tenure
     experiences = d.get("experience", [])
-    tenure_info = ""
-    if experiences:
-        durations = [e.get("duration", e.get("years", "")) for e in experiences]
-        tenure_info = f"Job history: {len(experiences)} positions. Durations: {durations}"
 
-    prompt = f"""Assess this candidate's culture fit and retention risk for a tech company (LIFULL Tech Vietnam).
+    # Compute concrete metrics from CV
+    job_count = len(experiences)
+    exp_years = d.get("experience_years", 0)
+    avg_tenure = round(exp_years / job_count, 1) if job_count > 0 else 0
+
+    # Detect job-hopping: extract durations
+    durations = []
+    for e in experiences:
+        dur = e.get("duration", e.get("years", ""))
+        durations.append(str(dur))
+
+    # Get job context if assigned
+    job_context = ""
+    if candidate.job_id:
+        from app.models import Job
+        job = await db.get(Job, candidate.job_id)
+        if job:
+            job_context = f"Applying for: {job.title}. Required skills: {', '.join(job.required_skills or [])}"
+
+    prompt = f"""Analyze this candidate's work history for retention risk and team fit. Use ONLY concrete data from their CV.
 
 Candidate: {d.get('name')}
-Experience: {d.get('experience_years', 0)} years
+Total experience: {exp_years} years across {job_count} positions
+Average tenure: {avg_tenure} years/job
 Skills: {', '.join((d.get('skills') or [])[:10])}
-{tenure_info}
+{job_context}
 
-Company top performers profile:
-{top_summary or 'No data available'}
+Work history (most recent first):
+{json.dumps(experiences[:5], ensure_ascii=False)}
+
+Job durations: {durations}
 
 Analyze:
-1. Culture fit score (0-100)
-2. Retention risk (low/medium/high) based on job-hopping pattern
-3. Growth potential
-4. Team fit assessment
+1. RETENTION RISK: Based on actual tenure pattern. <1.5yr avg = high risk, 1.5-3yr = medium, >3yr = low
+2. CAREER PROGRESSION: Is there clear growth (junior→senior→lead)? Or lateral moves?
+3. COMPANY PATTERN: Startup→startup? Corporate→corporate? Jumping between?
+4. RED FLAGS: Gaps? Unexplained short stints? Demotion?
+5. TEAM FIT: Based on roles held, likely leadership/IC preference?
 
-Reply in JSON:
-{{"culture_score": <0-100>, "retention_risk": "<low|medium|high>", "avg_tenure_months": <number or null>, "growth_potential": "<high|medium|low>", "fit_reasons": ["..."], "risk_factors": ["..."], "recommendation": "..."}}"""
+Reply ONLY valid JSON:
+{{"retention_risk": "<low|medium|high>", "avg_tenure_years": {avg_tenure}, "career_trajectory": "<growing|lateral|declining|mixed>", "risk_factors": ["specific factor with evidence"], "strengths": ["specific strength with evidence"], "work_style": "<leader|individual_contributor|both>", "recommendation": "1 sentence actionable advice for HR"}}"""
 
     try:
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="culture_fit", candidate_id=candidate_id)
@@ -211,8 +232,11 @@ Reply in JSON:
         return {
             "candidate_id": candidate_id,
             "candidate_name": d.get("name", "Unknown"),
+            "job_count": job_count,
+            "exp_years": exp_years,
+            "avg_tenure_years": avg_tenure,
             **data,
         }
     except Exception as e:
         logger.warning(f"Culture fit assessment failed: {e}")
-        return {"candidate_id": candidate_id, "culture_score": 50, "retention_risk": "unknown", "recommendation": "Assessment unavailable"}
+        return {"candidate_id": candidate_id, "retention_risk": "unknown", "recommendation": "Assessment unavailable"}
