@@ -7,6 +7,8 @@ import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { CandidateTimeline } from '../components/CandidateTimeline';
+import { AIAnalysisPanel } from '../components/AIAnalysisPanel';
+import { AIEmailComposer } from '@/features/outreach/components/AIEmailComposer';
 import { useI18n } from '@/shared/i18n';
 import { apiClient } from '@/data/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -141,6 +143,7 @@ export function CandidateDetailPage() {
   const { toast } = useToast();
   const { confirm } = useConfirm();
   const [cvBlobUrl, setCvBlobUrl] = useState<string | null>(null);
+  const [emailModal, setEmailModal] = useState(false);
 
   // Find prev/next candidates
   const candidateIds = allCandidates?.map(c => c.id) ?? [];
@@ -379,6 +382,9 @@ export function CandidateDetailPage() {
 
             {/* Actions */}
             <div className="space-y-2">
+              <button onClick={() => setEmailModal(true)} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
+                <Sparkles size={14} /> AI Email
+              </button>
               {candidate.status !== 'approved' && candidate.status !== 'rejected' && candidate.status === 'new' && (
                 <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'reviewed' }); toast('success', 'Marked as reviewed'); }} disabled={updateStatus.isPending} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-40">
                   <CheckCircle size={14} /> {updateStatus.isPending ? 'Updating...' : 'Mark as Reviewed'}
@@ -411,6 +417,18 @@ export function CandidateDetailPage() {
           </div>
         </div>
       </div>{/* end sidebar layout */}
+
+      {/* AI Email Modal */}
+      {emailModal && (
+        <AIEmailComposer
+          candidateId={candidate.id}
+          candidateName={d.name || 'Candidate'}
+          candidateEmail={d.email || null}
+          jobTitle={candidate.jobTitle || undefined}
+          onClose={() => setEmailModal(false)}
+          onSent={() => toast('success', 'Email sent!')}
+        />
+      )}
 
       {/* CV Preview Modal */}
       {cvBlobUrl && (

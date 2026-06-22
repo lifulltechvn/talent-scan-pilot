@@ -278,3 +278,150 @@ async def _get_template_or_default(db: AsyncSession, template_type: str, name: s
         return default_rejection(name, job_title)
     else:
         return default_reminder(name, job_title, "TBD", "TBD")
+
+
+# ============ AI Email Writer ============
+
+class AIEmailRequest(BaseModel):
+    candidate_id: str
+    purpose: str  # interview_invite | rejection | outreach | follow_up | offer
+    tone: str = "professional"  # professional | friendly | casual
+    job_title: str | None = None
+    extra_context: str | None = None  # HR can add custom notes
+
+
+class AIEmailResponse(BaseModel):
+    subject: str
+    greeting: str
+    body: str
+    closing: str
+    signature: dict
+
+
+@router.post("/ai-generate")
+async def ai_generate_email(
+    body: AIEmailRequest,
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """AI generates personalized email based on candidate context + company template."""
+    from app.bedrock import invoke_claude
+    from app.config import settings
+    from sqlalchemy import text
+    import json
+
+    candidate = await db.get(Candidate, body.candidate_id)
+    if not candidate:
+        raise HTTPException(404, "Candidate not found")
+
+    d = candidate.structured_data or {}
+    name = d.get("name", "Candidate")
+    skills = d.get("skills", [])[:8]
+    exp_years = d.get("experience_years", 0)
+    latest_role = d.get("experience", [{}])[0].get("role", "") if d.get("experience") else ""
+
+    # Get job context
+    job_title = body.job_title or ""
+    if not job_title and candidate.job_id:
+        job = await db.get(Job, candidate.job_id)
+        if job:
+            job_title = job.title
+
+    # Get company signature
+    sig_row = await db.execute(text("SELECT value FROM master_config WHERE key = 'email_signature'"))
+    sig_data = sig_row.scalar()
+    signature = json.loads(sig_data) if sig_data else {"name": "HR Team", "company": "LIFULL Tech Vietnam"}
+
+    # Get interview feedback if available (for follow_up/rejection)
+    feedback_context = ""
+    if body.purpose in ("rejection", "follow_up"):
+        fb_rows = await db.execute(text("""
+            SELECT ii.score, ii.notes, u.full_name FROM interview_interviewers ii
+            JOIN users u ON u.id = ii.user_id
+            JOIN interviews i ON i.id = ii.interview_id
+            WHERE i.candidate_id = :cid AND ii.score IS NOT NULL
+            ORDER BY ii.submitted_at DESC LIMIT 3
+        """), {"cid": body.candidate_id})
+        feedbacks = fb_rows.mappings().all()
+        if feedbacks:
+            feedback_context = "Interview feedback: " + "; ".join([f"{fb['full_name']}: {fb['score']}/10 - {fb['notes'] or 'no notes'}" for fb in feedbacks])
+
+    purpose_descriptions = {
+        "interview_invite": "Invite candidate to an interview. Include enthusiasm about their profile.",
+        "rejection": "Politely reject but provide constructive feedback. Be respectful and encouraging.",
+        "outreach": "Cold outreach to passive candidate. Make them excited about the opportunity.",
+        "follow_up": "Follow up after interview. Thank them and mention next steps.",
+        "offer": "Extend a job offer. Express excitement about them joining the team.",
+    }
+
+    prompt = f"""Write a recruitment email in Vietnamese (or English if candidate name is English).
+
+Purpose: {purpose_descriptions.get(body.purpose, body.purpose)}
+Tone: {body.tone}
+Candidate: {name}, {exp_years}y experience, skills: {', '.join(skills)}
+{f'Latest role: {latest_role}' if latest_role else ''}
+Job: {job_title}
+{feedback_context}
+{f'Extra context from HR: {body.extra_context}' if body.extra_context else ''}
+Sender: {signature.get('name')} - {signature.get('title', 'HR')} at {signature.get('company')}
+
+Rules:
+- Keep it concise (max 150 words body)
+- Personalize: mention specific skills or experience of this candidate
+- Match the tone exactly
+- DO NOT include signature (it's added separately)
+- DO NOT use generic phrases like "I hope this email finds you well"
+
+Reply ONLY valid JSON:
+{{"subject": "...", "greeting": "...", "body": "...", "closing": "..."}}"""
+
+    try:
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="email_generate", candidate_id=body.candidate_id)
+        # Parse response
+        import re
+        cleaned = re.sub(r'^```(?:json)?\s*', '', result.strip())
+        cleaned = re.sub(r'\s*```$', '', cleaned)
+        data = json.loads(cleaned)
+        return AIEmailResponse(
+            subject=data.get("subject", ""),
+            greeting=data.get("greeting", f"Hi {name},"),
+            body=data.get("body", ""),
+            closing=data.get("closing", "Best regards,"),
+            signature=signature,
+        )
+    except Exception as e:
+        # Fallback: return basic template
+        return AIEmailResponse(
+            subject=f"Re: {job_title}" if job_title else "Hello!",
+            greeting=f"Hi {name},",
+            body=f"Error generating email: {str(e)[:100]}",
+            closing="Best regards,",
+            signature=signature,
+        )
+
+
+@router.get("/signature")
+async def get_email_signature(
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """Get company email signature."""
+    from sqlalchemy import text
+    import json
+    row = await db.execute(text("SELECT value FROM master_config WHERE key = 'email_signature'"))
+    val = row.scalar()
+    return json.loads(val) if val else {"name": "HR Team", "company": "LIFULL Tech Vietnam"}
+
+
+@router.put("/signature")
+async def update_email_signature(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """Update company email signature."""
+    from sqlalchemy import text
+    import json
+    await db.execute(text("INSERT INTO master_config (key, value) VALUES ('email_signature', :v) ON CONFLICT (key) DO UPDATE SET value = :v"), {"v": json.dumps(body)})
+    await db.commit()
+    return body

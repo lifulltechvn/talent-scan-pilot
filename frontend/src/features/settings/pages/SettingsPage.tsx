@@ -102,6 +102,9 @@ export function SettingsPage() {
             <Row label="Provider" value="SMTP (Mailtrap)" />
             <Row label="From" value="hr@lftalentscan.com" />
           </Section>
+          <Section icon={Mail} title="Email Signature" description="Chữ ký hiển thị cuối mỗi email gửi đi">
+            <EmailSignatureEditor />
+          </Section>
           <Section icon={Bell} title="Reminders" description="Automatic interview reminders">
             <Row label="Send before" value="24 hours" />
             <Row label="Check interval" value="Every 1 hour" />
@@ -606,6 +609,41 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
     <div>
       <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{label}</label>
       <input value={value} onChange={e => onChange(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40" />
+    </div>
+  );
+}
+
+function EmailSignatureEditor() {
+  const [sig, setSig] = useState({ name: '', title: '', company: '', email: '', phone: '' });
+  const [loading, setLoading] = useState(true);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    apiClient.get('/outreach/signature').then(({ data }) => setSig(data)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    await apiClient.put('/outreach/signature', sig);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  if (loading) return <div className="text-[12px] text-text-muted">Loading...</div>;
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <input value={sig.name} onChange={e => setSig({ ...sig, name: e.target.value })} placeholder="Họ tên" className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
+        <input value={sig.title} onChange={e => setSig({ ...sig, title: e.target.value })} placeholder="Chức vụ" className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
+      </div>
+      <input value={sig.company} onChange={e => setSig({ ...sig, company: e.target.value })} placeholder="Tên công ty" className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
+      <div className="grid grid-cols-2 gap-2">
+        <input value={sig.email} onChange={e => setSig({ ...sig, email: e.target.value })} placeholder="Email" className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
+        <input value={sig.phone} onChange={e => setSig({ ...sig, phone: e.target.value })} placeholder="Số điện thoại" className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
+      </div>
+      <button onClick={handleSave} className="px-4 py-1.5 bg-accent text-white text-[12px] font-medium rounded-lg hover:bg-accent-hover">
+        {saved ? '✓ Đã lưu' : 'Lưu chữ ký'}
+      </button>
     </div>
   );
 }
