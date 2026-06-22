@@ -13,6 +13,7 @@ import { EmailCompose } from '@/features/outreach/components/EmailCompose';
 import { useI18n } from '@/shared/i18n';
 import { apiClient } from '@/data/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AIAnalysisPanel } from '../components/AIAnalysisPanel';
 import { MessageSquare } from 'lucide-react';
 import { useToast } from '@/shared/components/ui/Toast';
 import { useConfirm } from '@/shared/components/ui/ConfirmDialog';
@@ -216,6 +217,9 @@ export function CandidateDetailPage() {
           </div>
         </div>
         )}
+
+        {/* AI Advanced Analysis */}
+        <AIAnalysisPanel candidateId={candidate.id} />
 
         {/* Profile */}
         {d.skill_level && (
