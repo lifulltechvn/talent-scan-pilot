@@ -136,36 +136,22 @@ def _parse_cv_text(text: str, candidate_id: str | None = None) -> dict:
 
 
 def _process_ai_sync(masked_text: str, candidate_id: str | None = None) -> tuple[dict, list[float] | None]:
-    """Run AI parsing + embedding in parallel."""
+    """Run AI parsing + embedding. Parse first, then embed with structured data."""
     from app.cv_validator import validate_and_normalize
-    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    # Run parse and embed in parallel
-    # Embed uses raw text (first 500 chars) — doesn't need parsed output
-    embed_input = masked_text[:500]
+    # Step 1: Parse CV
+    structured = _parse_cv_text(masked_text, candidate_id)
+    structured, confidence = validate_and_normalize(structured)
+    logger.info(f"CV parsed: {structured.get('name', '?')}, confidence: {confidence:.0%}, skills: {len(structured.get('skills', []))}")
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        parse_future = pool.submit(_parse_cv_text, masked_text, candidate_id)
-        embed_future = pool.submit(get_embedding, embed_input, candidate_id=candidate_id)
-
-        structured = parse_future.result()
-        structured, confidence = validate_and_normalize(structured)
-        logger.info(f"CV parsed: {structured.get('name', '?')}, confidence: {confidence:.0%}, skills: {len(structured.get('skills', []))}")
-
-        # Re-embed with structured data for better matching
-        skills_text = " ".join(structured.get("skills", []))
-        roles_text = " ".join(e.get("role", "") for e in structured.get("experience", [])[:3])
-        better_embed = f"{roles_text} {skills_text}"
-        if better_embed.strip():
-            try:
-                embedding = get_embedding(better_embed, candidate_id=candidate_id)
-            except Exception:
-                embedding = embed_future.result()
-        else:
-            try:
-                embedding = embed_future.result()
-            except Exception:
-                embedding = None
+    # Step 2: Embed with structured data (better quality than raw text)
+    skills_text = " ".join(structured.get("skills", []))
+    roles_text = " ".join(e.get("role", "") for e in structured.get("experience", [])[:3])
+    embed_input = f"{roles_text} {skills_text}".strip() or masked_text[:500]
+    try:
+        embedding = get_embedding(embed_input, candidate_id=candidate_id)
+    except Exception:
+        embedding = None
 
     return structured, embedding
 

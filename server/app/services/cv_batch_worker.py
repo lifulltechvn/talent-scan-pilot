@@ -16,7 +16,7 @@ from app.pii_filter import filter_pii
 from app.services.cv_upload import CV_UPLOAD_DIR, _background_ai_task
 
 logger = logging.getLogger(__name__)
-_executor = ThreadPoolExecutor(max_workers=10)
+_executor = ThreadPoolExecutor(max_workers=20)
 
 
 _engine = None
@@ -38,7 +38,7 @@ async def recover_stale_batches():
 def _get_session_factory():
     global _engine, _session_factory
     if _session_factory is None:
-        _engine = create_async_engine(settings.DATABASE_URL, pool_size=5)
+        _engine = create_async_engine(settings.DATABASE_URL, pool_size=20, max_overflow=10)
         _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
     return _session_factory
 
@@ -72,7 +72,7 @@ async def _process_batch(batch_id: str):
         rows = items.mappings().all()
 
     # Process items in parallel (up to 10 concurrent)
-    sem = asyncio.Semaphore(10)
+    sem = asyncio.Semaphore(15)
     async def _bounded(row):
         async with sem:
             await _process_item(session_factory, batch_id, row)
@@ -162,7 +162,7 @@ async def _process_item(session_factory, batch_id: str, row):
                 import asyncio
                 from app.services.cv_upload import _process_ai_sync, _extract_avatar
                 loop = asyncio.get_event_loop()
-                structured, embedding = await loop.run_in_executor(None, _process_ai_sync, masked_text, str(candidate_id))
+                structured, embedding = await loop.run_in_executor(_executor, _process_ai_sync, masked_text, str(candidate_id))
 
                 # Inject PII back
                 if pii_data:
@@ -340,10 +340,20 @@ def process_single_item(item_id: str, file_path: str, file_name: str, file_hash:
     import asyncio
 
     async def _run():
-        session_factory = _get_session_factory()
-        async with session_factory() as db:
-            with open(file_path, "rb") as f:
-                file_bytes = f.read()
+        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+        from app.config import settings
+        engine = create_async_engine(settings.DATABASE_URL, pool_size=1)
+        sf = async_sessionmaker(engine, expire_on_commit=False)
+        async with sf() as db:
+            try:
+                with open(file_path, "rb") as f:
+                    file_bytes = f.read()
+            except Exception as e:
+                logger.error(f"process_single_item: cannot read file {file_path}: {e}")
+                async with sf() as db2:
+                    await db2.execute(text("UPDATE cv_batch_items SET status = 'error', error = :err WHERE id = :id"), {"err": str(e)[:200], "id": item_id})
+                    await db2.commit()
+                return
 
             result = extract(file_bytes, file_name)
             masked_text, pii_data = filter_pii(result.text)
@@ -385,10 +395,15 @@ def process_single_item(item_id: str, file_path: str, file_name: str, file_hash:
 
             await db.commit()
             _background_ai_task(str(candidate_id), masked_text, result.is_scanned, file_bytes if result.is_scanned else None)
+        await engine.dispose()
 
     def _thread():
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(_run())
-        loop.close()
+        try:
+            loop.run_until_complete(_run())
+        except Exception as e:
+            logger.error(f"process_single_item thread failed for {item_id}: {e}")
+        finally:
+            loop.close()
 
     _executor.submit(_thread)

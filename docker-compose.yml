@@ -9,6 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    command: postgres -c max_connections=200 -c shared_buffers=256MB -c work_mem=16MB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U talent -d talentscan"]
       interval: 5s
