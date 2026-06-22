@@ -105,7 +105,6 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
                 )}
               </div>
 
-              <button onClick={() => runAuthenticity(true)} className="text-[11px] text-text-muted hover:text-accent">↻ Chạy lại</button>
             </div>
           )}
         </div>
@@ -179,7 +178,6 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
                 </div>
               )}
 
-              <button onClick={() => runCultureFit(true)} className="text-[11px] text-text-muted hover:text-accent">↻ Chạy lại</button>
             </div>
           )}
         </div>
