@@ -235,6 +235,9 @@ def upgrade() -> None:
         "interview_interviewers",
         sa.Column("interview_id", UUID(as_uuid=True), sa.ForeignKey("interviews.id", ondelete="CASCADE"), primary_key=True),
         sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+        sa.Column("score", sa.Integer, nullable=True),
+        sa.Column("notes", sa.Text, nullable=True),
+        sa.Column("submitted_at", sa.DateTime(timezone=True), nullable=True),
     )
 
     # Seed default master data

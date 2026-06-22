@@ -66,7 +66,7 @@ async def list_interviews(
         LEFT JOIN jobs j ON j.id = i.job_id
         ORDER BY i.start_time
     """))
-    return [
+    out = [
         {
             "id": str(r["id"]),
             "candidate_id": str(r["candidate_id"]),
@@ -90,6 +90,26 @@ async def list_interviews(
         }
         for r in rows.mappings().all()
     ]
+
+    # Attach per-interviewer feedback for each interview
+    if out:
+        iids = [item["id"] for item in out]
+        fb_rows = await db.execute(text("""
+            SELECT ii.interview_id::text, ii.score, ii.notes, ii.submitted_at, u.full_name
+            FROM interview_interviewers ii
+            JOIN users u ON u.id = ii.user_id
+            WHERE ii.interview_id::text = ANY(:iids) AND ii.score IS NOT NULL
+            ORDER BY ii.submitted_at
+        """), {"iids": iids})
+        fb_map: dict = {}
+        for fb in fb_rows.mappings().all():
+            fb_map.setdefault(str(fb["interview_id"]), []).append({
+                "name": fb["full_name"], "score": fb["score"], "notes": fb["notes"],
+            })
+        for item in out:
+            item["interviewer_feedback"] = fb_map.get(item["id"], [])
+
+    return out
 
 
 @router.post("", status_code=201)
@@ -308,12 +328,20 @@ async def add_feedback(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Add feedback after an interview."""
+    """Add interviewer feedback (score + notes). Each interviewer has their own feedback."""
+    # Save per-interviewer feedback
+    await db.execute(text("""
+        INSERT INTO interview_interviewers (interview_id, user_id, score, notes, submitted_at)
+        VALUES (:iid, :uid, :score, :notes, NOW())
+        ON CONFLICT (interview_id, user_id) DO UPDATE SET score = :score, notes = :notes, submitted_at = NOW()
+    """), {"iid": str(interview_id), "uid": str(user.id), "score": body.score, "notes": body.notes})
+
+    # Also update interview-level feedback (latest, for backward compat)
     await db.execute(text("""
         UPDATE interviews SET feedback_score = :score, feedback_notes = :notes,
-            feedback_decision = :decision, feedback_by = :by, status = 'completed'
+            feedback_by = :by, status = 'completed'
         WHERE id = :id
-    """), {"score": body.score, "notes": body.notes, "decision": body.decision, "by": user.full_name, "id": str(interview_id)})
+    """), {"score": body.score, "notes": body.notes, "by": user.full_name, "id": str(interview_id)})
 
     # Update candidate status based on decision
     if body.decision in ('pass', 'fail'):
@@ -338,6 +366,35 @@ async def add_feedback(
 
     await db.commit()
     return {"status": "feedback_added"}
+
+
+@router.get("/{interview_id}/feedback")
+async def get_all_feedback(
+    interview_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Get all interviewers' feedback for an interview. HR/Admin see all, interviewer sees only own."""
+    if user.role in ('admin', 'hr'):
+        rows = await db.execute(text("""
+            SELECT ii.score, ii.notes, ii.submitted_at, u.full_name, u.email
+            FROM interview_interviewers ii
+            JOIN users u ON u.id = ii.user_id
+            WHERE ii.interview_id = :iid AND ii.score IS NOT NULL
+            ORDER BY ii.submitted_at
+        """), {"iid": str(interview_id)})
+    else:
+        rows = await db.execute(text("""
+            SELECT ii.score, ii.notes, ii.submitted_at, u.full_name, u.email
+            FROM interview_interviewers ii
+            JOIN users u ON u.id = ii.user_id
+            WHERE ii.interview_id = :iid AND ii.user_id = :uid AND ii.score IS NOT NULL
+        """), {"iid": str(interview_id), "uid": str(user.id)})
+
+    return [
+        {"score": r["score"], "notes": r["notes"], "submitted_at": r["submitted_at"].isoformat() if r["submitted_at"] else None, "name": r["full_name"], "email": r["email"]}
+        for r in rows.mappings().all()
+    ]
 
 
 @router.delete("/{interview_id}")
@@ -379,12 +436,13 @@ async def my_interviews(
     """), {"uid": str(user.id), "email_pattern": f"%{user.email}%"})
     results = []
     for r in rows.mappings().all():
-        # Get previous round feedback for this candidate
-        prev_feedback = await db.execute(text("""
-            SELECT round, feedback_score, feedback_notes, feedback_decision
-            FROM interviews WHERE candidate_id = :cid AND feedback_score IS NOT NULL AND round < :round
-            ORDER BY round
-        """), {"cid": str(r["candidate_id"]), "round": r["round"] or 1})
+        # Get this interviewer's own feedback only
+        own_fb = await db.execute(text("""
+            SELECT score, notes, submitted_at FROM interview_interviewers
+            WHERE interview_id = :iid AND user_id = :uid
+        """), {"iid": str(r["id"]), "uid": str(user.id)})
+        own = own_fb.mappings().first()
+
         # Get smart question score + G-level
         qs_row = await db.execute(text("SELECT iqs.total_score, iqs.max_score, iqs.percentage, iqs.scores, iqset.questions_en FROM interview_question_scores iqs LEFT JOIN interview_question_sets iqset ON iqset.id = iqs.question_set_id WHERE iqs.interview_id = :iid"), {"iid": str(r["id"])})
         qs_score = qs_row.mappings().first()
@@ -420,14 +478,11 @@ async def my_interviews(
             "round": r["round"],
             "meeting_link": r["meeting_link"],
             "interview_type": r["interview_type"],
-            "feedback_score": r["feedback_score"],
-            "feedback_notes": r["feedback_notes"],
-            "feedback_decision": r["feedback_decision"],
-            "feedback_by": r.get("feedback_by"),
+            "feedback_score": own["score"] if own else None,
+            "feedback_notes": own["notes"] if own else None,
+            "feedback_decision": None,
+            "feedback_by": None,
             "question_score": question_score_data,
-            "previous_feedback": [
-                {"round": pf["round"], "score": pf["feedback_score"], "notes": pf["feedback_notes"], "decision": pf["feedback_decision"]}
-                for pf in prev_feedback.mappings().all()
-            ],
+            "previous_feedback": [],
         })
     return results

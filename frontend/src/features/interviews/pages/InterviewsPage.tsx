@@ -467,14 +467,27 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
           {interview.notes && <div className="text-[13px] text-text-secondary"><strong>Ghi chú:</strong> {interview.notes}</div>}
           {interview.feedback_score && (
             <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1">
-                  <Star size={12} className="text-amber-500" />
-                  <span className="text-[12px] font-medium text-emerald-800">{interview.feedback_score}/10</span>
+              {(interview.interviewer_feedback || []).length > 0 ? (
+                <div className="space-y-2">
+                  {interview.interviewer_feedback.map((fb: any, i: number) => (
+                    <div key={i} className="flex items-start justify-between">
+                      <div>
+                        <span className="text-[12px] font-medium text-emerald-800">{fb.name}</span>
+                        {fb.notes && <p className="text-[11px] text-emerald-700 mt-0.5">{fb.notes}</p>}
+                      </div>
+                      <span className="text-[12px] font-bold text-amber-600 shrink-0 ml-2">{fb.score}/10</span>
+                    </div>
+                  ))}
                 </div>
-                {interview.feedback_by && <span className="text-[11px] text-emerald-600">— {interview.feedback_by}</span>}
-              </div>
-              {interview.feedback_notes && <p className="text-[11px] text-emerald-700">{interview.feedback_notes}</p>}
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <Star size={12} className="text-amber-500" />
+                    <span className="text-[12px] font-medium text-emerald-800">{interview.feedback_score}/10</span>
+                  </div>
+                  {interview.feedback_by && <span className="text-[11px] text-emerald-600">— {interview.feedback_by}</span>}
+                </div>
+              )}
             </div>
           )}
           <div className="flex gap-2 pt-2">

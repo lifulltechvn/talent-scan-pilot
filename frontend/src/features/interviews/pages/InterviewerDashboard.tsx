@@ -58,8 +58,8 @@ export function InterviewerDashboard() {
 
   const now = new Date();
   const upcoming = interviews.filter(i => i.status === 'scheduled' && new Date(i.start_time) > now);
-  const inProgress = interviews.filter(i => i.status === 'scheduled' && new Date(i.start_time) <= now && new Date(i.end_time) >= now && !i.feedback_score);
-  const needFeedback = interviews.filter(i => i.status === 'scheduled' && new Date(i.end_time) < now && !i.feedback_score);
+  const inProgress = interviews.filter(i => i.status === 'scheduled' && new Date(i.start_time) <= now && new Date(i.end_time) >= now);
+  const needFeedback = interviews.filter(i => (i.status === 'scheduled' && new Date(i.end_time) < now && !i.feedback_score) || (i.status === 'completed' && !i.feedback_score));
   const completed = interviews.filter(i => i.feedback_score != null);
 
   if (loading) return <div className="text-center py-8 text-text-muted">Loading...</div>;
