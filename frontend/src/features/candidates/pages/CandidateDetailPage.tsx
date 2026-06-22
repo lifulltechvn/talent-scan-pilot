@@ -9,6 +9,7 @@ import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { CandidateTimeline } from '../components/CandidateTimeline';
 import { AIAnalysisPanel } from '../components/AIAnalysisPanel';
 import { AIEmailComposer } from '@/features/outreach/components/AIEmailComposer';
+import { EmailCompose } from '@/features/outreach/components/EmailCompose';
 import { useI18n } from '@/shared/i18n';
 import { apiClient } from '@/data/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -420,7 +421,7 @@ export function CandidateDetailPage() {
 
       {/* AI Email Modal */}
       {emailModal && (
-        <AIEmailComposer
+        <EmailCompose
           candidateId={candidate.id}
           candidateName={d.name || 'Candidate'}
           candidateEmail={d.email || null}
