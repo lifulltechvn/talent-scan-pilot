@@ -17,6 +17,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai-advanced", tags=["ai-advanced"])
 
 
+def _parse_json_response(text: str) -> dict:
+    """Parse JSON from Claude response, stripping markdown code blocks if present."""
+    import re
+    cleaned = re.sub(r'^```(?:json)?\s*', '', text.strip())
+    cleaned = re.sub(r'\s*```$', '', cleaned)
+    return json.loads(cleaned)
+
+
 # ============ #1: AI Detect CV giả ============
 
 class AuthenticityResult(BaseModel):
@@ -91,7 +99,8 @@ Reply ONLY valid JSON:
 
     try:
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=600, feature="cv_authenticity", candidate_id=candidate_id)
-        data = json.loads(result)
+        logger.info(f"CV authenticity raw response: {result[:200]}")
+        data = _parse_json_response(result)
         return {
             "candidate_id": candidate_id,
             "candidate_name": d.get("name", "Unknown"),
@@ -103,7 +112,7 @@ Reply ONLY valid JSON:
         }
     except Exception as e:
         logger.warning(f"CV authenticity check failed: {e}")
-        return {"candidate_id": candidate_id, "score": 70, "verdict": "unknown", "reasons": ["Analysis failed"], "red_flags": [], "green_flags": []}
+        return {"candidate_id": candidate_id, "score": 70, "verdict": "unknown", "reasons": [f"Analysis error: {str(e)[:100]}"], "red_flags": [], "green_flags": []}
 
 
 # ============ #2: AI Interview Coaching ============
@@ -161,7 +170,7 @@ Reply in JSON:
 
     try:
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="interview_coaching")
-        data = json.loads(result)
+        data = _parse_json_response(result)
         return data
     except Exception as e:
         logger.warning(f"Interview coaching failed: {e}")
@@ -228,7 +237,7 @@ Reply ONLY valid JSON:
 
     try:
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="culture_fit", candidate_id=candidate_id)
-        data = json.loads(result)
+        data = _parse_json_response(result)
         return {
             "candidate_id": candidate_id,
             "candidate_name": d.get("name", "Unknown"),
