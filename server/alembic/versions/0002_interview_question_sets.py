@@ -49,12 +49,8 @@ def upgrade() -> None:
     # Add question_set_id reference to interviews table
     op.add_column("interviews", sa.Column("question_set_id", UUID, nullable=True))
 
-    # Add missing category column to jobs (model already has it)
-    op.add_column("jobs", sa.Column("category", sa.String(50), nullable=True))
-
 
 def downgrade() -> None:
-    op.drop_column("jobs", "category")
     op.drop_column("interviews", "question_set_id")
     op.drop_table("interview_question_scores")
     op.drop_table("interview_question_sets")

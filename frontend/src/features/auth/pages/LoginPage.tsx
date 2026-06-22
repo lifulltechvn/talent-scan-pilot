@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useI18n } from '@/shared/i18n';
 
 export function LoginPage() {
-  const { login, isAuthenticated, isLoading: authLoading, error: serverError } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading, error: serverError, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -16,7 +16,7 @@ export function LoginPage() {
   const { t } = useI18n();
 
   if (authLoading) return <LoadingPage />;
-  if (isAuthenticated) return <Navigate to="/" replace />;
+  if (isAuthenticated) return <Navigate to={user?.role === 'interviewer' ? '/interviewer' : '/'} replace />;
 
   const validateEmail = (v: string) => !v ? 'Email không được để trống' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Email không hợp lệ' : null;
   const validatePassword = (v: string) => !v ? 'Mật khẩu không được để trống' : v.length < 6 ? 'Mật khẩu phải có ít nhất 6 ký tự' : null;

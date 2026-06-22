@@ -56,8 +56,10 @@ export function InterviewerDashboard() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const upcoming = interviews.filter(i => i.status === 'scheduled' && new Date(i.start_time) >= new Date());
-  const needFeedback = interviews.filter(i => i.status === 'scheduled' && new Date(i.end_time) < new Date() && !i.feedback_score);
+  const now = new Date();
+  const upcoming = interviews.filter(i => i.status === 'scheduled' && new Date(i.start_time) > now);
+  const inProgress = interviews.filter(i => i.status === 'scheduled' && new Date(i.start_time) <= now && new Date(i.end_time) >= now && !i.feedback_score);
+  const needFeedback = interviews.filter(i => i.status === 'scheduled' && new Date(i.end_time) < now && !i.feedback_score);
   const completed = interviews.filter(i => i.feedback_score != null);
 
   if (loading) return <div className="text-center py-8 text-text-muted">Loading...</div>;
@@ -84,6 +86,37 @@ export function InterviewerDashboard() {
           <span className="text-2xl font-bold text-text-primary">{completed.length}</span>
         </div>
       </div>
+
+      {/* In progress */}
+      {inProgress.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
+          <h2 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
+            <Clock size={15} /> Đang diễn ra ({inProgress.length})
+          </h2>
+          <div className="space-y-2">
+            {inProgress.map(i => (
+              <div key={i.id} className="bg-white rounded-lg px-4 py-3 border border-blue-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[13px] font-medium text-text-primary">{i.candidate_name}</div>
+                    <div className="text-[11px] text-text-muted">{i.job_title} · Round {i.round}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setProfileModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">Profile</button>
+                    <button onClick={() => setQuestionsModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100">Câu hỏi</button>
+                    <button onClick={() => setFeedbackModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">Nhận xét</button>
+                  </div>
+                </div>
+                {i.meeting_link && (
+                  <a href={i.meeting_link} target="_blank" className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 text-[12px] font-medium text-accent bg-accent/10 rounded-lg hover:bg-accent/20">
+                    🔗 Join meeting
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Need feedback */}
       {needFeedback.length > 0 && (
