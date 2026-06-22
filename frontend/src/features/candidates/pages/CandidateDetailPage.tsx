@@ -219,20 +219,67 @@ export function CandidateDetailPage() {
         {/* AI Advanced Analysis */}
         <AIAnalysisPanel candidateId={candidate.id} />
 
-        {/* Profile */}
+        {/* Skill Level Assessment */}
         {d.skill_level && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-[15px]">📊</span>
-            <h2 className="text-sm font-medium text-text-primary">Skill Level Assessment</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[15px]">📊</span>
+              <h2 className="text-sm font-medium text-text-primary">Skill Level Assessment</h2>
+            </div>
+            <span className="text-[11px] text-text-muted capitalize bg-bg-secondary px-2 py-0.5 rounded">{d.skill_level.category_title || d.skill_level.category?.replace('_', ' ')}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="px-3 py-1.5 bg-accent/10 text-accent text-[18px] font-bold rounded-lg">{d.skill_level.level}</span>
-            <div>
-              <p className="text-[12px] font-medium text-text-secondary capitalize">{d.skill_level.category?.replace('_', ' ')}</p>
-              <p className="text-[13px] text-text-tertiary mt-0.5">{d.skill_level.reason}</p>
+
+          {/* G Level Badge + Progress */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg">
+              <span className="text-white text-[22px] font-bold">{d.skill_level.level}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1 mb-2">
+                {["G0","G1","G2","G3","G4","G5","G6"].map(g => (
+                  <div key={g} className="flex-1 flex flex-col items-center gap-0.5">
+                    <div className={`w-full h-2.5 rounded-full transition-all ${
+                      g <= d.skill_level!.level ? "bg-gradient-to-r from-purple-500 to-indigo-500 shadow-sm" : "bg-bg-tertiary"
+                    }`} />
+                    <span className={`text-[9px] ${g === d.skill_level!.level ? "font-bold text-purple-600" : "text-text-muted"}`}>{g}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+
+          {/* Level Description */}
+          {d.skill_level.level_description && (
+            <div className="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-100">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[11px] font-semibold text-purple-700 uppercase tracking-wider">Tiêu chuẩn {d.skill_level.level}</span>
+              </div>
+              <p className="text-[12px] text-purple-800 leading-relaxed">{d.skill_level.level_description}</p>
+            </div>
+          )}
+
+          {/* AI Reason */}
+          {d.skill_level.reason && (
+            <div className="mb-3 p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Nhận xét AI</span>
+              </div>
+              <p className="text-[12px] text-text-secondary leading-relaxed">{d.skill_level.reason}</p>
+            </div>
+          )}
+
+          {/* Domains */}
+          {d.skill_level.domains && d.skill_level.domains.length > 0 && (
+            <div className="pt-3 border-t border-border-subtle/50">
+              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Lĩnh vực đánh giá</span>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {d.skill_level.domains.map((domain, i) => (
+                  <span key={i} className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100">{domain.split('(')[0].trim()}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         )}
 

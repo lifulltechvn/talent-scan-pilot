@@ -18,13 +18,13 @@ SKILL_MAPS = {
             "Improvement Proposals (service optimization, market understanding)",
         ],
         "g_criteria": {
-            "G1": "Can build basic e-commerce page (no payment/security). Basic SQL (SELECT/JOIN). Can follow test docs. Basic OOP knowledge. Basic Linux. Understands why security matters. Basic HTML/CSS/JS.",
-            "G2": "Can code to specs. Knows data normalization. Creates normal testcases. Understands MVC pattern. Can explain server structure. Basic network knowledge. Handles validation/escape. Can complete tasks with schedule guidance.",
-            "G3": "Considers reusability, retry, error handling. Can use multiple data stores. Writes unit tests (C0/C1/C2). Applies SOLID/DRY/KISS. Can use middleware on Linux. Knows network troubleshooting. Can review code for security. Creates own schedule aligned with team. Analyzes data for own projects. Proposes improvements for a page/feature.",
-            "G4": "Optimizes memory/API calls, output logging for debugging. Designs data store (physical+logical). Reviews specs for security issues and non-functional requirements. Loose coupling architecture with sub-objects. Analyzes server/middleware performance. Proposes infra improvements. Designs secure auth (authentication vs authorization). Manages cross-browser, understands ES5+. Creates requirements from client needs. Creates project schedule with risk management. Proposes solutions for project success.",
-            "G5": "Async/multi-thread programming. Encryption, tuning, backup, fault tolerance. Creates test plans for large projects. Domain model + Cloud Native design. Evaluates and tunes server/middleware performance. Designs infra ensuring availability/maintainability/cost. Understands OAuth/SAML, designs full web system security. JIT optimization, UI-Thread mastery. Defines requirements within budget. Full project scheduling with team coordination. Data pipeline design. Proposes solutions for entire service.",
-            "G6": "Designs future-proof architecture meeting both technical and business requirements. Manages all data store lifecycle. Leads QA strategy. Serverless/Microservices/DDD/Clean architecture decisions. Builds sustainable optimization infrastructure. Designs recovery flows. Reviews and guides others on security. Cross-platform performance tuning. Long-term strategic proposals. Leads data analysis across multiple projects.",
-            "G7": "Drives business innovation creating new value across the company.",
+            "G0": "Can build basic e-commerce page (no payment/security). Basic SQL (SELECT/JOIN). Can follow test docs. Basic OOP knowledge. Basic Linux. Understands why security matters. Basic HTML/CSS/JS.",
+            "G1": "Can code to specs. Knows data normalization. Creates normal testcases. Understands MVC pattern. Can explain server structure. Basic network knowledge. Handles validation/escape. Can complete tasks with schedule guidance.",
+            "G2": "Considers reusability, retry, error handling. Can use multiple data stores. Writes unit tests (C0/C1/C2). Applies SOLID/DRY/KISS. Can use middleware on Linux. Knows network troubleshooting. Can review code for security. Creates own schedule aligned with team. Analyzes data for own projects. Proposes improvements for a page/feature.",
+            "G3": "Optimizes memory/API calls, output logging for debugging. Designs data store (physical+logical). Reviews specs for security issues and non-functional requirements. Loose coupling architecture with sub-objects. Analyzes server/middleware performance. Proposes infra improvements. Designs secure auth (authentication vs authorization). Manages cross-browser, understands ES5+. Creates requirements from client needs. Creates project schedule with risk management. Proposes solutions for project success.",
+            "G4": "Async/multi-thread programming. Encryption, tuning, backup, fault tolerance. Creates test plans for large projects. Domain model + Cloud Native design. Evaluates and tunes server/middleware performance. Designs infra ensuring availability/maintainability/cost. Understands OAuth/SAML, designs full web system security. JIT optimization, UI-Thread mastery. Defines requirements within budget. Full project scheduling with team coordination. Data pipeline design. Proposes solutions for entire service.",
+            "G5": "Designs future-proof architecture meeting both technical and business requirements. Manages all data store lifecycle. Leads QA strategy. Serverless/Microservices/DDD/Clean architecture decisions. Builds sustainable optimization infrastructure. Designs recovery flows. Reviews and guides others on security. Cross-platform performance tuning. Long-term strategic proposals. Leads data analysis across multiple projects.",
+            "G6": "Drives business innovation creating new value across the company.",
         },
         "key_skills": ["Python", "JavaScript", "TypeScript", "React", "Node.js", "SQL", "PostgreSQL", "Docker", "AWS", "Linux", "CI/CD", "Git", "REST API", "Microservices"],
     },
@@ -128,18 +128,18 @@ If the candidate only excels in 2-3 domains but lacks others, they CANNOT be rat
 {category_instruction}
 
 STRICT RULES:
-- To reach G4, candidate MUST show evidence in at least 7-8 of the 12 domains (Programming, Data Store, Testing, Architecture, Server/Middleware, Infra/Network, Security, Frontend, Requirements, Schedule, Data Analysis, Improvement)
-- To reach G3, must show evidence in at least 4-5 domains with concrete depth
-- To reach G2, must show 2-3 domains with basic competence
-- A backend-only dev (even Senior title) with no Testing/Security/Architecture/Frontend evidence → G3 max
-- A frontend-only dev with no Backend/Data Store/Security/Infra evidence → G3 max
-- A specialist (ML/Data/Mobile only) covering 2-3 domains deeply → G3 max unless also shows breadth
-- "Senior" title at a company does NOT equal G4 — G4 requires BREADTH across domains, not just depth in one area
-- Most developers are G2-G3. G4+ is rare and requires demonstrable multi-domain expertise
+- To reach G3, candidate MUST show evidence in at least 7-8 of the 12 domains (Programming, Data Store, Testing, Architecture, Server/Middleware, Infra/Network, Security, Frontend, Requirements, Schedule, Data Analysis, Improvement)
+- To reach G2, must show evidence in at least 4-5 domains with concrete depth
+- To reach G1, must show 2-3 domains with basic competence
+- A backend-only dev (even Senior title) with no Testing/Security/Architecture/Frontend evidence → G2 max
+- A frontend-only dev with no Backend/Data Store/Security/Infra evidence → G2 max
+- A specialist (ML/Data/Mobile only) covering 2-3 domains deeply → G2 max unless also shows breadth
+- "Senior" title at a company does NOT equal G3 — G3 requires BREADTH across domains, not just depth in one area
+- Most developers are G1-G2. G3+ is rare and requires demonstrable multi-domain expertise
 
 DATA QUALITY:
-- No specific technologies (only "Programming", "Teamwork") → MAX G1
-- All companies UNKNOWN → MAX G1
+- No specific technologies (only "Programming", "Teamwork") → MAX G0
+- All companies UNKNOWN → MAX G0
 - Years alone mean nothing without verifiable skill depth
 
 Candidate:
@@ -150,8 +150,8 @@ Candidate:
 
 Respond EXACTLY (3 lines):
 CATEGORY: <application_engineer|bridge_se|qa_engineer|admin|hr>
-LEVEL: <G1|G2|G3|G4|G5|G6|G7>
-REASON: <In Vietnamese: which domains the candidate covers, which they lack, and why this level>"""
+LEVEL: <G0|G1|G2|G3|G4|G5|G6>
+REASON: <In Vietnamese: Write 2-3 complete sentences. State which domains the candidate demonstrates, which key domains are missing, and conclude why this level is appropriate. Use professional language, complete sentences, no abbreviations or cut-off words.>"""
 
 
 def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, job_category: str | None = None) -> dict | None:
@@ -205,7 +205,7 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
     )
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=200, feature="skill_level", candidate_id=candidate_id)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="skill_level", candidate_id=candidate_id)
         category = ""
         level = ""
         reason = ""
@@ -217,7 +217,12 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
             elif line.startswith("REASON:"):
                 reason = line.replace("REASON:", "").strip()
         if level and category:
-            return {"category": category, "level": level, "reason": reason}
+            # Enrich with description
+            cat_data = SKILL_MAPS.get(category, {})
+            level_desc = cat_data.get("g_criteria", {}).get(level, "")
+            category_title = cat_data.get("title_vi", category)
+            domains = cat_data.get("domains", [])
+            return {"category": category, "level": level, "reason": reason, "level_description": level_desc, "category_title": category_title, "domains": domains}
     except Exception as e:
         logger.warning(f"Skill level assessment failed: {e}")
     return None

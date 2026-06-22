@@ -131,11 +131,11 @@ Candidate level: {level} ({"<2 years" if level == "junior" else "2-5 years" if l
 Rules:
 - Questions must be PRACTICAL (real work scenarios), NOT trick questions or algorithm puzzles
 - Each question has exactly 5 scoring criteria, ordered from basic to advanced
-- CRITICAL: Each criteria MUST include a "g_level" field (G1, G2, G3, G4, or G5) indicating what G-level that criteria demonstrates
-  - Criteria 1-2: typically G1-G2 level (basic understanding)
-  - Criteria 3: typically G3 level (applied knowledge, reusability, self-management)
-  - Criteria 4: typically G4 level (optimization, cross-domain, architecture decisions)
-  - Criteria 5: typically G5 level (advanced design, system-wide thinking)
+- CRITICAL: Each criteria MUST include a "g_level" field (G0, G1, G2, G3, or G4) indicating what G-level that criteria demonstrates
+  - Criteria 1-2: typically G0-G1 level (basic understanding)
+  - Criteria 3: typically G2 level (applied knowledge, reusability, self-management)
+  - Criteria 4: typically G3 level (optimization, cross-domain, architecture decisions)
+  - Criteria 5: typically G4 level (advanced design, system-wide thinking)
 - The g_level tagging should be HIDDEN from the interviewer — it's for system assessment only
 - Questions should cover different skill domains from the skill map above
 - Include red_flags (signs of weak candidate) and follow_up (bonus probe question)
@@ -148,11 +148,11 @@ Return JSON array:
   "skill": "React",
   "question": "...",
   "criteria": [
-    {{"id": "c1", "description": "...", "point": 1, "g_level": "G1"}},
-    {{"id": "c2", "description": "...", "point": 1, "g_level": "G2"}},
-    {{"id": "c3", "description": "...", "point": 1, "g_level": "G3"}},
-    {{"id": "c4", "description": "...", "point": 1, "g_level": "G4"}},
-    {{"id": "c5", "description": "...", "point": 1, "g_level": "G5"}}
+    {{"id": "c1", "description": "...", "point": 1, "g_level": "G0"}},
+    {{"id": "c2", "description": "...", "point": 1, "g_level": "G1"}},
+    {{"id": "c3", "description": "...", "point": 1, "g_level": "G2"}},
+    {{"id": "c4", "description": "...", "point": 1, "g_level": "G3"}},
+    {{"id": "c5", "description": "...", "point": 1, "g_level": "G4"}}
   ],
   "max_score": 5,
   "red_flags": "...",
@@ -177,8 +177,8 @@ Return ONLY the JSON array, no markdown."""
 def assess_g_level(questions: list, scores: list) -> dict:
     """Calculate G-level from scored criteria. Returns {g_level, breakdown, confidence}."""
     # Count checked criteria per G-level
-    g_counts = {"G1": 0, "G2": 0, "G3": 0, "G4": 0, "G5": 0}
-    g_totals = {"G1": 0, "G2": 0, "G3": 0, "G4": 0, "G5": 0}
+    g_counts = {"G0": 0, "G1": 0, "G2": 0, "G3": 0, "G4": 0}
+    g_totals = {"G0": 0, "G1": 0, "G2": 0, "G3": 0, "G4": 0}
 
     for q in questions:
         score_item = next((s for s in scores if s.get("question_id") == q["id"]), None)
@@ -186,16 +186,16 @@ def assess_g_level(questions: list, scores: list) -> dict:
             continue
         checked = score_item.get("checked", [])
         for idx, c in enumerate(q.get("criteria", [])):
-            g = c.get("g_level", "G2")  # default G2 if no tag
+            g = c.get("g_level", "G1")  # default G1 if no tag
             if g in g_totals:
                 g_totals[g] += 1
                 if idx < len(checked) and checked[idx]:
                     g_counts[g] += 1
 
     # Determine G-level: highest level where ≥50% criteria are passed
-    assessed_level = "G1"
+    assessed_level = "G0"
     breakdown = {}
-    for g in ["G1", "G2", "G3", "G4", "G5"]:
+    for g in ["G0", "G1", "G2", "G3", "G4"]:
         total = g_totals[g]
         passed = g_counts[g]
         pct = round(passed / total * 100) if total > 0 else 0
