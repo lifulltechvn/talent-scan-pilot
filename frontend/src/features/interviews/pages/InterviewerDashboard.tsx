@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Star, MessageSquare, Clock, CheckCircle, X, User, Briefcase, GraduationCap, Languages, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { QuestionBankModal } from '../components/QuestionBankModal';
 
 interface CandidateProfile {
   skills: string[];
@@ -263,7 +264,7 @@ export function InterviewerDashboard() {
 
       {/* Questions Modal */}
       {questionsModal && (
-        <QuestionsModal interview={questionsModal} onClose={() => setQuestionsModal(null)} />
+        <QuestionBankModal candidateId={questionsModal.candidate_id} candidateName={questionsModal.candidate_name} onClose={() => setQuestionsModal(null)} />
       )}
     </div>
   );

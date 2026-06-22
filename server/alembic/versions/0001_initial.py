@@ -230,6 +230,20 @@ def upgrade() -> None:
         sa.Column("value", sa.Text, nullable=False),
     )
 
+    # Question Cache (per skill/level/category)
+    op.create_table(
+        "question_cache",
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("skill", sa.String(100), nullable=False),
+        sa.Column("level", sa.String(20), nullable=False),
+        sa.Column("category", sa.String(50), nullable=False),
+        sa.Column("question", sa.Text, nullable=False),
+        sa.Column("answer", sa.Text, nullable=False),
+        sa.Column("trap", sa.Text, nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+    )
+    op.create_index("idx_qcache_lookup", "question_cache", ["skill", "level", "category"])
+
     # Interview Interviewers (many-to-many)
     op.create_table(
         "interview_interviewers",
