@@ -74,27 +74,34 @@ async def get_questions_for_candidate(
             continue  # Already have enough
 
         needed = 5 - len(result[category])
-        skills_for_prompt = missing_skills[:needed]
+        skills_for_prompt = missing_skills[:min(needed, 5)]
 
-        prompt = f"""Generate {len(skills_for_prompt)} interview questions for a {level}-level developer.
+        prompt = f"""Generate exactly 5 interview questions for a {level}-level developer.
 Category: {category}
-Skills to cover: {', '.join(skills_for_prompt)}
+Skills to cover (pick from these): {', '.join(skills_for_prompt)}
 
 For each question provide:
+- skill: which skill this question tests
 - question: the interview question (1-2 sentences)
-- answer: the correct/expected answer (2-3 sentences, specific)
+- answer: the correct/expected answer (2-3 sentences, specific and technical)
 - trap: red flag if candidate doesn't know (1 sentence)
 
-Reply ONLY valid JSON array:
+Reply ONLY a valid JSON array of exactly 5 objects:
 [{{"skill": "...", "question": "...", "answer": "...", "trap": "..."}}]"""
 
         try:
-            raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=600, feature="question_bank", candidate_id=candidate_id)
+            raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1200, feature="question_bank", candidate_id=candidate_id)
             # Parse
             import re
             cleaned = re.sub(r'^```(?:json)?\s*', '', raw.strip())
             cleaned = re.sub(r'\s*```$', '', cleaned)
-            questions = json.loads(cleaned)
+            cleaned = re.sub(r',\s*]', ']', cleaned)  # trailing comma
+            try:
+                questions = json.loads(cleaned)
+            except json.JSONDecodeError:
+                # Try extract array
+                match = re.search(r'\[.*\]', cleaned, re.DOTALL)
+                questions = json.loads(match.group()) if match else []
 
             for q in questions:
                 skill_lower = q.get("skill", skills_for_prompt[0]).lower().strip()
