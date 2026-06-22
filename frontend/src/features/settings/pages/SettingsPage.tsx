@@ -3,6 +3,7 @@ import { Settings as SettingsIcon, Mail, Bell, Shield, Save, Check, Activity } f
 import { apiClient } from '@/data/api/client';
 import { useI18n } from '@/shared/i18n';
 import { TagInput } from '@/shared/components/ui/TagInput';
+import { RichTextEditor } from '@/shared/components/ui/RichTextEditor';
 
 interface Template {
   template_type: string;
@@ -133,7 +134,7 @@ export function SettingsPage() {
                   <Field label="Greeting" value={form.greeting} onChange={v => setForm({ ...form, greeting: v })} />
                   <div>
                     <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Body</label>
-                    <textarea value={form.body} onChange={e => setForm({ ...form, body: e.target.value })} rows={3} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
+                    <RichTextEditor content={form.body} onChange={v => setForm({ ...form, body: v })} placeholder="Nội dung email..." />
                   </div>
                   <Field label="Closing" value={form.closing} onChange={v => setForm({ ...form, closing: v })} />
                   {tmpl.template_type === 'outreach' && (
