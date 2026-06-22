@@ -126,6 +126,38 @@ async def create_interview(
     for uid in body.interviewer_ids:
         await db.execute(text("INSERT INTO interview_interviewers (interview_id, user_id) VALUES (:iid, :uid) ON CONFLICT DO NOTHING"), {"iid": str(interview_id), "uid": uid})
     await db.commit()
+
+    # Pre-generate questions in background (non-blocking)
+    if body.job_id:
+        import threading
+        def _gen_questions():
+            import asyncio
+            from app.services.smart_questions import get_or_create_question_set
+            from app.database import async_session as _session
+            async def _do():
+                async with _session() as _db:
+                    job_row = await _db.execute(text("SELECT title, required_skills, category FROM jobs WHERE id = :id"), {"id": body.job_id})
+                    job = job_row.mappings().first()
+                    if not job:
+                        return
+                    cand_row = await _db.execute(text("SELECT structured_data->>'experience_years' as ey FROM candidates WHERE id = :id"), {"id": body.candidate_id})
+                    cand = cand_row.mappings().first()
+                    exp = int(cand["ey"] or 0) if cand and cand["ey"] else 0
+                    locale_row = await _db.execute(text("SELECT value FROM master_config WHERE key = 'app_locale'"))
+                    locale = (locale_row.scalar() or "vi")
+                    result = await get_or_create_question_set(_db, body.job_id, job["required_skills"] or [], job["title"] or "", body.round, exp, locale, job["category"])
+                    if result:
+                        await _db.execute(text("UPDATE interviews SET question_set_id = :qid WHERE id = :id"), {"qid": result["id"], "id": str(interview_id)})
+                        await _db.commit()
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(_do())
+            except Exception:
+                pass
+            finally:
+                loop.close()
+        threading.Thread(target=_gen_questions, daemon=True).start()
+
     return {"id": str(interview_id), "status": "scheduled", "round": body.round}
 
 
@@ -353,6 +385,18 @@ async def my_interviews(
             FROM interviews WHERE candidate_id = :cid AND feedback_score IS NOT NULL AND round < :round
             ORDER BY round
         """), {"cid": str(r["candidate_id"]), "round": r["round"] or 1})
+        # Get smart question score + G-level
+        qs_row = await db.execute(text("SELECT iqs.total_score, iqs.max_score, iqs.percentage, iqs.scores, iqset.questions_en FROM interview_question_scores iqs LEFT JOIN interview_question_sets iqset ON iqset.id = iqs.question_set_id WHERE iqs.interview_id = :iid"), {"iid": str(r["id"])})
+        qs_score = qs_row.mappings().first()
+        question_score_data = None
+        if qs_score:
+            from app.services.smart_questions import assess_g_level
+            g_assessment = None
+            if qs_score["questions_en"] and qs_score["scores"]:
+                questions_en = qs_score["questions_en"] if isinstance(qs_score["questions_en"], list) else json.loads(qs_score["questions_en"])
+                scores_data = qs_score["scores"] if isinstance(qs_score["scores"], list) else json.loads(qs_score["scores"])
+                g_assessment = assess_g_level(questions_en, scores_data)
+            question_score_data = {"total": float(qs_score["total_score"]), "max": float(qs_score["max_score"]), "percentage": float(qs_score["percentage"]), "g_level": g_assessment["g_level"] if g_assessment else None}
         results.append({
             "id": str(r["id"]),
             "candidate_id": str(r["candidate_id"]),
@@ -380,6 +424,7 @@ async def my_interviews(
             "feedback_notes": r["feedback_notes"],
             "feedback_decision": r["feedback_decision"],
             "feedback_by": r.get("feedback_by"),
+            "question_score": question_score_data,
             "previous_feedback": [
                 {"round": pf["round"], "score": pf["feedback_score"], "notes": pf["feedback_notes"], "decision": pf["feedback_decision"]}
                 for pf in prev_feedback.mappings().all()
