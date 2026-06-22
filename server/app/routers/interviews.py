@@ -343,27 +343,6 @@ async def add_feedback(
         WHERE id = :id
     """), {"score": body.score, "notes": body.notes, "by": user.full_name, "id": str(interview_id)})
 
-    # Update candidate status based on decision
-    if body.decision in ('pass', 'fail'):
-        new_status = 'approved' if body.decision == 'pass' else 'rejected'
-        # Update job_candidates status for this specific job
-        await db.execute(text("""
-            UPDATE job_candidates SET status = :status
-            WHERE candidate_id = (SELECT candidate_id FROM interviews WHERE id = :iid)
-              AND job_id = (SELECT job_id FROM interviews WHERE id = :iid)
-        """), {"status": new_status, "iid": str(interview_id)})
-        # Only update global candidate status if not assigned/pending in another job
-        await db.execute(text("""
-            UPDATE candidates SET status = :status
-            WHERE id = (SELECT candidate_id FROM interviews WHERE id = :iid)
-              AND NOT EXISTS (
-                SELECT 1 FROM job_candidates jc
-                WHERE jc.candidate_id = (SELECT candidate_id FROM interviews WHERE id = :iid)
-                  AND jc.job_id != (SELECT job_id FROM interviews WHERE id = :iid)
-                  AND jc.status IN ('assigned', 'scored')
-              )
-        """), {"status": new_status, "iid": str(interview_id)})
-
     await db.commit()
     return {"status": "feedback_added"}
 
@@ -395,6 +374,50 @@ async def get_all_feedback(
         {"score": r["score"], "notes": r["notes"], "submitted_at": r["submitted_at"].isoformat() if r["submitted_at"] else None, "name": r["full_name"], "email": r["email"]}
         for r in rows.mappings().all()
     ]
+
+
+class DecisionRequest(BaseModel):
+    decision: str  # pass / next_round / fail
+
+
+@router.post("/{interview_id}/decision")
+async def hr_decision(
+    interview_id: uuid.UUID,
+    body: DecisionRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """HR makes final decision on candidate after reviewing interviewer feedback."""
+    if user.role not in ('admin', 'hr'):
+        raise HTTPException(403, "Only HR/Admin can make decisions")
+    if body.decision not in ('pass', 'fail', 'next_round'):
+        raise HTTPException(400, "Invalid decision")
+
+    await db.execute(text("""
+        UPDATE interviews SET feedback_decision = :decision, status = 'completed' WHERE id = :id
+    """), {"decision": body.decision, "id": str(interview_id)})
+
+    # Update candidate status
+    if body.decision in ('pass', 'fail'):
+        new_status = 'approved' if body.decision == 'pass' else 'rejected'
+        await db.execute(text("""
+            UPDATE job_candidates SET status = :status
+            WHERE candidate_id = (SELECT candidate_id FROM interviews WHERE id = :iid)
+              AND job_id = (SELECT job_id FROM interviews WHERE id = :iid)
+        """), {"status": new_status, "iid": str(interview_id)})
+        await db.execute(text("""
+            UPDATE candidates SET status = :status
+            WHERE id = (SELECT candidate_id FROM interviews WHERE id = :iid)
+              AND NOT EXISTS (
+                SELECT 1 FROM job_candidates jc
+                WHERE jc.candidate_id = (SELECT candidate_id FROM interviews WHERE id = :iid)
+                  AND jc.job_id != (SELECT job_id FROM interviews WHERE id = :iid)
+                  AND jc.status IN ('assigned', 'scored')
+              )
+        """), {"status": new_status, "iid": str(interview_id)})
+
+    await db.commit()
+    return {"status": "decided", "decision": body.decision}
 
 
 @router.delete("/{interview_id}")

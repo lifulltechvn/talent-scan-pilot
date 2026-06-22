@@ -503,6 +503,14 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
                 🧠 AI Coaching
               </button>
             )}
+            {(interview.interviewer_feedback || []).length > 0 && !interview.feedback_decision && (
+              <HRDecisionButtons interviewId={interview.id} onDecided={onDeleted} />
+            )}
+            {interview.feedback_decision && (
+              <span className={`flex-1 py-2 text-[13px] font-medium text-center rounded-lg ${interview.feedback_decision === 'pass' ? 'bg-emerald-50 text-emerald-700' : interview.feedback_decision === 'next_round' ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>
+                {interview.feedback_decision === 'pass' ? '✅ Passed' : interview.feedback_decision === 'next_round' ? '🔄 Next Round' : '❌ Failed'}
+              </span>
+            )}
             {!interview.feedback_score && new Date(interview.end_time) >= new Date() && (
               <span className="flex-1 py-2 text-[12px] text-text-muted text-center">Chờ kết thúc phỏng vấn</span>
             )}
@@ -819,6 +827,27 @@ function EmailTagInput({ value, onChange }: { value: string[]; onChange: (v: str
         placeholder={value.length === 0 ? 'Nhập email interviewer rồi Enter...' : ''}
         className="flex-1 min-w-[150px] text-[13px] outline-none bg-transparent"
       />
+    </div>
+  );
+}
+
+function HRDecisionButtons({ interviewId, onDecided }: { interviewId: string; onDecided: () => void }) {
+  const [deciding, setDeciding] = useState(false);
+
+  const decide = async (decision: string) => {
+    setDeciding(true);
+    try {
+      await apiClient.post(`/interviews/${interviewId}/decision`, { decision });
+      onDecided();
+    } catch { /* ignore */ }
+    setDeciding(false);
+  };
+
+  return (
+    <div className="flex gap-1 flex-1">
+      <button onClick={() => decide('pass')} disabled={deciding} className="flex-1 py-2 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-40">✅ Pass</button>
+      <button onClick={() => decide('next_round')} disabled={deciding} className="flex-1 py-2 text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-40">🔄 Tiếp</button>
+      <button onClick={() => decide('fail')} disabled={deciding} className="flex-1 py-2 text-[11px] font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-40">❌ Fail</button>
     </div>
   );
 }
