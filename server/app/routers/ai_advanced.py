@@ -56,6 +56,7 @@ class AuthenticityResult(BaseModel):
 @router.post("/cv-authenticity/{candidate_id}")
 async def check_cv_authenticity(
     candidate_id: str,
+    force: bool = False,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
@@ -117,18 +118,26 @@ Reply ONLY valid JSON:
 {{"score": <0-100, 100=authentic>, "verdict": "<authentic|suspicious|likely_ai>", "reasons": ["specific evidence 1", "specific evidence 2", ...], "red_flags": ["concrete flag with quote from CV"], "green_flags": ["concrete positive sign with quote"]}}"""
 
     try:
+        # Check cached result
+        cached = d.get("_ai_authenticity")
+        if cached and not force:
+            return {"candidate_id": candidate_id, "candidate_name": d.get("name", "Unknown"), **cached}
+
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=800, feature="cv_authenticity", candidate_id=candidate_id)
         logger.info(f"CV authenticity raw response: {result[:200]}")
         data = _parse_json_response(result)
-        return {
-            "candidate_id": candidate_id,
-            "candidate_name": d.get("name", "Unknown"),
+        response = {
             "score": data.get("score", 70),
             "verdict": data.get("verdict", "unknown"),
             "reasons": data.get("reasons", []),
             "red_flags": data.get("red_flags", []),
             "green_flags": data.get("green_flags", []),
         }
+        # Cache result
+        await db.execute(text("UPDATE candidates SET structured_data = jsonb_set(structured_data, '{_ai_authenticity}', :val::jsonb) WHERE id = :cid"),
+            {"val": json.dumps(response), "cid": candidate_id})
+        await db.commit()
+        return {"candidate_id": candidate_id, "candidate_name": d.get("name", "Unknown"), **response}
     except Exception as e:
         logger.warning(f"CV authenticity check failed: {e}")
         return {"candidate_id": candidate_id, "score": 70, "verdict": "unknown", "reasons": [f"Analysis error: {str(e)[:100]}"], "red_flags": [], "green_flags": []}
@@ -201,6 +210,7 @@ Reply in JSON:
 @router.post("/culture-fit/{candidate_id}")
 async def assess_culture_fit(
     candidate_id: str,
+    force: bool = False,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
@@ -255,8 +265,17 @@ Reply ONLY valid JSON:
 {{"retention_risk": "<low|medium|high>", "avg_tenure_years": {avg_tenure}, "career_trajectory": "<growing|lateral|declining|mixed>", "risk_factors": ["specific factor with evidence"], "strengths": ["specific strength with evidence"], "work_style": "<leader|individual_contributor|both>", "recommendation": "1 sentence actionable advice for HR"}}"""
 
     try:
+        # Check cached result
+        cached = d.get("_ai_culture_fit")
+        if cached and not force:
+            return {"candidate_id": candidate_id, "candidate_name": d.get("name", "Unknown"), "job_count": job_count, "exp_years": exp_years, "avg_tenure_years": avg_tenure, **cached}
+
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="culture_fit", candidate_id=candidate_id)
         data = _parse_json_response(result)
+        # Cache result
+        await db.execute(text("UPDATE candidates SET structured_data = jsonb_set(structured_data, '{_ai_culture_fit}', :val::jsonb) WHERE id = :cid"),
+            {"val": json.dumps(data), "cid": candidate_id})
+        await db.commit()
         return {
             "candidate_id": candidate_id,
             "candidate_name": d.get("name", "Unknown"),

@@ -8,19 +8,25 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
   const [cultureResult, setCultureResult] = useState<any>(null);
   const [loading, setLoading] = useState<string | null>(null);
 
-  const runAuthenticity = async () => {
+  // Load cached results on mount
+  useState(() => {
+    apiClient.post(`/ai-advanced/cv-authenticity/${candidateId}`).then(({ data }) => { if (data.verdict !== 'unknown') setAuthResult(data); }).catch(() => {});
+    apiClient.post(`/ai-advanced/culture-fit/${candidateId}`).then(({ data }) => { if (data.retention_risk !== 'unknown') setCultureResult(data); }).catch(() => {});
+  });
+
+  const runAuthenticity = async (force = false) => {
     setLoading('authenticity');
     try {
-      const { data } = await apiClient.post(`/ai-advanced/cv-authenticity/${candidateId}`);
+      const { data } = await apiClient.post(`/ai-advanced/cv-authenticity/${candidateId}?force=${force}`);
       setAuthResult(data);
     } catch { setAuthResult({ error: true }); }
     setLoading(null);
   };
 
-  const runCultureFit = async () => {
+  const runCultureFit = async (force = false) => {
     setLoading('culture');
     try {
-      const { data } = await apiClient.post(`/ai-advanced/culture-fit/${candidateId}`);
+      const { data } = await apiClient.post(`/ai-advanced/culture-fit/${candidateId}?force=${force}`);
       setCultureResult(data);
     } catch { setCultureResult({ error: true }); }
     setLoading(null);
@@ -48,7 +54,7 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
           {!authResult ? (
             <div className="text-center py-4">
               <p className="text-[12px] text-text-muted mb-3">Phân tích CV có phải AI viết hoặc thông tin giả không</p>
-              <button onClick={runAuthenticity} disabled={loading === 'authenticity'} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
+              <button onClick={() => runAuthenticity()} disabled={loading === 'authenticity'} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
                 {loading === 'authenticity' ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Đang phân tích...</span> : '🔍 Kiểm tra CV'}
               </button>
             </div>
@@ -99,7 +105,7 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
                 )}
               </div>
 
-              <button onClick={() => setAuthResult(null)} className="text-[11px] text-text-muted hover:text-accent">↻ Chạy lại</button>
+              <button onClick={() => runAuthenticity(true)} className="text-[11px] text-text-muted hover:text-accent">↻ Chạy lại</button>
             </div>
           )}
         </div>
@@ -111,7 +117,7 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
           {!cultureResult ? (
             <div className="text-center py-4">
               <p className="text-[12px] text-text-muted mb-3">Đánh giá mức độ phù hợp văn hoá công ty & rủi ro nghỉ việc</p>
-              <button onClick={runCultureFit} disabled={loading === 'culture'} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
+              <button onClick={() => runCultureFit()} disabled={loading === 'culture'} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
                 {loading === 'culture' ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Đang phân tích...</span> : '🎯 Đánh giá Culture Fit'}
               </button>
             </div>
@@ -173,7 +179,7 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
                 </div>
               )}
 
-              <button onClick={() => setCultureResult(null)} className="text-[11px] text-text-muted hover:text-accent">↻ Chạy lại</button>
+              <button onClick={() => runCultureFit(true)} className="text-[11px] text-text-muted hover:text-accent">↻ Chạy lại</button>
             </div>
           )}
         </div>
