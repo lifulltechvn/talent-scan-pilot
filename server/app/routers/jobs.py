@@ -357,6 +357,8 @@ async def assign_candidate_to_job(
     # Also set candidate.job_id for backward compatibility
     candidate.job_id = job_id
     candidate.status = "assigned"
+    # Invalidate AI recommend cache for this job
+    await db.execute(text("DELETE FROM master_config WHERE key = :k"), {"k": f"ai_recommend_{job_id}"})
     await db.commit()
 
     # Run full scoring (skip LLM if score already exists for this candidate)
