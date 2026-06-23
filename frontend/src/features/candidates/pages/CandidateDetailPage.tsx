@@ -517,9 +517,6 @@ export function CandidateDetailPage() {
 
             {/* Actions */}
             <div className="space-y-2">
-              {candidate.status === 'blacklisted' && (
-                <div className="text-center text-[13px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">🚫 Blacklisted</div>
-              )}
               {candidate.status !== 'blacklisted' && (
               <>
               <button onClick={() => setEmailModal(true)} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
