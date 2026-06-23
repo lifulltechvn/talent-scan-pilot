@@ -33,10 +33,9 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
     setGenerating(true);
     try {
       const { data } = await apiClient.post('/jobs/generate-jd', { title: form.title, keywords: form.skills.join(', '), category: form.category });
-      const rawDesc = data.description || '';
+      const rawDesc = JSON.stringify({ en: data.description_en || '', vi: data.description_vi || '' });
       setDescRaw(rawDesc);
-      let descForDisplay = rawDesc;
-      try { const p = JSON.parse(rawDesc); descForDisplay = p[locale] || p['en'] || rawDesc; } catch {}
+      const descForDisplay = locale === 'vi' ? (data.description_vi || data.description_en) : (data.description_en || data.description_vi);
       setForm(p => ({
         ...p,
         description: descForDisplay || p.description,

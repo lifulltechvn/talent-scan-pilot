@@ -88,10 +88,16 @@ async def generate_job_description(
     prompt = JD_GENERATE_PROMPT.format(title=title, context=context)
 
     try:
-        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="jd_generate")
-        start = raw.find("{")
-        end = raw.rfind("}") + 1
-        return json.loads(raw[start:end])
+        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1024, feature="jd_generate")
+        # Strip markdown code fences
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = clean.split("\n", 1)[1] if "\n" in clean else clean[3:]
+        if clean.endswith("```"):
+            clean = clean[:-3]
+        start = clean.find("{")
+        end = clean.rfind("}") + 1
+        return json.loads(clean[start:end])
     except Exception as e:
         raise HTTPException(500, f"AI generation failed: {e}")
 

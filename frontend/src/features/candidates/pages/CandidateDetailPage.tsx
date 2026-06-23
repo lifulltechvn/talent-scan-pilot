@@ -203,8 +203,8 @@ export function CandidateDetailPage() {
       const d = query.state.data;
       if (!d) return 5000;
       const sd = d.structuredData || d.structured_data;
-      // Auto-refetch until enrichment has real content
-      if (!sd?.experience?.length || !sd?.insight?.strengths) return 5000;
+      // Auto-refetch until Phase 2 enrichment complete (experience + insight + reason)
+      if (!sd?.experience?.length || !sd?.insight?.strengths || !sd?.skill_level?.reason?.en) return 5000;
       return false;
     },
   });
@@ -315,12 +315,19 @@ export function CandidateDetailPage() {
           )}
 
           {/* AI Reason */}
-          {d.skill_level.reason && (
+          {d.skill_level.reason && (d.skill_level.reason.en || d.skill_level.reason.vi) ? (
             <div className="mb-3 p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">{t("aiReason")}</span>
               </div>
               <p className="text-[12px] text-text-secondary leading-relaxed">{loc(d.skill_level.reason)}</p>
+            </div>
+          ) : (
+            <div className="mb-3 p-3 bg-bg-secondary/40 rounded-lg border border-border-subtle/30">
+              <div className="flex items-center gap-2">
+                <Loader2 size={12} className="animate-spin text-purple-400" />
+                <span className="text-[11px] text-text-muted">Đang phân tích lý do đánh giá...</span>
+              </div>
             </div>
           )}
 
