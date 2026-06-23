@@ -513,6 +513,7 @@ async def compare_top_candidates(
 @router.get("/{job_id}/ai-recommend")
 async def ai_recommend_candidates(
     job_id: uuid.UUID,
+    force: bool = False,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -521,6 +522,13 @@ async def ai_recommend_candidates(
     from app.config import settings
     from sqlalchemy import text
     import re as _re
+
+    # Check cache
+    if not force:
+        cache_row = await db.execute(text("SELECT value FROM master_config WHERE key = :k"), {"k": f"ai_recommend_{job_id}"})
+        cached = cache_row.scalar()
+        if cached:
+            return json.loads(cached)
 
     result = await db.execute(select(Job).where(Job.id == job_id))
     job = result.scalar_one_or_none()
@@ -590,6 +598,11 @@ Reply ONLY valid JSON:
         cleaned = _re.sub(r',\s*}', '}', cleaned)
         cleaned = _re.sub(r',\s*]', ']', cleaned)
         data = json.loads(cleaned)
-        return {"total_candidates": len(candidates), **data}
+        response = {"total_candidates": len(candidates), **data}
+        # Cache result
+        await db.execute(text("INSERT INTO master_config (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value = :v"),
+            {"k": f"ai_recommend_{job_id}", "v": json.dumps(response)})
+        await db.commit()
+        return response
     except Exception as e:
         return {"summary": f"AI unavailable: {str(e)[:100]}", "rankings": [], "total_candidates": len(candidates)}
