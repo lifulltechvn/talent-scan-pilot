@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Star, MessageSquare, Clock, CheckCircle, X, User, Briefcase, GraduationCap, Languages, ChevronDown, ChevronUp } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { QuestionBankModal } from '../components/QuestionBankModal';
+import { useI18n } from '@/shared/i18n';
 
 interface CandidateProfile {
   skills: string[];
@@ -45,6 +45,7 @@ interface MyInterview {
 
 export function InterviewerDashboard() {
   const { user } = useAuth();
+  const { t, locale } = useI18n();
   const [interviews, setInterviews] = useState<MyInterview[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedbackModal, setFeedbackModal] = useState<MyInterview | null>(null);
@@ -68,22 +69,22 @@ export function InterviewerDashboard() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-text-primary">Xin chào, {user?.fullName || user?.full_name}</h1>
-        <p className="text-[13px] text-text-tertiary mt-0.5">Interviewer Dashboard</p>
+        <h1 className="text-xl font-semibold text-text-primary">{t('interviewerGreeting', { name: user?.fullName || user?.full_name || '' })}</h1>
+        <p className="text-[13px] text-text-tertiary mt-0.5">{t('interviewerDashboard')}</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-1"><Clock size={14} className="text-blue-500" /><span className="text-[11px] text-text-muted">Sắp tới</span></div>
+          <div className="flex items-center gap-2 mb-1"><Clock size={14} className="text-blue-500" /><span className="text-[11px] text-text-muted">{t('statUpcoming')}</span></div>
           <span className="text-2xl font-bold text-text-primary">{upcoming.length}</span>
         </div>
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-1"><MessageSquare size={14} className="text-amber-500" /><span className="text-[11px] text-amber-700">Cần feedback</span></div>
+          <div className="flex items-center gap-2 mb-1"><MessageSquare size={14} className="text-amber-500" /><span className="text-[11px] text-amber-700">{t('statNeedFeedback')}</span></div>
           <span className="text-2xl font-bold text-amber-700">{needFeedback.length}</span>
         </div>
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-1"><CheckCircle size={14} className="text-emerald-500" /><span className="text-[11px] text-text-muted">Hoàn thành</span></div>
+          <div className="flex items-center gap-2 mb-1"><CheckCircle size={14} className="text-emerald-500" /><span className="text-[11px] text-text-muted">{t('statCompleted')}</span></div>
           <span className="text-2xl font-bold text-text-primary">{completed.length}</span>
         </div>
       </div>
@@ -92,7 +93,7 @@ export function InterviewerDashboard() {
       {inProgress.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-5">
           <h2 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
-            <Clock size={15} /> Đang diễn ra ({inProgress.length})
+            <Clock size={15} /> {t('inProgressSection', { count: inProgress.length })}
           </h2>
           <div className="space-y-2">
             {inProgress.map(i => (
@@ -104,13 +105,13 @@ export function InterviewerDashboard() {
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => setProfileModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">Profile</button>
-                    <button onClick={() => setQuestionsModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100">Câu hỏi</button>
-                    <button onClick={() => setFeedbackModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">Nhận xét</button>
+                    <button onClick={() => setQuestionsModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100">{t('questionsBtn')}</button>
+                    <button onClick={() => setFeedbackModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">{t('feedbackBtnShort')}</button>
                   </div>
                 </div>
                 {i.meeting_link && (
                   <a href={i.meeting_link} target="_blank" className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 text-[12px] font-medium text-accent bg-accent/10 rounded-lg hover:bg-accent/20">
-                    🔗 Join meeting
+                    🔗 {t('joinMeeting')}
                   </a>
                 )}
               </div>
@@ -123,7 +124,7 @@ export function InterviewerDashboard() {
       {needFeedback.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-5">
           <h2 className="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
-            <MessageSquare size={15} /> Cần đánh giá ({needFeedback.length})
+            <MessageSquare size={15} /> {t('needAssessmentSection', { count: needFeedback.length })}
           </h2>
           <div className="space-y-2">
             {needFeedback.map(i => (
@@ -131,12 +132,12 @@ export function InterviewerDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[13px] font-medium text-text-primary">{i.candidate_name}</div>
-                    <div className="text-[11px] text-text-muted">{i.job_title} · Round {i.round} · {new Date(i.start_time).toLocaleDateString('vi')}</div>
+                    <div className="text-[11px] text-text-muted">{i.job_title} · Round {i.round} · {new Date(i.start_time).toLocaleDateString(locale)}</div>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => setProfileModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">Profile</button>
-                    <button onClick={() => setQuestionsModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100">Câu hỏi</button>
-                    <button onClick={() => setFeedbackModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">Nhận xét</button>
+                    <button onClick={() => setQuestionsModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100">{t('questionsBtn')}</button>
+                    <button onClick={() => setFeedbackModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">{t('feedbackBtnShort')}</button>
                   </div>
                 </div>
                 {i.question_score && (
@@ -151,7 +152,7 @@ export function InterviewerDashboard() {
                 )}
                 {i.feedback_notes && (
                   <div className="mt-2 bg-amber-50 px-3 py-1.5 rounded cursor-pointer hover:bg-amber-100/70" onClick={() => setFeedbackModal(i)}>
-                    <span className="text-[10px] font-medium text-amber-700">Nhận xét đã ghi · click để sửa</span>
+                    <span className="text-[10px] font-medium text-amber-700">{t('feedbackNoted')}</span>
                     <p className="text-[12px] text-amber-900 mt-0.5">{i.feedback_notes}</p>
                   </div>
                 )}
@@ -164,10 +165,10 @@ export function InterviewerDashboard() {
       {/* Upcoming */}
       <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden mb-5">
         <div className="px-4 py-3 border-b border-border-subtle">
-          <h2 className="text-sm font-medium text-text-primary flex items-center gap-2"><Calendar size={14} className="text-accent" /> Lịch phỏng vấn sắp tới</h2>
+          <h2 className="text-sm font-medium text-text-primary flex items-center gap-2"><Calendar size={14} className="text-accent" /> {t('upcomingSchedule')}</h2>
         </div>
         {upcoming.length === 0 ? (
-          <div className="p-6 text-center text-[13px] text-text-muted">Không có lịch phỏng vấn sắp tới</div>
+          <div className="p-6 text-center text-[13px] text-text-muted">{t('noUpcomingInterviews')}</div>
         ) : (
           <div className="divide-y divide-border-subtle">
             {upcoming.map(i => (
@@ -178,30 +179,30 @@ export function InterviewerDashboard() {
                     <div className="text-[12px] text-text-muted">{i.job_title} · Round {i.round} · {i.interview_type}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[13px] font-medium text-text-primary">{new Date(i.start_time).toLocaleDateString('vi')}</div>
-                    <div className="text-[12px] text-text-muted">{new Date(i.start_time).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })} — {new Date(i.end_time).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div className="text-[13px] font-medium text-text-primary">{new Date(i.start_time).toLocaleDateString(locale)}</div>
+                    <div className="text-[12px] text-text-muted">{new Date(i.start_time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })} — {new Date(i.end_time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button onClick={() => setProfileModal(i)} className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">
-                    <User size={12} /> Xem profile
+                    <User size={12} /> {t('viewProfile')}
                   </button>
                   <button onClick={() => setQuestionsModal(i)} className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100">
-                    <GraduationCap size={12} /> Câu hỏi PV
+                    <GraduationCap size={12} /> {t('interviewQuestionsBtn')}
                   </button>
                   {i.meeting_link && (
                     <a href={i.meeting_link} target="_blank" className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-accent bg-accent/10 rounded-lg hover:bg-accent/20">
-                      🔗 Join meeting
+                      🔗 {t('joinMeeting')}
                     </a>
                   )}
                   <button onClick={() => setFeedbackModal(i)} className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100">
-                    <MessageSquare size={12} /> Nhận xét
+                    <MessageSquare size={12} /> {t('feedbackBtnShort')}
                   </button>
                 </div>
                 {i.notes && <p className="text-[11px] text-text-muted mt-2 bg-bg-surface px-3 py-1.5 rounded">{i.notes}</p>}
                 {i.feedback_notes && (
                   <div className="mt-2 bg-amber-50 border border-amber-100 px-3 py-2 rounded-lg cursor-pointer hover:bg-amber-100/70 transition-colors" onClick={() => setFeedbackModal(i)}>
-                    <span className="text-[10px] font-medium text-amber-700 uppercase">Nhận xét đã ghi <span className="normal-case font-normal">· click để sửa</span></span>
+                    <span className="text-[10px] font-medium text-amber-700 uppercase">{t('feedbackNoted')}</span>
                     <p className="text-[12px] text-amber-900 mt-0.5">{i.feedback_notes}</p>
                   </div>
                 )}
@@ -215,7 +216,7 @@ export function InterviewerDashboard() {
       {completed.length > 0 && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border-subtle">
-            <h2 className="text-sm font-medium text-text-primary flex items-center gap-2"><CheckCircle size={14} className="text-emerald-500" /> Đã feedback ({completed.length})</h2>
+            <h2 className="text-sm font-medium text-text-primary flex items-center gap-2"><CheckCircle size={14} className="text-emerald-500" /> {t('completedFeedbackSection', { count: completed.length })}</h2>
           </div>
           <div className="divide-y divide-border-subtle">
             {completed.map(i => (
@@ -223,11 +224,11 @@ export function InterviewerDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[13px] font-medium text-text-primary">{i.candidate_name}</div>
-                    <div className="text-[11px] text-text-muted">{i.job_title} · Round {i.round} · {new Date(i.start_time).toLocaleDateString('vi')}</div>
+                    <div className="text-[11px] text-text-muted">{i.job_title} · Round {i.round} · {new Date(i.start_time).toLocaleDateString(locale)}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setProfileModal(i)} className="text-[11px] text-purple-600 hover:underline">Profile</button>
-                    <button onClick={() => setFeedbackModal(i)} className="text-[11px] text-accent hover:underline">Sửa</button>
+                    <button onClick={() => setFeedbackModal(i)} className="text-[11px] text-accent hover:underline">{t('editBtnShort')}</button>
                     <div className="flex items-center gap-1">
                       <Star size={12} className="text-amber-500" />
                       <span className="text-[12px] font-medium">{i.feedback_score}/5</span>
@@ -264,13 +265,14 @@ export function InterviewerDashboard() {
 
       {/* Questions Modal */}
       {questionsModal && (
-        <QuestionBankModal candidateId={questionsModal.candidate_id} candidateName={questionsModal.candidate_name} onClose={() => setQuestionsModal(null)} />
+        <QuestionsModal interview={questionsModal} onClose={() => setQuestionsModal(null)} />
       )}
     </div>
   );
 }
 
 function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose: () => void }) {
+  const { t } = useI18n();
   const p = interview.candidate_profile;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
@@ -286,7 +288,7 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
           {/* Experience summary */}
           <div className="flex items-center gap-2 text-[13px] text-text-secondary">
             <Briefcase size={14} className="text-text-muted" />
-            <span>{p.experience_years} năm kinh nghiệm</span>
+            <span>{t('yearsExpFull', { years: p.experience_years })}</span>
           </div>
 
           {/* Skills */}
@@ -297,13 +299,13 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
                 <span key={s} className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${interview.job_skills.map(j => j.toLowerCase()).includes(s.toLowerCase()) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{s}</span>
               ))}
             </div>
-            {interview.job_skills.length > 0 && <p className="text-[10px] text-text-muted mt-1">🟢 = khớp yêu cầu job</p>}
+            {interview.job_skills.length > 0 && <p className="text-[10px] text-text-muted mt-1">🟢 {t('matchesJobReq')}</p>}
           </div>
 
           {/* Experience */}
           {p.experience.length > 0 && (
             <div>
-              <span className="text-[11px] font-medium text-text-muted uppercase flex items-center gap-1"><Briefcase size={12} /> Kinh nghiệm</span>
+              <span className="text-[11px] font-medium text-text-muted uppercase flex items-center gap-1"><Briefcase size={12} /> {t('experienceProfileSection')}</span>
               <div className="mt-2 space-y-2">
                 {p.experience.map((exp, i) => (
                   <div key={i} className="border-l-2 border-border-subtle pl-3">
@@ -319,7 +321,7 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
           {/* Education */}
           {p.education.length > 0 && (
             <div>
-              <span className="text-[11px] font-medium text-text-muted uppercase flex items-center gap-1"><GraduationCap size={12} /> Học vấn</span>
+              <span className="text-[11px] font-medium text-text-muted uppercase flex items-center gap-1"><GraduationCap size={12} /> {t('educationProfileSection')}</span>
               <div className="mt-2 space-y-1">
                 {p.education.map((edu, i) => (
                   <div key={i} className="text-[13px] text-text-primary">
@@ -333,7 +335,7 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
           {/* Languages */}
           {p.languages.length > 0 && (
             <div>
-              <span className="text-[11px] font-medium text-text-muted uppercase flex items-center gap-1"><Languages size={12} /> Ngôn ngữ</span>
+              <span className="text-[11px] font-medium text-text-muted uppercase flex items-center gap-1"><Languages size={12} /> {t('languagesProfileSection')}</span>
               <div className="flex gap-2 mt-1.5">
                 {p.languages.map(l => (
                   <span key={l.language} className="text-[12px] bg-bg-surface text-text-secondary px-2 py-0.5 rounded">{l.language}{l.level && l.level !== '<UNKNOWN>' ? ` (${l.level})` : ''}</span>
@@ -345,17 +347,17 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
           {/* AI Insight */}
           {p.insight && (p.insight.strengths || p.insight.weaknesses) && (
             <div className="border-t border-border-subtle pt-4">
-              <span className="text-[11px] font-medium text-text-muted uppercase flex items-center gap-1">✨ AI Nhận xét</span>
+              <span className="text-[11px] font-medium text-text-muted uppercase flex items-center gap-1">✨ {t('aiInsightProfileSection')}</span>
               <div className="mt-2 space-y-2">
                 {p.insight.strengths && (
                   <div className="p-2.5 bg-emerald-50 rounded-lg">
-                    <span className="text-[10px] font-medium text-emerald-700 uppercase">Điểm mạnh</span>
+                    <span className="text-[10px] font-medium text-emerald-700 uppercase">{t('strengthsProfileSection')}</span>
                     <p className="text-[12px] text-emerald-800 mt-0.5">{p.insight.strengths}</p>
                   </div>
                 )}
                 {p.insight.weaknesses && (
                   <div className="p-2.5 bg-amber-50 rounded-lg">
-                    <span className="text-[10px] font-medium text-amber-700 uppercase">Cần lưu ý</span>
+                    <span className="text-[10px] font-medium text-amber-700 uppercase">{t('attentionProfileSection')}</span>
                     <p className="text-[12px] text-amber-800 mt-0.5">{p.insight.weaknesses}</p>
                   </div>
                 )}
@@ -372,7 +374,7 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
                   .then(r => r.blob())
                   .then(blob => { const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' })); window.open(url, '_blank'); });
               }} className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[12px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
-                📄 Xem CV gốc
+                📄 {t('viewOriginalCv')}
               </button>
             </div>
           )}
@@ -385,6 +387,7 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
 }
 
 function FeedbackModal({ interview, onClose, onSaved }: { interview: MyInterview; onClose: () => void; onSaved: () => void }) {
+  const { t } = useI18n();
   const [score, setScore] = useState(interview.feedback_score || 5);
   const [notes, setNotes] = useState(interview.feedback_notes || '');
   const [saving, setSaving] = useState(false);
@@ -403,14 +406,14 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: MyInterview
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm m-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
           <div>
-            <h2 className="text-[15px] font-semibold text-white">Đánh giá ứng viên</h2>
+            <h2 className="text-[15px] font-semibold text-white">{t('assessCandidate')}</h2>
             <p className="text-[12px] text-white/70">{interview.candidate_name} · Round {interview.round}</p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
         <div className="p-5 space-y-4">
           <div>
-            <label className="text-[12px] font-medium text-text-muted uppercase">Điểm đánh giá: <span className="text-accent text-[14px]">{score}/10</span></label>
+            <label className="text-[12px] font-medium text-text-muted uppercase">{t('assessmentScoreLabel', { score: String(score) })}</label>
             <div className="flex gap-1 mt-2">
               {[1,2,3,4,5,6,7,8,9,10].map(n => (
                 <button key={n} onClick={() => setScore(n)} className={`w-7 h-7 rounded-lg text-sm font-bold ${score >= n ? 'bg-amber-400 text-white' : 'bg-gray-100 text-text-muted'}`}>{n}</button>
@@ -419,12 +422,12 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: MyInterview
           </div>
 
           <div>
-            <label className="text-[12px] font-medium text-text-muted uppercase">Nhận xét</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder="Nhận xét về kỹ năng, thái độ, communication..." autoFocus />
+            <label className="text-[12px] font-medium text-text-muted uppercase">{t('feedbackFieldLabel')}</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder={t('feedbackInputPlaceholder')} autoFocus />
           </div>
 
           <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
-            {saving ? 'Đang lưu...' : 'Gửi đánh giá'}
+            {saving ? t('submittingAssessment') : t('submitAssessment')}
           </button>
         </div>
       </div>
@@ -437,6 +440,7 @@ interface QuestionCriteria { id: string; description: string; point: number }
 interface Question { id: number; category: string; skill: string; question: string; criteria: QuestionCriteria[]; max_score: number; red_flags: string; follow_up: string }
 
 function QuestionsModal({ interview, onClose }: { interview: MyInterview; onClose: () => void }) {
+  const { t } = useI18n();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [scores, setScores] = useState<Record<number, boolean[]>>({});
@@ -500,9 +504,9 @@ function QuestionsModal({ interview, onClose }: { interview: MyInterview; onClos
 
         <div className="overflow-y-auto flex-1 p-5 space-y-4">
           {loading ? (
-            <div className="text-center py-8 text-text-muted text-[13px]">Đang tải câu hỏi...</div>
+            <div className="text-center py-8 text-text-muted text-[13px]">{t('loadingQuestions')}</div>
           ) : questions.length === 0 ? (
-            <div className="text-center py-8 text-text-muted text-[13px]">Không có câu hỏi (job chưa có skills)</div>
+            <div className="text-center py-8 text-text-muted text-[13px]">{t('noQuestionsAvailable')}</div>
           ) : (
             questions.map(q => (
               <div key={q.id} className="border border-border-subtle rounded-xl p-4">
@@ -521,7 +525,7 @@ function QuestionsModal({ interview, onClose }: { interview: MyInterview; onClos
                     <label key={c.id} className="flex items-start gap-2 cursor-pointer group">
                       <input type="checkbox" checked={scores[q.id]?.[idx] || false} onChange={() => toggleCriteria(q.id, idx)} className="mt-0.5 w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent" />
                       <span className={`text-[12px] ${scores[q.id]?.[idx] ? 'text-text-primary' : 'text-text-tertiary'} group-hover:text-text-primary`}>
-                        <span className="font-medium">{c.point}đ</span> — {c.description}
+                        <span className="font-medium">{c.point}pt</span> — {c.description}
                       </span>
                     </label>
                   ))}
@@ -537,11 +541,11 @@ function QuestionsModal({ interview, onClose }: { interview: MyInterview; onClos
           <div className="px-5 py-4 border-t border-border-subtle shrink-0 space-y-2">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-[15px] font-semibold text-text-primary">📊 Tổng điểm: {totalScore}/{maxScore} <span className="text-accent">({maxScore > 0 ? Math.round(totalScore/maxScore*100) : 0}%)</span></div>
-                <div className="text-[11px] text-text-muted mt-0.5">⚠️ Điểm Smart Question chỉ mang tính tham khảo, không phải cơ sở quyết định chính.</div>
+                <div className="text-[15px] font-semibold text-text-primary">📊 {t('totalScoreDisplay', { score: String(totalScore), max: String(maxScore), percent: String(maxScore > 0 ? Math.round(totalScore/maxScore*100) : 0) })}</div>
+                <div className="text-[11px] text-text-muted mt-0.5">⚠️ {t('smartQuestionNote')}</div>
               </div>
               <button onClick={handleSubmit} disabled={submitting} className="px-5 py-2.5 text-[13px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-40 shrink-0">
-                {submitting ? 'Đang lưu...' : submitted ? '✓ Đã lưu' : 'Lưu đánh giá'}
+                {submitting ? t('submittingAssessment') : submitted ? t('savedScoreBtn') : t('saveScoreBtn')}
               </button>
             </div>
             <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">

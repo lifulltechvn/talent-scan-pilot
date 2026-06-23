@@ -101,7 +101,7 @@ export function CandidateComparePage() {
               <div key={c.id} className={cn('px-4 py-3 border-r border-border-subtle last:border-0',
                 c.structuredData.totalYearsExperience === bestExp && 'bg-emerald-50/30')}>
                 <span className={cn('text-sm font-semibold', c.structuredData.totalYearsExperience === bestExp && 'text-emerald-600')}>
-                  {c.structuredData.totalYearsExperience} năm
+                  {c.structuredData.totalYearsExperience} {t('yearsUnit')}
                 </span>
                 <div className="mt-1 space-y-0.5">
                   {c.structuredData.experience.slice(0, 2).map((e, i) => (

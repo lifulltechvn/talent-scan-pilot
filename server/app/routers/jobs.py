@@ -88,10 +88,14 @@ async def generate_job_description(
     prompt = JD_GENERATE_PROMPT.format(title=title, context=context)
 
     try:
-        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="jd_generate")
+        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=600, feature="jd_generate")
         start = raw.find("{")
         end = raw.rfind("}") + 1
-        return json.loads(raw[start:end])
+        data = json.loads(raw[start:end])
+        # Merge description_en/vi into single JSON string for DB storage
+        if "description_en" in data:
+            data["description"] = json.dumps({"en": data.pop("description_en", ""), "vi": data.pop("description_vi", "")}, ensure_ascii=False)
+        return data
     except Exception as e:
         raise HTTPException(500, f"AI generation failed: {e}")
 
@@ -553,7 +557,10 @@ async def ai_recommend_candidates(
     )
 
     try:
-        recommendation = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="recommendation")
-        return {"recommendation": recommendation, "total_candidates": len(candidates)}
+        recommendation = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=700, feature="recommendation")
+        parts = recommendation.split("---EN---")
+        rec_vi = parts[0].strip()
+        rec_en = parts[1].strip() if len(parts) > 1 else rec_vi
+        return {"recommendation": {"vi": rec_vi, "en": rec_en}, "total_candidates": len(candidates)}
     except Exception as e:
-        return {"recommendation": f"AI unavailable: {e}", "total_candidates": len(candidates)}
+        return {"recommendation": {"vi": f"AI không khả dụng: {e}", "en": f"AI unavailable: {e}"}, "total_candidates": len(candidates)}

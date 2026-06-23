@@ -123,34 +123,44 @@ def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str
     )
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="scoring", candidate_id=candidate_id)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=600, feature="scoring", candidate_id=candidate_id)
         lines = result.strip().split("\n")
         score = 60.0
         summary = result.strip()
-        strengths = ""
-        concerns = ""
-        suggestion = ""
+        i18n_data = {"en": {}, "vi": {}, "ja": {}}
         for line in lines:
             if line.startswith("SCORE:"):
                 score = float(line.replace("SCORE:", "").strip())
                 score = max(0, min(100, score))
+            elif line.startswith("SUMMARY_EN:"):
+                i18n_data["en"]["summary"] = line.replace("SUMMARY_EN:", "").strip()
+            elif line.startswith("SUMMARY_VI:"):
+                i18n_data["vi"]["summary"] = line.replace("SUMMARY_VI:", "").strip()
+            elif line.startswith("SUMMARY_JA:"):
+                i18n_data["ja"]["summary"] = line.replace("SUMMARY_JA:", "").strip()
+            elif line.startswith("STRENGTHS_EN:"):
+                i18n_data["en"]["strengths"] = [s.strip() for s in line.replace("STRENGTHS_EN:", "").strip().split(",") if s.strip()]
+            elif line.startswith("STRENGTHS_VI:"):
+                i18n_data["vi"]["strengths"] = [s.strip() for s in line.replace("STRENGTHS_VI:", "").strip().split(",") if s.strip()]
+            elif line.startswith("CONCERNS_EN:"):
+                i18n_data["en"]["concerns"] = [s.strip() for s in line.replace("CONCERNS_EN:", "").strip().split(",") if s.strip()]
+            elif line.startswith("CONCERNS_VI:"):
+                i18n_data["vi"]["concerns"] = [s.strip() for s in line.replace("CONCERNS_VI:", "").strip().split(",") if s.strip()]
+            elif line.startswith("SUGGESTION_EN:"):
+                i18n_data["en"]["suggestion"] = line.replace("SUGGESTION_EN:", "").strip()
+            elif line.startswith("SUGGESTION_VI:"):
+                i18n_data["vi"]["suggestion"] = line.replace("SUGGESTION_VI:", "").strip()
+            # Legacy fallback
             elif line.startswith("SUMMARY:"):
                 summary = line.replace("SUMMARY:", "").strip()
             elif line.startswith("STRENGTHS:"):
-                strengths = line.replace("STRENGTHS:", "").strip()
+                i18n_data["vi"]["strengths"] = [s.strip() for s in line.replace("STRENGTHS:", "").strip().split(",") if s.strip()]
             elif line.startswith("CONCERNS:"):
-                concerns = line.replace("CONCERNS:", "").strip()
+                i18n_data["vi"]["concerns"] = [s.strip() for s in line.replace("CONCERNS:", "").strip().split(",") if s.strip()]
             elif line.startswith("SUGGESTION:"):
-                suggestion = line.replace("SUGGESTION:", "").strip()
-        # Pack extra info into summary as structured format
-        full_summary = summary
-        if strengths or concerns or suggestion:
-            full_summary = json.dumps({
-                "summary": summary,
-                "strengths": [s.strip() for s in strengths.split(",") if s.strip()],
-                "concerns": [c.strip() for c in concerns.split(",") if c.strip()],
-                "suggestion": suggestion,
-            }, ensure_ascii=False)
+                i18n_data["vi"]["suggestion"] = line.replace("SUGGESTION:", "").strip()
+
+        full_summary = json.dumps(i18n_data, ensure_ascii=False) if i18n_data["en"] else summary
         return score, full_summary
     except Exception as e:
         logger.warning(f"LLM evaluation failed: {e}")

@@ -55,10 +55,10 @@ export function OutreachPage() {
   };
 
   const filters: { value: Filter; label: string }[] = [
-    { value: 'all', label: `All (${counts.all})` },
-    { value: 'outreach', label: `Outreach (${counts.outreach})` },
-    { value: 'rejection', label: `Rejection (${counts.rejection})` },
-    { value: 'reminder', label: `Reminder (${counts.reminder})` },
+    { value: 'all', label: `${t('all')} (${counts.all})` },
+    { value: 'outreach', label: `${t('outreachType')} (${counts.outreach})` },
+    { value: 'rejection', label: `${t('rejectionType')} (${counts.rejection})` },
+    { value: 'reminder', label: `${t('reminderType')} (${counts.reminder})` },
   ];
 
   return (

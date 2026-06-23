@@ -3,6 +3,7 @@ import { Upload, CheckCircle, AlertTriangle, XCircle, Loader2, RefreshCw, UserPl
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/data/api/client';
 import { startBatchTracking } from '@/shared/batch-store';
+import { useI18n } from '@/shared/i18n';
 
 interface BatchItem {
   id: string;
@@ -37,13 +38,13 @@ interface BatchStatus {
 }
 
 export function CvUploadPage() {
+  const { t } = useI18n();
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [batch, setBatch] = useState<BatchStatus | null>(null);
   const [error, setError] = useState('');
   const [expandedSection, setExpandedSection] = useState<string | null>('duplicates');
-  const [resolving, setResolving] = useState(false);
 
   // Restore active batch on mount — fetch latest from server
   useEffect(() => {
@@ -64,7 +65,7 @@ export function CvUploadPage() {
     const valid = all.filter(f => /\.(pdf|docx)$/i.test(f.name));
     const skipped = all.length - valid.length;
     if (skipped > 0) {
-      setError(`${skipped} file(s) skipped — only PDF and DOCX are supported.`);
+      setError(t('filesSkipped').replace('{count}', String(skipped)));
     }
     if (!valid.length) return;
 
@@ -88,7 +89,7 @@ export function CvUploadPage() {
       startBatchTracking(data.batch_id, data.total_files);
       pollBatch(data.batch_id);
     } catch (e: any) {
-      setError(e.response?.data?.detail || 'Upload failed');
+      setError(e.response?.data?.detail || t('uploadFailed'));
       setUploading(false);
     }
   };
@@ -107,38 +108,24 @@ export function CvUploadPage() {
   };
 
   const handleResolve = async (itemId: string, action: string) => {
-    if (!batch || resolving) return;
-    setResolving(true);
+    if (!batch) return;
     try {
       await apiClient.post(`/cv/batch/${batch.batch_id}/items/${itemId}/resolve?action=${action}`);
-      await _waitAndRefresh();
+      const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
+      setBatch(data);
     } catch (e: any) {
       console.error('Resolve failed:', e?.response?.data || e);
     }
-    setResolving(false);
   };
 
   const handleResolveAll = async (action: string) => {
-    if (!batch || resolving) return;
-    setResolving(true);
+    if (!batch) return;
     try {
       await apiClient.post(`/cv/batch/${batch.batch_id}/resolve-all?action=${action}`);
-      await _waitAndRefresh();
+      const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
+      setBatch(data);
     } catch (e: any) {
       console.error('Resolve all failed:', e?.response?.data || e);
-    }
-    setResolving(false);
-  };
-
-  const _waitAndRefresh = async () => {
-    if (!batch) return;
-    // Poll until no more 'duplicate' items or timeout
-    for (let i = 0; i < 10; i++) {
-      await new Promise(r => setTimeout(r, 2000));
-      const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
-      const hasDup = data.items?.some((it: any) => it.status === 'duplicate');
-      setBatch(data);
-      if (!hasDup) break;
     }
   };
 
@@ -157,8 +144,8 @@ export function CvUploadPage() {
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
-      <h1 className="text-xl font-semibold text-text-primary mb-1">Upload CV</h1>
-      <p className="text-sm text-text-secondary mb-6">Upload CV để tạo hồ sơ ứng viên. Hỗ trợ tối đa 200 file/lần.</p>
+      <h1 className="text-xl font-semibold text-text-primary mb-1">{t('cvUploadTitle')}</h1>
+      <p className="text-sm text-text-secondary mb-6">{t('cvUploadSubtitle')}</p>
 
       {/* Drop zone */}
       {!uploading && !batch && (
@@ -169,10 +156,10 @@ export function CvUploadPage() {
           className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${dragOver ? 'border-accent bg-accent/5' : 'border-border-subtle'}`}
         >
           <Upload className="mx-auto mb-3 text-text-muted" size={32} />
-          <p className="text-sm text-text-secondary mb-2">Kéo thả CV vào đây hoặc chọn file</p>
-          <p className="text-xs text-text-muted mb-3">PDF, DOCX — tối đa 10MB/file, 200 file/lần</p>
+          <p className="text-sm text-text-secondary mb-2">{t('dragDropText')}</p>
+          <p className="text-xs text-text-muted mb-3">{t('fileConstraints')}</p>
           <label className="inline-block px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg cursor-pointer hover:bg-accent-hover">
-            Chọn file
+            {t('selectFiles')}
             <input type="file" multiple accept=".pdf,.docx" className="hidden" onChange={e => { if (e.target.files) handleFiles(e.target.files); e.target.value = ''; }} />
           </label>
         </div>
@@ -182,8 +169,8 @@ export function CvUploadPage() {
       {uploading && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-6 text-center">
           <Loader2 className="mx-auto mb-3 text-accent animate-spin" size={32} />
-          <p className="text-sm font-medium text-text-primary">Đang upload files lên server...</p>
-          <p className="text-xs text-text-muted mt-1">Vui lòng không đóng tab cho đến khi hoàn tất</p>
+          <p className="text-sm font-medium text-text-primary">{t('uploadingToServer')}</p>
+          <p className="text-xs text-text-muted mt-1">{t('doNotCloseTab')}</p>
           <div className="w-full h-2 bg-gray-200 rounded-full mt-3 overflow-hidden">
             <div className="h-full bg-accent rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
           </div>
@@ -198,12 +185,12 @@ export function CvUploadPage() {
           <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-text-primary">
-                {batch.status === 'done' && processing.length === 0 ? '✅ Xử lý hoàn tất' : '🔄 Đang xử lý...'}
+                {batch.status === 'done' && processing.length === 0 ? t('processingComplete') : t('processing')}
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-text-muted">{batch.processed}/{batch.total_files} file</span>
+                <span className="text-xs text-text-muted">{t('filesProgress').replace('{processed}', String(batch.processed)).replace('{total}', String(batch.total_files))}</span>
                 {batch.status === 'done' && processing.length === 0 && (
-                  <button onClick={() => setBatch(null)} className="text-xs text-text-muted hover:text-text-primary">✕ Đóng</button>
+                  <button onClick={() => setBatch(null)} className="text-xs text-text-muted hover:text-text-primary">{t('closeBtn')}</button>
                 )}
               </div>
             </div>
@@ -219,26 +206,26 @@ export function CvUploadPage() {
           <div className="grid grid-cols-4 gap-2">
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-emerald-600">{done.length}</div>
-              <div className="text-[10px] text-text-muted">Thành công</div>
+              <div className="text-[10px] text-text-muted">{t('successCount')}</div>
             </div>
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-amber-600">{duplicates.length}</div>
-              <div className="text-[10px] text-text-muted">Trùng</div>
+              <div className="text-[10px] text-text-muted">{t('duplicateCount')}</div>
             </div>
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-red-600">{errors.length}</div>
-              <div className="text-[10px] text-text-muted">Lỗi</div>
+              <div className="text-[10px] text-text-muted">{t('errorCount')}</div>
             </div>
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-blue-600">{processing.length}</div>
-              <div className="text-[10px] text-text-muted">Đang xử lý</div>
+              <div className="text-[10px] text-text-muted">{t('processingCount')}</div>
             </div>
           </div>
 
           {/* Currently processing files */}
-          {(processing.length > 0 || (batch.status === 'processing' && batch.processed < batch.total_files)) && (
+          {processing.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <h3 className="text-xs font-medium text-blue-800 mb-2">🔄 Đang xử lý ({batch.total_files - batch.processed} file còn lại)</h3>
+              <h3 className="text-xs font-medium text-blue-800 mb-2">{t('currentlyProcessing').replace('{count}', String(processing.length))}</h3>
               <div className="space-y-1.5">
                 {processing.slice(0, 5).map((item, i) => (
                   <div key={item.id} className="flex items-center gap-2">
@@ -247,12 +234,12 @@ export function CvUploadPage() {
                   </div>
                 ))}
                 {processing.length > 5 && (
-                  <div className="text-[10px] text-blue-600">+{processing.length - 5} more in queue</div>
+                  <div className="text-[10px] text-blue-600">{t('moreInQueue').replace('{count}', String(processing.length - 5))}</div>
                 )}
               </div>
               {/* Processing steps animation */}
               <div className="mt-3 flex items-center gap-1 text-[10px] text-blue-600">
-                <span className="font-medium">Steps:</span>
+                <span className="font-medium">{t('steps')}:</span>
                 {['Extract', 'PII Filter', 'AI Parse', 'Embed'].map((step, i) => (
                   <span key={step} className={`px-1.5 py-0.5 rounded ${i <= Math.floor(Date.now() / 2000) % 4 ? 'bg-blue-200 text-blue-800' : 'bg-blue-100 text-blue-400'}`}>{step}</span>
                 ))}
@@ -266,18 +253,18 @@ export function CvUploadPage() {
               <div className="flex items-center justify-between px-4 py-3 cursor-pointer" onClick={() => toggle('duplicates')}>
                 <div className="flex items-center gap-2">
                   <AlertTriangle size={15} className="text-amber-600" />
-                  <span className="text-[13px] font-medium text-amber-800">CV trùng ({duplicates.length})</span>
+                  <span className="text-[13px] font-medium text-amber-800">{t('duplicateCvs').replace('{count}', String(duplicates.length))}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1.5">
-                    <button disabled={resolving} onClick={(e) => { e.stopPropagation(); handleResolveAll('update_all'); }} className="text-[10px] px-2 py-1 bg-accent text-white rounded-md hover:bg-accent-hover disabled:opacity-40">
-                      {resolving ? 'Đang xử lý...' : 'Cập nhật tất cả'}
+                    <button onClick={(e) => { e.stopPropagation(); handleResolveAll('update_all'); }} className="text-[10px] px-2 py-1 bg-accent text-white rounded-md hover:bg-accent-hover">
+                      {t('updateAll')}
                     </button>
-                    <button disabled={resolving} onClick={(e) => { e.stopPropagation(); handleResolveAll('create_all'); }} className="text-[10px] px-2 py-1 bg-white border border-amber-300 text-amber-800 rounded-md hover:bg-amber-100 disabled:opacity-40">
-                      Tạo mới tất cả
+                    <button onClick={(e) => { e.stopPropagation(); handleResolveAll('create_all'); }} className="text-[10px] px-2 py-1 bg-white border border-amber-300 text-amber-800 rounded-md hover:bg-amber-100">
+                      {t('createAll')}
                     </button>
-                    <button disabled={resolving} onClick={(e) => { e.stopPropagation(); handleResolveAll('skip_all'); }} className="text-[10px] px-2 py-1 text-amber-700 hover:text-amber-900 disabled:opacity-40">
-                      Bỏ qua
+                    <button onClick={(e) => { e.stopPropagation(); handleResolveAll('skip_all'); }} className="text-[10px] px-2 py-1 text-amber-700 hover:text-amber-900">
+                      {t('skipAll')}
                     </button>
                   </div>
                   {expandedSection === 'duplicates' ? <ChevronUp size={14} className="text-amber-600" /> : <ChevronDown size={14} className="text-amber-600" />}
@@ -291,30 +278,30 @@ export function CvUploadPage() {
                         <div className="min-w-0 flex-1">
                           <div className="text-[12px] font-medium text-text-primary truncate">{item.file_name}</div>
                           <div className="text-[10px] text-text-muted">
-                            {item.duplicate_reason === 'hash_match' && '📄 File trùng hoàn toàn với: '}
-                            {item.duplicate_reason === 'email_match' && '📧 Trùng email với: '}
-                            {item.duplicate_reason === 'phone_match' && '📱 Trùng SĐT với: '}
-                            {!item.duplicate_reason && 'Trùng với: '}
+                            {item.duplicate_reason === 'hash_match' && t('hashMatch')}
+                            {item.duplicate_reason === 'email_match' && t('emailMatch')}
+                            {item.duplicate_reason === 'phone_match' && t('phoneMatch')}
+                            {!item.duplicate_reason && t('duplicateWith')}
                             <span className="font-medium">{item.duplicate_name}</span>
                             {item.duplicate_status && <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-medium ${item.duplicate_status === 'rejected' ? 'bg-red-100 text-red-700' : item.duplicate_status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{item.duplicate_status}</span>}
-                            {item.duplicate_of && <Link to={`/candidates/${item.duplicate_of}`} className="text-accent ml-1 hover:underline">xem ↗</Link>}
+                            {item.duplicate_of && <Link to={`/candidates/${item.duplicate_of}`} className="text-accent ml-1 hover:underline">{t('view')}</Link>}
                           </div>
                           {item.duplicate_details && (
                             <div className="mt-1 space-y-1">
                               <div className="flex flex-wrap gap-1">
                                 {item.duplicate_details.days_since_original > 0 && (
                                   <span className="text-[9px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded">
-                                    {item.duplicate_details.days_since_original >= 365 ? `${Math.floor(item.duplicate_details.days_since_original / 365)} năm trước` : item.duplicate_details.days_since_original >= 30 ? `${Math.floor(item.duplicate_details.days_since_original / 30)} tháng trước` : `${item.duplicate_details.days_since_original} ngày trước`}
+                                    {item.duplicate_details.days_since_original >= 365 ? t('yearsAgo').replace('{count}', String(Math.floor(item.duplicate_details.days_since_original / 365))) : item.duplicate_details.days_since_original >= 30 ? t('monthsAgo').replace('{count}', String(Math.floor(item.duplicate_details.days_since_original / 30))) : t('daysAgo').replace('{count}', String(item.duplicate_details.days_since_original))}
                                   </span>
                                 )}
                                 {item.duplicate_details.new_skills_added && item.duplicate_details.new_skills_added.length > 0 && (
-                                  <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded">+{item.duplicate_details.new_skills_added.length} skills mới</span>
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded">{t('newSkillsAdded').replace('{count}', String(item.duplicate_details.new_skills_added.length))}</span>
                                 )}
                                 {item.duplicate_details.new_experience_count != null && item.duplicate_details.old_experience_count != null && item.duplicate_details.new_experience_count > item.duplicate_details.old_experience_count && (
-                                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">+{item.duplicate_details.new_experience_count - item.duplicate_details.old_experience_count} experience mới</span>
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">{t('newExperience').replace('{count}', String(item.duplicate_details.new_experience_count - item.duplicate_details.old_experience_count))}</span>
                                 )}
                                 {item.duplicate_details.existing_status === 'rejected' && (
-                                  <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Đã bị reject trước đó</span>
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">{t('previouslyRejected')}</span>
                                 )}
                               </div>
                               {item.duplicate_details.recommendation_reason && (
@@ -326,13 +313,13 @@ export function CvUploadPage() {
                           )}
                         </div>
                         <div className="flex gap-1 shrink-0 ml-2">
-                          <button disabled={resolving} onClick={() => handleResolve(item.id, 'update')} className="p-1.5 text-accent hover:bg-accent/10 rounded-md disabled:opacity-40" title="Cập nhật CV mới cho hồ sơ cũ">
+                          <button onClick={() => handleResolve(item.id, 'update')} className="p-1.5 text-accent hover:bg-accent/10 rounded-md" title={t('updateCvTooltip')}>
                             <RefreshCw size={13} />
                           </button>
-                          <button disabled={resolving} onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md disabled:opacity-40" title="Tạo ứng viên mới">
+                          <button onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title={t('createNewTooltip')}>
                             <UserPlus size={13} />
                           </button>
-                          <button disabled={resolving} onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md disabled:opacity-40" title="Bỏ qua">
+                          <button onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md" title={t('skipTooltip')}>
                             <SkipForward size={13} />
                           </button>
                         </div>
@@ -350,7 +337,7 @@ export function CvUploadPage() {
               <div className="flex items-center justify-between px-4 py-3 cursor-pointer" onClick={() => toggle('errors')}>
                 <div className="flex items-center gap-2">
                   <XCircle size={15} className="text-red-600" />
-                  <span className="text-[13px] font-medium text-red-800">Lỗi ({errors.length})</span>
+                  <span className="text-[13px] font-medium text-red-800">{t('errorsSection').replace('{count}', String(errors.length))}</span>
                 </div>
                 {expandedSection === 'errors' ? <ChevronUp size={14} className="text-red-600" /> : <ChevronDown size={14} className="text-red-600" />}
               </div>
@@ -360,7 +347,7 @@ export function CvUploadPage() {
                     <div key={item.id} className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-red-100">
                       <div className="min-w-0 flex-1">
                         <div className="text-[12px] font-medium text-text-primary truncate">{item.file_name}</div>
-                        <div className="text-[10px] text-red-600">{item.error || 'Không thể xử lý file'}</div>
+                        <div className="text-[10px] text-red-600">{item.error || t('cannotProcessFile')}</div>
                       </div>
                     </div>
                   ))}
@@ -375,11 +362,11 @@ export function CvUploadPage() {
               <div className="flex items-center justify-between px-4 py-3 cursor-pointer" onClick={() => toggle('done')}>
                 <div className="flex items-center gap-2">
                   <CheckCircle size={15} className="text-emerald-600" />
-                  <span className="text-[13px] font-medium text-emerald-800">Thành công ({done.length})</span>
+                  <span className="text-[13px] font-medium text-emerald-800">{t('successSection').replace('{count}', String(done.length))}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Link to="/candidates" className="text-[11px] text-emerald-700 hover:underline flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
-                    Xem danh sách <ExternalLink size={10} />
+                    {t('viewList')} <ExternalLink size={10} />
                   </Link>
                   {expandedSection === 'done' ? <ChevronUp size={14} className="text-emerald-600" /> : <ChevronDown size={14} className="text-emerald-600" />}
                 </div>
@@ -393,7 +380,7 @@ export function CvUploadPage() {
                       </div>
                       {item.candidate_id && (
                         <Link to={`/candidates/${item.candidate_id}`} className="text-[10px] text-accent hover:underline shrink-0 ml-2">
-                          Xem ↗
+                          {t('view')}
                         </Link>
                       )}
                     </div>
@@ -406,7 +393,7 @@ export function CvUploadPage() {
           {/* Upload more */}
           {batch.status === 'done' && (
             <button onClick={() => { setBatch(null); setError(''); }} className="w-full py-3 text-sm font-medium text-accent border border-accent/30 rounded-xl hover:bg-accent/5 transition-colors">
-              Upload thêm CV
+              {t('uploadMoreCv')}
             </button>
           )}
         </div>
@@ -415,7 +402,7 @@ export function CvUploadPage() {
       {error && <p className="mt-4 text-sm text-red-600 bg-red-50 px-4 py-2 rounded-lg">{error}</p>}
 
       <p className="mt-6 text-xs text-text-muted">
-        💡 Files được upload lên server trước. Sau đó hệ thống tự xử lý — bạn có thể đóng tab và quay lại sau.
+        {t('uploadHint')}
       </p>
     </div>
   );

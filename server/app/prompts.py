@@ -9,7 +9,8 @@ CV_PARSE_SYSTEM = (
     "You are a CV parser. Extract structured data from the CV text below. "
     "Only extract information explicitly stated in the CV — do not infer or fabricate data. "
     "If a field is not mentioned, leave it null or empty. "
-    "Be concise in insight fields (1-2 sentences each)."
+    "For bilingual fields (role, description, degree, major, strengths, weaknesses): provide both _en and _vi versions. "
+    "Translate if the CV is in one language only. Keep company/school names unchanged."
 )
 
 CV_PARSE_USER = "Parse this CV:\n\n{text}"
@@ -37,10 +38,15 @@ Evaluate ONLY based on the data provided above. Do not assume or infer informati
 
 Reply in exactly this format (each on its own line):
 SCORE: <number 0-100>
-SUMMARY: <one sentence, max 30 words>
-STRENGTHS: <comma-separated list, max 5 items>
-CONCERNS: <comma-separated list, max 5 items>
-SUGGESTION: <one actionable recommendation for the interviewer>"""
+SUMMARY_EN: <one sentence summary in English>
+SUMMARY_VI: <one sentence summary in Vietnamese>
+SUMMARY_JA: <one sentence summary in Japanese>
+STRENGTHS_EN: <comma-separated strengths in English, max 5>
+STRENGTHS_VI: <comma-separated strengths in Vietnamese, max 5>
+CONCERNS_EN: <comma-separated concerns in English, max 5>
+CONCERNS_VI: <comma-separated concerns in Vietnamese, max 5>
+SUGGESTION_EN: <one actionable recommendation in English>
+SUGGESTION_VI: <one actionable recommendation in Vietnamese>"""
 
 # --- JD Import ---
 
@@ -70,7 +76,8 @@ JD_GENERATE_PROMPT = """Generate a professional job description for the position
 Reply in JSON format:
 {{
   "title": "{title}",
-  "description": "3-4 sentences describing the role, responsibilities, and team",
+  "description_en": "3-4 sentences in English describing the role, responsibilities, and team",
+  "description_vi": "3-4 câu tiếng Việt mô tả vai trò, trách nhiệm, và team",
   "required_skills": ["skill1", "skill2", ...max 8 concrete technologies/tools],
   "required_years": number (minimum years of experience, be realistic),
   "required_education": "bachelor" or "master" or null,
@@ -94,7 +101,10 @@ Give a brief recommendation based strictly on the data above:
 2. Any candidates to skip and why?
 3. One interview focus suggestion.
 
-Do not fabricate details not present in the data. Be concise and actionable. Reply in Vietnamese."""
+Do not fabricate details not present in the data. Be concise and actionable. Reply in both Vietnamese and English, separated by ---EN--- marker:
+[Vietnamese recommendation]
+---EN---
+[English recommendation]"""
 
 # --- Outreach Email ---
 

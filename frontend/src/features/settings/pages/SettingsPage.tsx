@@ -15,6 +15,7 @@ interface Template {
 }
 
 function ChangePasswordForm() {
+  const { t } = useI18n();
   const [current, setCurrent] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -24,26 +25,26 @@ function ChangePasswordForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
-    if (newPw !== confirm) { setMsg({ type: 'err', text: 'New passwords do not match' }); return; }
-    if (newPw.length < 6) { setMsg({ type: 'err', text: 'Password must be at least 6 characters' }); return; }
+    if (newPw !== confirm) { setMsg({ type: 'err', text: t('passwordsNotMatch') }); return; }
+    if (newPw.length < 6) { setMsg({ type: 'err', text: t('passwordTooShort') }); return; }
     setLoading(true);
     try {
       await apiClient.post('/auth/change-password', { current_password: current, new_password: newPw });
-      setMsg({ type: 'ok', text: 'Password changed successfully!' });
+      setMsg({ type: 'ok', text: t('passwordChanged') });
       setCurrent(''); setNewPw(''); setConfirm('');
     } catch (err: any) {
-      setMsg({ type: 'err', text: err.response?.data?.detail || 'Failed to change password' });
+      setMsg({ type: 'err', text: err.response?.data?.detail || t('passwordChangeFailed') });
     }
     setLoading(false);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2 max-w-sm">
-      <input type="password" value={current} onChange={e => setCurrent(e.target.value)} placeholder="Current password" required className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
-      <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="New password" required className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
-      <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Confirm new password" required className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+      <input type="password" value={current} onChange={e => setCurrent(e.target.value)} placeholder={t('currentPassword')} required className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+      <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder={t('newPassword')} required className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+      <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder={t('confirmNewPassword')} required className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
       <button type="submit" disabled={loading} className="px-4 py-1.5 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover disabled:opacity-50">
-        {loading ? 'Changing...' : 'Change Password'}
+        {loading ? t('changingPassword') : t('changePasswordBtn')}
       </button>
       {msg && <p className={`text-xs ${msg.type === 'ok' ? 'text-emerald-600' : 'text-red-500'}`}>{msg.text}</p>}
     </form>
@@ -83,35 +84,35 @@ export function SettingsPage() {
   return (
     <div>
       <h1 className="text-xl font-semibold text-text-primary mb-1">{t('settings')}</h1>
-      <p className="text-[13px] text-text-tertiary mb-6">System configuration</p>
+      <p className="text-[13px] text-text-tertiary mb-6">{t('settingsSubtitle')}</p>
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-bg-surface rounded-lg mb-6 w-fit">
-        <button onClick={() => setTab('general')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'general' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>General</button>
-        <button onClick={() => setTab('templates')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'templates' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Email Templates</button>
-        <button onClick={() => setTab('master')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'master' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Master Data</button>
-        <button onClick={() => setTab('users')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'users' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>Users</button>
-        <button onClick={() => setTab('ai-monitor')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'ai-monitor' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>AI Monitor</button>
+        <button onClick={() => setTab('general')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'general' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>{t('generalTab')}</button>
+        <button onClick={() => setTab('templates')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'templates' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>{t('emailTemplatesTab')}</button>
+        <button onClick={() => setTab('master')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'master' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>{t('masterDataTab')}</button>
+        <button onClick={() => setTab('users')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'users' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>{t('usersTab')}</button>
+        <button onClick={() => setTab('ai-monitor')} className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors ${tab === 'ai-monitor' ? 'bg-white text-accent shadow-sm' : 'text-text-muted'}`}>{t('aiMonitorTab')}</button>
       </div>
 
       {tab === 'general' && (
         <div className="space-y-4">
-          <Section icon={Shield} title="Change Password" description="Update your account password">
+          <Section icon={Shield} title={t('changePassword')} description={t('changePasswordDesc')}>
             <ChangePasswordForm />
           </Section>
-          <Section icon={Mail} title="Email" description="SMTP configuration">
-            <Row label="Provider" value="SMTP (Mailtrap)" />
-            <Row label="From" value="hr@lftalentscan.com" />
+          <Section icon={Mail} title={t('emailSection')} description={t('emailSectionDesc')}>
+            <Row label={t('provider')} value="SMTP (Mailtrap)" />
+            <Row label={t('from')} value="hr@lftalentscan.com" />
           </Section>
-          <Section icon={Mail} title="Email Signature" description="Chữ ký hiển thị cuối mỗi email gửi đi">
+          <Section icon={Mail} title={t('emailSignature')} description={t('emailSignatureDesc')}>
             <EmailSignatureEditor />
           </Section>
-          <Section icon={Bell} title="Reminders" description="Automatic interview reminders">
-            <Row label="Send before" value="24 hours" />
-            <Row label="Check interval" value="Every 1 hour" />
+          <Section icon={Bell} title={t('remindersSection')} description={t('remindersSectionDesc')}>
+            <Row label={t('sendBefore')} value={t('remindersValue24h')} />
+            <Row label={t('checkInterval')} value={t('remindersValueEvery1h')} />
           </Section>
-          <Section icon={Shield} title="Security" description="Authentication settings">
-            <Row label="Token expiry" value="30 minutes" />
+          <Section icon={Shield} title={t('securitySection')} description={t('securitySectionDesc')}>
+            <Row label={t('tokenExpiry')} value={t('tokenExpiry30m')} />
           </Section>
         </div>
       )}
@@ -125,31 +126,31 @@ export function SettingsPage() {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-[14px] font-medium text-text-primary capitalize">{tmpl.template_type}</h3>
                     <div className="flex gap-2">
-                      <button onClick={() => { setEditing(null); setForm(null); }} className="text-[12px] text-text-muted hover:text-text-secondary">Cancel</button>
+                      <button onClick={() => { setEditing(null); setForm(null); }} className="text-[12px] text-text-muted hover:text-text-secondary">{t('cancel')}</button>
                       <button onClick={handleSave} disabled={saving} className="flex items-center gap-1 px-3 py-1.5 bg-accent text-white text-[12px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
-                        {saved ? <><Check size={12} /> Saved</> : <><Save size={12} /> {saving ? 'Saving...' : 'Save'}</>}
+                        {saved ? <><Check size={12} /> {t('saved')}</> : <><Save size={12} /> {saving ? t('saving') : t('save')}</>}
                       </button>
                     </div>
                   </div>
-                  <Field label="Greeting" value={form.greeting} onChange={v => setForm({ ...form, greeting: v })} />
+                  <Field label={t('greeting')} value={form.greeting} onChange={v => setForm({ ...form, greeting: v })} />
                   <div>
-                    <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Body</label>
-                    <RichTextEditor content={form.body} onChange={v => setForm({ ...form, body: v })} placeholder="Nội dung email..." />
+                    <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t('body')}</label>
+                    <RichTextEditor content={form.body} onChange={v => setForm({ ...form, body: v })} placeholder={t('emailBodyPlaceholder')} />
                   </div>
-                  <Field label="Closing" value={form.closing} onChange={v => setForm({ ...form, closing: v })} />
+                  <Field label={t('closing')} value={form.closing} onChange={v => setForm({ ...form, closing: v })} />
                   {tmpl.template_type === 'outreach' && (
                     <div>
-                      <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Highlights (one per line)</label>
+                      <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t('highlightsLabel')}</label>
                       <textarea value={(form.highlights || []).join('\n')} onChange={e => setForm({ ...form, highlights: e.target.value.split('\n').filter(Boolean) })} rows={2} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
                     </div>
                   )}
                   {tmpl.template_type === 'reminder' && (
                     <div>
-                      <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Tips (one per line)</label>
+                      <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t('tipsLabel')}</label>
                       <textarea value={(form.tips || []).join('\n')} onChange={e => setForm({ ...form, tips: e.target.value.split('\n').filter(Boolean) })} rows={2} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
                     </div>
                   )}
-                  <p className="text-[11px] text-text-muted">Variables: {'{name}'}, {'{job_title}'}, {'{company}'}</p>
+                  <p className="text-[11px] text-text-muted">{t('variablesHint')}</p>
                 </div>
               ) : (
                 <div className="flex items-start justify-between">
@@ -157,7 +158,7 @@ export function SettingsPage() {
                     <h3 className="text-[14px] font-medium text-text-primary capitalize">{tmpl.template_type}</h3>
                     <p className="text-[12px] text-text-tertiary mt-1 line-clamp-2">{tmpl.greeting} — {tmpl.body.slice(0, 80)}...</p>
                   </div>
-                  <button onClick={() => startEdit(tmpl)} className="text-[12px] text-accent hover:underline shrink-0">Edit</button>
+                  <button onClick={() => startEdit(tmpl)} className="text-[12px] text-accent hover:underline shrink-0">{t('edit')}</button>
                 </div>
               )}
             </div>
@@ -180,6 +181,7 @@ export function SettingsPage() {
 
 
 function UserManagement() {
+  const { t } = useI18n();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -193,7 +195,7 @@ function UserManagement() {
   }, []);
 
   const handleCreate = async () => {
-    if (!form.email || !form.password || !form.full_name) { setError('Vui lòng điền đầy đủ'); return; }
+    if (!form.email || !form.password || !form.full_name) { setError(t('fillAllFields')); return; }
     setSaving(true); setError('');
     try {
       const { data } = await apiClient.post('/users', form);
@@ -217,7 +219,7 @@ function UserManagement() {
 
   const handleDelete = async (u: any) => {
     if (u.is_active) {
-      if (!confirm(`Vô hiệu hoá user "${u.full_name}" (${u.email})? User sẽ không thể đăng nhập nhưng lịch sử phỏng vấn vẫn được giữ.`)) return;
+      if (!confirm(t('deactivateConfirm').replace('{name}', u.full_name).replace('{email}', u.email))) return;
       const { data } = await apiClient.put(`/users/${u.id}`, { is_active: false });
       setUsers(prev => prev.map(x => x.id === u.id ? data : x));
     } else {
@@ -236,36 +238,36 @@ function UserManagement() {
     setUsers(prev => prev.map(x => x.id === u.id ? data : x));
   };
 
-  if (loading) return <div className="text-[13px] text-text-muted py-4">Loading...</div>;
+  if (loading) return <div className="text-[13px] text-text-muted py-4">{t('loading')}</div>;
 
   const ROLE_BADGE: Record<string, string> = { admin: 'bg-red-100 text-red-700', hr: 'bg-blue-100 text-blue-700', interviewer: 'bg-purple-100 text-purple-700' };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-text-primary">{users.length} users</h3>
-        <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover">+ Tạo user</button>
+        <h3 className="text-sm font-medium text-text-primary">{t('usersCount').replace('{count}', String(users.length))}</h3>
+        <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover">{t('createUser')}</button>
       </div>
 
       {showCreate && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Email</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('email')}</label>
               <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" placeholder="user@company.com" />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Password</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('password')}</label>
               <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Họ tên</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('fullNameLabel')}</label>
               <input value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Role</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('role')}</label>
               <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] bg-white">
                 <option value="interviewer">Interviewer</option>
                 <option value="hr">HR</option>
@@ -275,15 +277,15 @@ function UserManagement() {
           </div>
           {error && <p className="text-[12px] text-red-600">{error}</p>}
           <div className="flex gap-2">
-            <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">{saving ? 'Creating...' : 'Create'}</button>
-            <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-[13px] text-text-muted border border-border-subtle rounded-lg">Cancel</button>
+            <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">{saving ? t('creating') : t('create')}</button>
+            <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-[13px] text-text-muted border border-border-subtle rounded-lg">{t('cancel')}</button>
           </div>
         </div>
       )}
 
       <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
         <div className="grid grid-cols-[1fr_1fr_100px_80px_70px] gap-3 px-4 py-2.5 border-b border-border-subtle text-[11px] font-medium text-text-muted uppercase">
-          <span>Email</span><span>Họ tên</span><span>Role</span><span>Status</span><span></span>
+          <span>{t('email')}</span><span>{t('fullNameLabel')}</span><span>{t('role')}</span><span>{t('status')}</span><span></span>
         </div>
         <div className="divide-y divide-border-subtle">
           {users.map(u => (
@@ -296,11 +298,11 @@ function UserManagement() {
                 <option value="admin">admin</option>
               </select>
               <button onClick={() => toggleActive(u)} className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                {u.is_active ? 'Active' : 'Inactive'}
+                {u.is_active ? t('active') : t('expired')}
               </button>
               <div className="flex gap-1">
-                <button onClick={() => setEditingUser({ ...u })} className="text-[11px] text-accent hover:underline">Sửa</button>
-                <button onClick={() => handleDelete(u)} className="text-[11px] text-red-500 hover:underline">{u.is_active ? 'Xoá' : 'Kích hoạt'}</button>
+                <button onClick={() => setEditingUser({ ...u })} className="text-[11px] text-accent hover:underline">{t('edit')}</button>
+                <button onClick={() => handleDelete(u)} className="text-[11px] text-red-500 hover:underline">{u.is_active ? t('deactivate') : t('activate')}</button>
               </div>
             </div>
           ))}
@@ -311,13 +313,13 @@ function UserManagement() {
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditingUser(null)}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm m-4 p-5 space-y-3" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-medium text-text-primary">Sửa user</h3>
+            <h3 className="text-sm font-medium text-text-primary">{t('editUser')}</h3>
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Họ tên</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('fullNameLabel')}</label>
               <input value={editingUser.full_name} onChange={e => setEditingUser({ ...editingUser, full_name: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Role</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('role')}</label>
               <select value={editingUser.role} onChange={e => setEditingUser({ ...editingUser, role: e.target.value })} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] bg-white">
                 <option value="interviewer">Interviewer</option>
                 <option value="hr">HR</option>
@@ -326,8 +328,8 @@ function UserManagement() {
             </div>
             {error && <p className="text-[12px] text-red-600">{error}</p>}
             <div className="flex gap-2 pt-2">
-              <button onClick={handleEdit} disabled={saving} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">{saving ? 'Saving...' : 'Lưu'}</button>
-              <button onClick={() => setEditingUser(null)} className="px-4 py-2 text-[13px] text-text-muted border border-border-subtle rounded-lg">Huỷ</button>
+              <button onClick={handleEdit} disabled={saving} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">{saving ? t('saving') : t('save')}</button>
+              <button onClick={() => setEditingUser(null)} className="px-4 py-2 text-[13px] text-text-muted border border-border-subtle rounded-lg">{t('cancel')}</button>
             </div>
           </div>
         </div>
@@ -336,6 +338,7 @@ function UserManagement() {
   );
 }
 function MasterDataEditor() {
+  const { t } = useI18n();
   const [locations, setLocations] = useState<string[]>([]);
   const [salaries, setSalaries] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -354,30 +357,31 @@ function MasterDataEditor() {
   const updateLocations = (v: string[]) => { setLocations(v); save(v, salaries); };
   const updateSalaries = (v: string[]) => { setSalaries(v); save(locations, v); };
 
-  if (loading) return <div className="text-[13px] text-text-muted py-4">Loading...</div>;
+  if (loading) return <div className="text-[13px] text-text-muted py-4">{t('loading')}</div>;
 
   return (
     <div className="space-y-4">
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
         <div className="mb-4">
-          <h3 className="text-sm font-medium text-text-primary">Locations</h3>
-          <p className="text-[12px] text-text-tertiary">Danh sách địa điểm hiện trong dropdown khi tạo/edit job</p>
+          <h3 className="text-sm font-medium text-text-primary">{t('locations')}</h3>
+          <p className="text-[12px] text-text-tertiary">{t('locationsDesc')}</p>
         </div>
-        <TagInput value={locations} onChange={updateLocations} suggestions={[]} placeholder="Nhập location rồi Enter..." />
+        <TagInput value={locations} onChange={updateLocations} suggestions={[]} placeholder={t('locationsPlaceholder')} />
       </div>
 
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
         <div className="mb-4">
-          <h3 className="text-sm font-medium text-text-primary">Salary Ranges</h3>
-          <p className="text-[12px] text-text-tertiary">Danh sách mức lương hiện trong dropdown</p>
+          <h3 className="text-sm font-medium text-text-primary">{t('salaryRanges')}</h3>
+          <p className="text-[12px] text-text-tertiary">{t('salaryRangesDesc')}</p>
         </div>
-        <TagInput value={salaries} onChange={updateSalaries} suggestions={[]} placeholder="Nhập salary range rồi Enter..." />
+        <TagInput value={salaries} onChange={updateSalaries} suggestions={[]} placeholder={t('salaryRangesPlaceholder')} />
       </div>
     </div>
   );
 }
 
 function AIMonitor() {
+  const { t } = useI18n();
   const [days, setDays] = useState(30);
   const [summary, setSummary] = useState<any>(null);
   const [daily, setDaily] = useState<any[]>([]);
@@ -397,14 +401,14 @@ function AIMonitor() {
       .finally(() => setLoading(false));
   }, [days]);
 
-  if (loading) return <div className="text-[13px] text-text-muted py-4">Loading...</div>;
-  if (!summary) return <div className="text-[13px] text-text-muted py-4">No data</div>;
+  if (loading) return <div className="text-[13px] text-text-muted py-4">{t('loading')}</div>;
+  if (!summary) return <div className="text-[13px] text-text-muted py-4">{t('noData')}</div>;
 
   return (
     <div className="space-y-4">
       {/* Period selector */}
       <div className="flex items-center gap-2">
-        <span className="text-[12px] text-text-muted">Period:</span>
+        <span className="text-[12px] text-text-muted">{t('period')}:</span>
         {[7, 30, 90].map(d => (
           <button key={d} onClick={() => setDays(d)} className={`px-3 py-1 text-[12px] font-medium rounded-md ${days === d ? 'bg-accent text-white' : 'bg-bg-surface text-text-muted hover:text-text-secondary'}`}>{d}d</button>
         ))}
@@ -412,27 +416,27 @@ function AIMonitor() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-4 gap-3">
-        <SummaryCard label="Total Calls" value={summary.total.calls.toLocaleString()} />
-        <SummaryCard label="Input Tokens" value={formatTokens(summary.total.input_tokens)} />
-        <SummaryCard label="Output Tokens" value={formatTokens(summary.total.output_tokens)} />
-        <SummaryCard label="Total Cost" value={`$${summary.total.cost_usd.toFixed(4)}`} />
+        <SummaryCard label={t('totalCalls')} value={summary.total.calls.toLocaleString()} />
+        <SummaryCard label={t('inputTokens')} value={formatTokens(summary.total.input_tokens)} />
+        <SummaryCard label={t('outputTokens')} value={formatTokens(summary.total.output_tokens)} />
+        <SummaryCard label={t('totalCost')} value={`$${summary.total.cost_usd.toFixed(4)}`} />
       </div>
 
       {/* Full Activity Log */}
       {logs.length > 0 && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-          <h3 className="text-sm font-medium text-text-primary mb-3">AI Activity Log ({logs.length} calls)</h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3">{t('aiActivityLog').replace('{count}', String(logs.length))}</h3>
           <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
             <table className="w-full text-[11px]">
               <thead className="sticky top-0 bg-bg-panel">
                 <tr className="border-b border-border-subtle text-left text-text-muted uppercase">
-                  <th className="pb-2 pr-3">Thời gian</th>
-                  <th className="pb-2 pr-3">Feature</th>
-                  <th className="pb-2 pr-3">Model</th>
-                  <th className="pb-2 pr-3">Candidate</th>
+                  <th className="pb-2 pr-3">{t('time')}</th>
+                  <th className="pb-2 pr-3">{t('feature')}</th>
+                  <th className="pb-2 pr-3">{t('model')}</th>
+                  <th className="pb-2 pr-3">{t('candidate')}</th>
                   <th className="pb-2 pr-3 text-right">Input</th>
                   <th className="pb-2 pr-3 text-right">Output</th>
-                  <th className="pb-2 text-right">Cost</th>
+                  <th className="pb-2 text-right">{t('cost')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -456,16 +460,16 @@ function AIMonitor() {
       {/* Daily breakdown table */}
       {daily.length > 0 && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-          <h3 className="text-sm font-medium text-text-primary mb-3">Daily Breakdown</h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3">{t('dailyBreakdown')}</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-border-subtle text-left text-text-muted uppercase">
-                  <th className="pb-2 pr-4">Date</th>
-                  <th className="pb-2 pr-4">Calls</th>
-                  <th className="pb-2 pr-4">Input Tokens</th>
-                  <th className="pb-2 pr-4">Output Tokens</th>
-                  <th className="pb-2">Cost</th>
+                  <th className="pb-2 pr-4">{t('date')}</th>
+                  <th className="pb-2 pr-4">{t('calls')}</th>
+                  <th className="pb-2 pr-4">{t('inputTokens')}</th>
+                  <th className="pb-2 pr-4">{t('outputTokens')}</th>
+                  <th className="pb-2">{t('cost')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -487,15 +491,15 @@ function AIMonitor() {
       {/* Per Candidate cost */}
       {perCandidate.length > 0 && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-          <h3 className="text-sm font-medium text-text-primary mb-3">Cost per Candidate</h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3">{t('costPerCandidate')}</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-border-subtle text-left text-text-muted uppercase">
-                  <th className="pb-2 pr-4">Candidate</th>
-                  <th className="pb-2 pr-4">AI Calls</th>
-                  <th className="pb-2 pr-4">Tokens</th>
-                  <th className="pb-2">Cost</th>
+                  <th className="pb-2 pr-4">{t('candidate')}</th>
+                  <th className="pb-2 pr-4">AI {t('calls')}</th>
+                  <th className="pb-2 pr-4">{t('tokens')}</th>
+                  <th className="pb-2">{t('cost')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -516,13 +520,13 @@ function AIMonitor() {
       {/* By Feature */}
       {summary.by_feature.length > 0 && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-          <h3 className="text-sm font-medium text-text-primary mb-3">Cost by Feature</h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3">{t('costByFeature')}</h3>
           <div className="space-y-2">
             {summary.by_feature.sort((a: any, b: any) => b.cost_usd - a.cost_usd).map((f: any) => (
               <div key={f.feature} className="flex items-center justify-between py-1.5 border-b border-border-subtle last:border-0">
                 <span className="text-[13px] text-text-secondary capitalize">{f.feature.replace(/_/g, ' ')}</span>
                 <div className="flex items-center gap-4 text-[12px]">
-                  <span className="text-text-muted">{f.calls} calls</span>
+                  <span className="text-text-muted">{f.calls} {t('calls').toLowerCase()}</span>
                   <span className="text-text-muted">{formatTokens(f.input_tokens + f.output_tokens)} tok</span>
                   <span className="font-medium text-text-primary">${f.cost_usd.toFixed(4)}</span>
                 </div>
@@ -535,13 +539,13 @@ function AIMonitor() {
       {/* By Model */}
       {summary.by_model.length > 0 && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-          <h3 className="text-sm font-medium text-text-primary mb-3">Cost by Model</h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3">{t('costByModel')}</h3>
           <div className="space-y-2">
             {summary.by_model.sort((a: any, b: any) => b.cost_usd - a.cost_usd).map((m: any) => (
               <div key={m.model_id} className="flex items-center justify-between py-1.5 border-b border-border-subtle last:border-0">
                 <span className="text-[13px] text-text-secondary">{m.model_id.split('.').pop() || m.model_id}</span>
                 <div className="flex items-center gap-4 text-[12px]">
-                  <span className="text-text-muted">{m.calls} calls</span>
+                  <span className="text-text-muted">{m.calls} {t('calls').toLowerCase()}</span>
                   <span className="text-text-muted">{formatTokens(m.input_tokens + m.output_tokens)} tok</span>
                   <span className="font-medium text-text-primary">${m.cost_usd.toFixed(4)}</span>
                 </div>
@@ -615,6 +619,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
 }
 
 function EmailSignatureEditor() {
+  const { t } = useI18n();
   const [sig, setSig] = useState({ name: '', title: '', company: '', email: '', phone: '' });
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -629,21 +634,21 @@ function EmailSignatureEditor() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  if (loading) return <div className="text-[12px] text-text-muted">Loading...</div>;
+  if (loading) return <div className="text-[12px] text-text-muted">{t('loading')}</div>;
 
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        <input value={sig.name} onChange={e => setSig({ ...sig, name: e.target.value })} placeholder="Họ tên" className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
-        <input value={sig.title} onChange={e => setSig({ ...sig, title: e.target.value })} placeholder="Chức vụ" className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
+        <input value={sig.name} onChange={e => setSig({ ...sig, name: e.target.value })} placeholder={t('fullName')} className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
+        <input value={sig.title} onChange={e => setSig({ ...sig, title: e.target.value })} placeholder={t('jobTitleLabel')} className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
       </div>
-      <input value={sig.company} onChange={e => setSig({ ...sig, company: e.target.value })} placeholder="Tên công ty" className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
+      <input value={sig.company} onChange={e => setSig({ ...sig, company: e.target.value })} placeholder={t('companyName')} className="w-full px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
       <div className="grid grid-cols-2 gap-2">
-        <input value={sig.email} onChange={e => setSig({ ...sig, email: e.target.value })} placeholder="Email" className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
-        <input value={sig.phone} onChange={e => setSig({ ...sig, phone: e.target.value })} placeholder="Số điện thoại" className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
+        <input value={sig.email} onChange={e => setSig({ ...sig, email: e.target.value })} placeholder={t('email')} className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
+        <input value={sig.phone} onChange={e => setSig({ ...sig, phone: e.target.value })} placeholder={t('phone')} className="px-3 py-1.5 border border-border-subtle rounded-lg text-[13px]" />
       </div>
       <button onClick={handleSave} className="px-4 py-1.5 bg-accent text-white text-[12px] font-medium rounded-lg hover:bg-accent-hover">
-        {saved ? '✓ Đã lưu' : 'Lưu chữ ký'}
+        {saved ? t('savedSignature') : t('saveSignature')}
       </button>
     </div>
   );

@@ -13,6 +13,7 @@ import { apiClient } from '@/data/api/client';
 import { useMasterData } from '../hooks/useMasterData';
 
 function CreateJobModal({ onClose, initialData }: { onClose: () => void; initialData?: any }) {
+  const { t, locale } = useI18n();
   const createJob = useCreateJob();
   const { data: masterData } = useMasterData();
   const [generating, setGenerating] = useState(false);
@@ -25,39 +26,61 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
     category: initialData?.category || '',
     deadline: initialData?.deadline || '',
   });
+  const [descRaw, setDescRaw] = useState(initialData?.description || '');
 
   const handleAIGenerate = async () => {
     if (!form.title) return;
     setGenerating(true);
     try {
       const { data } = await apiClient.post('/jobs/generate-jd', { title: form.title, keywords: form.skills.join(', '), category: form.category });
+      const rawDesc = data.description || '';
+      setDescRaw(rawDesc);
+      let descForDisplay = rawDesc;
+      try { const p = JSON.parse(rawDesc); descForDisplay = p[locale] || p['en'] || rawDesc; } catch {}
       setForm(p => ({
         ...p,
-        description: data.description || p.description,
+        description: descForDisplay || p.description,
         skills: data.required_skills || p.skills,
         salaryRange: data.salary_range || p.salaryRange,
         location: data.location || p.location,
       }));
     } catch {
-      alert('AI generation failed — please try again or fill manually.');
+      alert(t('aiGenerateFailed'));
     }
     setGenerating(false);
   };
 
+  const [submitting, setSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors: Record<string, string> = {};
-    if (!form.title.trim()) errors.title = 'Tên job không được để trống';
-    if (!form.description.trim()) errors.description = 'Mô tả không được để trống';
-    if (form.skills.length === 0) errors.skills = 'Cần ít nhất 1 kỹ năng';
+    if (!form.title.trim()) errors.title = t('jobTitleRequired');
+    if (!form.description.trim()) errors.description = t('jobDescRequired');
+    if (form.skills.length === 0) errors.skills = t('skillsRequired');
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
+    setSubmitting(true);
+    // Ensure bilingual description
+    let finalDesc = descRaw || form.description;
+    try {
+      JSON.parse(finalDesc); // already JSON bilingual
+    } catch {
+      // Plain text — translate to other language
+      try {
+        const otherLocale = locale === 'vi' ? 'en' : 'vi';
+        const { data: translated } = await apiClient.post('/ai-advanced/translate', { texts: { desc: form.description }, target_locale: otherLocale });
+        finalDesc = JSON.stringify({ [locale]: form.description, [otherLocale]: translated?.desc || '' });
+      } catch {
+        finalDesc = JSON.stringify({ [locale]: form.description });
+      }
+    }
+
     createJob.mutate(
-      { title: form.title, description: form.description, requiredSkills: form.skills, salaryRange: form.salaryRange || undefined, location: form.location || undefined, category: form.category || undefined, deadline: form.deadline || undefined },
-      { onSuccess: onClose },
+      { title: form.title, description: finalDesc, requiredSkills: form.skills, salaryRange: form.salaryRange || undefined, location: form.location || undefined, category: form.category || undefined, deadline: form.deadline || undefined },
+      { onSuccess: () => { setSubmitting(false); onClose(); }, onError: () => setSubmitting(false) },
     );
   };
 
@@ -65,21 +88,21 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <form onSubmit={handleSubmit} className="bg-bg-panel rounded-xl p-6 w-full max-w-lg shadow-xl border border-border-subtle max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">Create New Job</h2>
+          <h2 className="text-lg font-semibold text-text-primary">{t('createNewJob')}</h2>
           <button type="button" onClick={onClose} className="text-text-muted hover:text-text-primary"><X size={18} /></button>
         </div>
         <div className="space-y-3">
           <div className="flex gap-2">
-            <input value={form.title} onChange={e => { setForm(p => ({ ...p, title: e.target.value })); setFormErrors(p => ({ ...p, title: '' })); }} placeholder="Job title *" className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.title ? 'border-red-400' : 'border-border-subtle'}`} />
+            <input value={form.title} onChange={e => { setForm(p => ({ ...p, title: e.target.value })); setFormErrors(p => ({ ...p, title: '' })); }} placeholder={t('jobTitlePlaceholder')} className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.title ? 'border-red-400' : 'border-border-subtle'}`} />
             <button type="button" onClick={handleAIGenerate} disabled={!form.title || generating} className="px-3 py-2 bg-purple-50 text-purple-700 text-xs font-medium rounded-lg hover:bg-purple-100 disabled:opacity-50 shrink-0 flex items-center gap-1">
-              {generating ? <><div className="w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" /> AI...</> : <><Sparkles size={12} /> AI Generate</>}
+              {generating ? <><div className="w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" /> AI...</> : <><Sparkles size={12} /> {t('aiGenerate')}</>}
             </button>
           </div>
           {formErrors.title && <p className="text-[11px] text-red-500 -mt-2">{formErrors.title}</p>}
           <div>
-            <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Position Category *</label>
+            <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t('positionCategory')}</label>
             <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 bg-white">
-              <option value="">Select category...</option>
+              <option value="">{t('selectCategory')}</option>
               <option value="application_engineer">Application Engineer</option>
               <option value="bridge_se">Bridge System Engineer</option>
               <option value="qa_engineer">QA Engineer</option>
@@ -87,25 +110,25 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
               <option value="hr">HR</option>
             </select>
           </div>
-          <textarea value={form.description} onChange={e => { setForm(p => ({ ...p, description: e.target.value })); setFormErrors(p => ({ ...p, description: '' })); }} placeholder="Job description *" rows={3} className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.description ? 'border-red-400' : 'border-border-subtle'}`} />
+          <textarea value={form.description} onChange={e => { setForm(p => ({ ...p, description: e.target.value })); setFormErrors(p => ({ ...p, description: '' })); }} placeholder={t('jobDescPlaceholder')} rows={3} className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.description ? 'border-red-400' : 'border-border-subtle'}`} />
           {formErrors.description && <p className="text-[11px] text-red-500 -mt-2">{formErrors.description}</p>}
           <div>
-            <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Skills</label>
-            <TagInput value={form.skills} onChange={v => { setForm(p => ({ ...p, skills: v })); setFormErrors(p => ({ ...p, skills: '' })); }} suggestions={masterData?.skills || []} placeholder="Type skill name..." />
+            <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t('skillsLabel')}</label>
+            <TagInput value={form.skills} onChange={v => { setForm(p => ({ ...p, skills: v })); setFormErrors(p => ({ ...p, skills: '' })); }} suggestions={masterData?.skills || []} placeholder={t('typeSkillName')} />
             {formErrors.skills && <p className="text-[11px] text-red-500 mt-1">{formErrors.skills}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Location</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t('location')}</label>
               <select value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 bg-white">
-                <option value="">Select location</option>
+                <option value="">{t('selectLocation')}</option>
                 {(masterData?.locations || []).map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Salary Range</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t('salaryRange')}</label>
               <select value={form.salaryRange} onChange={e => setForm(p => ({ ...p, salaryRange: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 bg-white">
-                <option value="">Select range</option>
+                <option value="">{t('selectRange')}</option>
                 {(masterData?.salary_ranges || []).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -113,9 +136,9 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
           <DatePicker value={form.deadline} onChange={v => setForm(p => ({ ...p, deadline: v }))} placeholder="Deadline" />
         </div>
         <div className="flex justify-end gap-2 mt-5">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">Cancel</button>
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('cancel')}</button>
           <button type="submit" disabled={createJob.isPending} className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover disabled:opacity-50">
-            {createJob.isPending ? 'Creating...' : 'Create Job'}
+            {createJob.isPending ? t('creating') : t('createJob')}
           </button>
         </div>
       </form>
@@ -162,19 +185,19 @@ export function JobsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">{t("jobsTitle")}</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{jobs?.length ?? 0} open positions · {totalCandidates} total candidates</p>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{t('openPositions', { count: jobs?.length ?? 0, candidates: totalCandidates })}</p>
         </div>
         <div className="flex gap-2">
           <label className={`flex items-center gap-1.5 px-4 py-2 text-[13px] font-medium rounded-lg border transition-colors cursor-pointer ${importLoading ? 'bg-bg-surface text-text-muted border-border-subtle cursor-wait' : 'bg-bg-surface text-text-secondary border-border-subtle hover:bg-accent/10 hover:text-accent'}`}>
             {importLoading ? (
-              <><div className="w-3.5 h-3.5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" /> Parsing...</>
+              <><div className="w-3.5 h-3.5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" /> {t('parsing')}</>
             ) : (
-              <><Upload size={14} /> Import JD</>
+              <><Upload size={14} /> {t('importJD')}</>
             )}
             <input type="file" accept=".pdf,.docx,.doc,.txt" onChange={handleImportJD} disabled={importLoading} className="hidden" />
           </label>
           <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">
-            <Plus size={14} /> New Job
+            <Plus size={14} /> {t('newJob')}
           </button>
         </div>
       </div>
@@ -228,7 +251,7 @@ export function JobsPage() {
       </div>
 
       {filtered.length === 0 && (
-        <EmptyState icon={Briefcase} title={t("noData")} description="Try adjusting your search or create a new job" />
+        <EmptyState icon={Briefcase} title={t("noData")} description={t("noJobsDescription")} />
       )}
     </div>
   );

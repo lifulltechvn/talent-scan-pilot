@@ -35,7 +35,7 @@ export interface CandidateStructuredData {
   totalYearsExperience: number;
   expectedSalary: string | null;
   insight: AiInsight;
-  skill_level?: { level: string; category: string; reason: string; level_description?: string; category_title?: string; domains?: string[] } | null;
+  skill_level?: { level: string; category: string; reason: string | { vi?: string; en?: string; ja?: string }; level_description?: string | { vi?: string; en?: string; ja?: string }; category_title?: string; domains?: string[] } | null;
 }
 
 export interface Candidate {

@@ -318,7 +318,8 @@ async def ai_generate_email(
     name = d.get("name", "Candidate")
     skills = d.get("skills", [])[:8]
     exp_years = d.get("experience_years", 0)
-    latest_role = d.get("experience", [{}])[0].get("role", "") if d.get("experience") else ""
+    latest_role_raw = d.get("experience", [{}])[0].get("role", "") if d.get("experience") else ""
+    latest_role = latest_role_raw.get("en", latest_role_raw) if isinstance(latest_role_raw, dict) else latest_role_raw
 
     # Get job context
     job_title = body.job_title or ""

@@ -16,16 +16,54 @@ import { TagInput } from '@/shared/components/ui/TagInput';
 import { useMasterData } from '../hooks/useMasterData';
 import { apiClient } from '@/data/api/client';
 
-function AiSummaryDisplay({ summary }: { summary: string }) {
+function AiSummaryDisplay({ summary, t }: { summary: string; t: (key: any, params?: any) => string }) {
+  const { locale } = useI18n();
   try {
     const parsed = JSON.parse(summary);
+    // New format: {en: {summary, strengths, concerns}, vi: {...}}
+    if (parsed.en || parsed.vi) {
+      const target = locale === 'ja' ? 'en' : locale;
+      const data = parsed[target] || parsed['en'] || parsed['vi'] || {};
+      return (
+        <div className="mt-2 space-y-2">
+          {data.summary && <p className="text-[12px] text-blue-800">{data.summary}</p>}
+          {data.strengths?.length > 0 && (
+            <div>
+              <span className="text-[10px] font-medium text-emerald-700">{t('aiStrengths')}</span>
+              <ul className="mt-0.5 space-y-0.5">
+                {data.strengths.map((s: string, i: number) => (
+                  <li key={i} className="text-[11px] text-emerald-800 pl-3">• {s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {data.concerns?.length > 0 && (
+            <div>
+              <span className="text-[10px] font-medium text-amber-700">{t('aiConcerns')}</span>
+              <ul className="mt-0.5 space-y-0.5">
+                {data.concerns.map((c: string, i: number) => (
+                  <li key={i} className="text-[11px] text-amber-800 pl-3">• {c}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {data.suggestion && (
+            <div>
+              <span className="text-[10px] font-medium text-purple-700">{t('aiInterviewSuggestion')}</span>
+              <p className="text-[11px] text-purple-800 pl-3 mt-0.5">{data.suggestion}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+    // Legacy format: {summary, strengths, concerns, suggestion}
     if (typeof parsed === 'object' && parsed.summary) {
       return (
         <div className="mt-2 space-y-2">
           <p className="text-[12px] text-blue-800">{parsed.summary}</p>
           {parsed.strengths?.length > 0 && (
             <div>
-              <span className="text-[10px] font-medium text-emerald-700">✓ Điểm mạnh:</span>
+              <span className="text-[10px] font-medium text-emerald-700">{t('aiStrengths')}</span>
               <ul className="mt-0.5 space-y-0.5">
                 {parsed.strengths.map((s: string, i: number) => (
                   <li key={i} className="text-[11px] text-emerald-800 pl-3">• {s}</li>
@@ -35,7 +73,7 @@ function AiSummaryDisplay({ summary }: { summary: string }) {
           )}
           {parsed.concerns?.length > 0 && (
             <div>
-              <span className="text-[10px] font-medium text-amber-700">⚠ Lưu ý:</span>
+              <span className="text-[10px] font-medium text-amber-700">{t('aiConcerns')}</span>
               <ul className="mt-0.5 space-y-0.5">
                 {parsed.concerns.map((c: string, i: number) => (
                   <li key={i} className="text-[11px] text-amber-800 pl-3">• {c}</li>
@@ -45,7 +83,7 @@ function AiSummaryDisplay({ summary }: { summary: string }) {
           )}
           {parsed.suggestion && (
             <div>
-              <span className="text-[10px] font-medium text-purple-700">💡 Gợi ý phỏng vấn:</span>
+              <span className="text-[10px] font-medium text-purple-700">{t('aiInterviewSuggestion')}</span>
               <p className="text-[11px] text-purple-800 pl-3 mt-0.5">{parsed.suggestion}</p>
             </div>
           )}
@@ -64,7 +102,7 @@ export function JobDetailPage() {
   const { toast } = useToast();
   const { data: job, isLoading: loadingJ } = useJob(id!);
   const { data: allCandidates, isLoading: loadingC } = useCandidates();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [outreachModal, setOutreachModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
 
@@ -81,7 +119,7 @@ export function JobDetailPage() {
   const [removeCandidate, setRemoveCandidate] = useState<{ id: string; name: string } | null>(null);
   const [compareData, setCompareData] = useState<any | null>(null);
   const [compareLoading, setCompareLoading] = useState(false);
-  const [aiRecommend, setAiRecommend] = useState<string | null>(null);
+  const [aiRecommend, setAiRecommend] = useState<any>(null);
   const [aiRecommendLoading, setAiRecommendLoading] = useState(false);
 
   const handleSuggest = async () => {
@@ -99,9 +137,9 @@ export function JobDetailPage() {
       await apiClient.post(`/jobs/${id}/assign/${candidateId}`);
       setSuggestions(prev => prev?.filter(s => s.id !== candidateId) ?? null);
       await queryClient.refetchQueries({ queryKey: ['candidates'] });
-      toast('success', 'Candidate assigned & scoring started');
+      toast('success', t('candidateAssigned'));
     } catch {
-      toast('error', 'Failed to assign candidate');
+      toast('error', t('assignFailed'));
     }
     setAssigning(null);
   };
@@ -134,7 +172,7 @@ export function JobDetailPage() {
   };
 
   if (loadingJ || loadingC) return <LoadingSkeleton rows={3} />;
-  if (!job) return <EmptyState icon={Briefcase} title="Job not found" description="This job may have been removed or the link is invalid" action={{ label: 'Back to Jobs', onClick: () => window.history.back() }} />;
+  if (!job) return <EmptyState icon={Briefcase} title={t('jobNotFound')} description={t('jobNotFoundDesc')} action={{ label: t('backToJobs'), onClick: () => window.history.back() }} />;
 
   const candidates = allCandidates?.filter(c => c.jobId === job.id) ?? [];
   const gold = candidates.filter(c => c.score?.classification === 'gold').length;
@@ -143,7 +181,7 @@ export function JobDetailPage() {
   return (
     <div>
       <button onClick={() => window.history.back()} className="text-[13px] text-text-tertiary hover:text-accent flex items-center gap-1 mb-4">
-        <ArrowLeft size={14} /> Back
+        <ArrowLeft size={14} /> {t('back')}
       </button>
 
       {/* Header */}
@@ -166,22 +204,22 @@ export function JobDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={handleCompare} disabled={compareLoading || candidates.length < 2} className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 text-[13px] font-medium rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50">
-              {compareLoading ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />} Compare
+              {compareLoading ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />} {t('compare')}
             </button>
             <button onClick={handleAiRecommend} disabled={aiRecommendLoading || candidates.length < 2} className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 text-[13px] font-medium rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50">
-              {aiRecommendLoading ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />} AI Recommend
+              {aiRecommendLoading ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />} {t('aiRecommend')}
             </button>
             <button onClick={handleSuggest} disabled={suggestLoading} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-[13px] font-medium rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50">
-              {suggestLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Suggest
+              {suggestLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {t('suggest')}
             </button>
             <button onClick={() => setEditModal(true)} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-accent/10 hover:text-accent border border-border-subtle transition-colors">
-              <Edit size={14} /> Edit Job
+              <Edit size={14} /> {t('editJob')}
             </button>
             <button onClick={() => exportJobPdf(job)} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-accent/10 hover:text-accent border border-border-subtle transition-colors">
               <Download size={14} /> PDF
             </button>
-            <button onClick={() => { if (confirm('Delete this job?')) deleteJob.mutate(id!, { onSuccess: () => navigate('/jobs') }); }} disabled={deleteJob.isPending} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-red-500 text-[13px] font-medium rounded-lg hover:bg-red-50 border border-border-subtle transition-colors disabled:opacity-40">
-              <Trash2 size={14} /> {deleteJob.isPending ? 'Deleting...' : 'Delete'}
+            <button onClick={() => { if (confirm(t('deleteJobConfirm'))) deleteJob.mutate(id!, { onSuccess: () => navigate('/jobs') }); }} disabled={deleteJob.isPending} className="flex items-center gap-1.5 px-4 py-2 bg-bg-surface text-red-500 text-[13px] font-medium rounded-lg hover:bg-red-50 border border-border-subtle transition-colors disabled:opacity-40">
+              <Trash2 size={14} /> {deleteJob.isPending ? t('deleting') : t('delete')}
             </button>
           </div>
         </div>
@@ -199,21 +237,21 @@ export function JobDetailPage() {
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1">
             <Users size={14} className="text-blue-500" />
-            <span className="text-[11px] text-text-tertiary">Total</span>
+            <span className="text-[11px] text-text-tertiary">{t('total')}</span>
           </div>
           <span className="text-2xl font-bold text-text-primary">{candidates.length}</span>
         </div>
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1">
             <Trophy size={14} className="text-amber-500" />
-            <span className="text-[11px] text-text-tertiary">Gold</span>
+            <span className="text-[11px] text-text-tertiary">{t('gold')}</span>
           </div>
           <span className="text-2xl font-bold text-amber-600">{gold}</span>
         </div>
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1">
             <Trophy size={14} className="text-slate-400" />
-            <span className="text-[11px] text-text-tertiary">Silver</span>
+            <span className="text-[11px] text-text-tertiary">{t('silver')}</span>
           </div>
           <span className="text-2xl font-bold text-slate-600">{silver}</span>
         </div>
@@ -223,17 +261,17 @@ export function JobDetailPage() {
       {suggestions && suggestions.length === 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-5 text-center">
           <Users size={28} className="mx-auto mb-2 text-amber-400" />
-          <p className="text-[14px] font-medium text-amber-800 mb-1">Chưa có ứng viên phù hợp</p>
-          <p className="text-[12px] text-amber-600">Upload thêm CV hoặc đánh dấu "Reviewed" cho ứng viên để nhận gợi ý.</p>
+          <p className="text-[14px] font-medium text-amber-800 mb-1">{t('noMatchingCandidates')}</p>
+          <p className="text-[12px] text-amber-600">{t('noMatchingCandidatesDesc')}</p>
         </div>
       )}
       {suggestions && suggestions.length > 0 && (
         <div className="bg-bg-panel border border-emerald-200 rounded-xl overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-emerald-100 bg-emerald-50 flex items-center justify-between">
             <h2 className="text-sm font-medium text-emerald-800 flex items-center gap-2">
-              <Sparkles size={14} /> Suggested Candidates ({suggestions.length})
+              <Sparkles size={14} /> {t('suggestedCandidates', { count: suggestions.length })}
             </h2>
-            <button onClick={() => setSuggestions(null)} className="text-text-muted hover:text-text-primary text-xs">Dismiss</button>
+            <button onClick={() => setSuggestions(null)} className="text-text-muted hover:text-text-primary text-xs">{t('dismiss')}</button>
           </div>
           <div className="divide-y divide-border-subtle">
             {suggestions.map((s, i) => (
@@ -242,7 +280,7 @@ export function JobDetailPage() {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-text-primary truncate">{s.name}</div>
                   {s.rejected_from && (
-                    <div className="text-[11px] text-red-500 mt-0.5">⚠️ Đã reject tại: {s.rejected_from.join(', ')}</div>
+                    <div className="text-[11px] text-red-500 mt-0.5">{t('rejectedFrom', { jobs: s.rejected_from.join(', ') })}</div>
                   )}
                   <div className="text-[11px] text-text-tertiary mt-0.5">
                     {s.experience_years}y exp · Score: {Math.round(s.combined_score * 100)}%
@@ -260,7 +298,7 @@ export function JobDetailPage() {
                     disabled={assigning === s.id}
                     className="flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50 shrink-0"
                   >
-                    {assigning === s.id ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} Assign
+                    {assigning === s.id ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} {t('assign')}
                   </button>
                 )}
               </div>
@@ -276,12 +314,12 @@ export function JobDetailPage() {
             <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
               <div className="flex items-center gap-2">
                 <Brain size={16} className="text-white" />
-                <h2 className="text-[15px] font-semibold text-white">AI Recommendation</h2>
+                <h2 className="text-[15px] font-semibold text-white">{t('aiRecommendation')}</h2>
               </div>
               <button onClick={() => setAiRecommend(null)} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
             </div>
             <div className="p-5">
-              <div className="text-[13px] text-text-primary whitespace-pre-line leading-relaxed">{aiRecommend}</div>
+              <div className="text-[13px] text-text-primary whitespace-pre-line leading-relaxed">{typeof aiRecommend === 'object' ? (aiRecommend[locale] || aiRecommend['vi'] || aiRecommend['en']) : aiRecommend}</div>
             </div>
           </div>
         </div>
@@ -294,7 +332,7 @@ export function JobDetailPage() {
             <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
               <div className="flex items-center gap-2">
                 <Users size={16} className="text-white" />
-                <h2 className="text-[15px] font-semibold text-white">Compare Top {compareData.candidates.length} Candidates</h2>
+                <h2 className="text-[15px] font-semibold text-white">{t('compareTopCandidates', { count: compareData.candidates.length })}</h2>
               </div>
               <button onClick={() => setCompareData(null)} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
             </div>
@@ -302,12 +340,12 @@ export function JobDetailPage() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-border-subtle">
-                    <th className="py-2 text-left text-text-muted font-medium">Candidate</th>
-                    <th className="py-2 text-center text-text-muted font-medium">Score</th>
-                    <th className="py-2 text-center text-text-muted font-medium">Exp</th>
-                    <th className="py-2 text-center text-text-muted font-medium">Salary</th>
-                    <th className="py-2 text-left text-text-muted font-medium">Matched Skills</th>
-                    <th className="py-2 text-left text-text-muted font-medium">Missing</th>
+                    <th className="py-2 text-left text-text-muted font-medium">{t('candidateLabel')}</th>
+                    <th className="py-2 text-center text-text-muted font-medium">{t('score')}</th>
+                    <th className="py-2 text-center text-text-muted font-medium">{t('expLabel')}</th>
+                    <th className="py-2 text-center text-text-muted font-medium">{t('salaryLabel')}</th>
+                    <th className="py-2 text-left text-text-muted font-medium">{t('matchedSkillsLabel')}</th>
+                    <th className="py-2 text-left text-text-muted font-medium">{t('missingLabel')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -339,16 +377,16 @@ export function JobDetailPage() {
       {/* Candidates Table */}
       <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-border-subtle">
-          <h2 className="text-sm font-medium text-text-primary">Candidates ({candidates.length})</h2>
+          <h2 className="text-sm font-medium text-text-primary">{t('candidatesCount', { count: candidates.length })}</h2>
         </div>
         <table className="w-full">
           <thead>
             <tr className="border-b border-border-subtle bg-bg-surface/50">
-              <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-2.5">Candidate</th>
-              <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-2.5">Score</th>
-              <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-2.5">Class</th>
-              <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-2.5">Status</th>
-              <th className="text-right text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-2.5">Actions</th>
+              <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-2.5">{t('candidateLabel')}</th>
+              <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-2.5">{t('score')}</th>
+              <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-2.5">{t('classLabel')}</th>
+              <th className="text-left text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-2.5">{t('status')}</th>
+              <th className="text-right text-[11px] font-medium text-text-muted uppercase tracking-wider px-4 py-2.5">{t('actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -371,15 +409,15 @@ export function JobDetailPage() {
                 <td className="px-4 py-3"><span className="text-[12px] text-text-tertiary capitalize">{c.status}</span></td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => handleViewScore(c.id)} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title="View Score Detail">
+                    <button onClick={() => handleViewScore(c.id)} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title={t('viewScoreDetail')}>
                       <Sparkles size={15} />
                     </button>
                     {c.status !== 'pending' && (
-                      <button onClick={() => setBookInterview({ candidateId: c.id, candidateName: c.structuredData.name })} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title="Đặt lịch phỏng vấn">
+                      <button onClick={() => setBookInterview({ candidateId: c.id, candidateName: c.structuredData.name })} className="p-1.5 text-accent hover:bg-accent/10 rounded-md transition-colors" title={t('scheduleInterview')}>
                         <CalendarCheck size={15} />
                       </button>
                     )}
-                    <button onClick={() => setRemoveCandidate({ id: c.id, name: c.structuredData.name })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-md transition-colors" title="Loại khỏi job">
+                    <button onClick={() => setRemoveCandidate({ id: c.id, name: c.structuredData.name })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-md transition-colors" title={t('removeFromJob')}>
                       <XCircle size={15} />
                     </button>
                   </div>
@@ -388,7 +426,7 @@ export function JobDetailPage() {
             ))}
           </tbody>
         </table>
-        {candidates.length === 0 && <EmptyState icon={Users} title="No candidates yet" description="Candidates will appear here after CV scanning" />}
+        {candidates.length === 0 && <EmptyState icon={Users} title={t('noCandidatesYet')} description={t('noCandidatesYetDesc')} />}
       </div>
 
       {/* Outreach Modal */}
@@ -442,24 +480,24 @@ export function JobDetailPage() {
             <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-white" />
-                <h2 className="text-[15px] font-semibold text-white">Score Detail — {scoreDetail?.job_title ?? '...'}</h2>
+                <h2 className="text-[15px] font-semibold text-white">{t('scoreDetailTitle')} — {scoreDetail?.job_title ?? '...'}</h2>
               </div>
               <button onClick={() => setScoreDetail(null)} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
             </div>
             {scoreDetailLoading ? (
-              <div className="p-8 text-center text-[13px] text-text-muted">Loading...</div>
+              <div className="p-8 text-center text-[13px] text-text-muted">{t('loading')}</div>
             ) : scoreDetail ? (
               <div className="p-5 space-y-4">
                 {/* Main score */}
                 <div className="text-center p-4 bg-accent/5 rounded-xl border border-accent/20">
                   <div className="text-[11px] text-text-muted uppercase tracking-wider">
-                    {scoreDetail.final_score != null ? 'Điểm tổng hợp' : 'Điểm khớp sơ bộ'}
+                    {scoreDetail.final_score != null ? t('compositeScoreLabel') : t('preliminaryScore')}
                   </div>
                   <div className="text-3xl font-bold text-accent mt-1">
                     {scoreDetail.final_score != null ? `${scoreDetail.final_score}/100` : `${Math.round(scoreDetail.combined_score * 100)}%`}
                   </div>
                   {scoreDetail.classification && <Badge variant={scoreDetail.classification}>{scoreDetail.classification}</Badge>}
-                  {!scoreDetail.final_score && <span className="text-[11px] text-text-muted block mt-1">Ấn Assign để chạy chấm điểm chi tiết</span>}
+                  {!scoreDetail.final_score && <span className="text-[11px] text-text-muted block mt-1">{t('pressAssignToScore')}</span>}
                 </div>
 
                 {/* Breakdown - only when scored */}
@@ -467,29 +505,29 @@ export function JobDetailPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
                       <div>
-                        <div className="text-[12px] font-medium text-text-primary">Kỹ năng phù hợp</div>
-                        <div className="text-[10px] text-text-muted">Ứng viên có bao nhiêu skills mà job yêu cầu</div>
+                        <div className="text-[12px] font-medium text-text-primary">{t('skillMatchLabel')}</div>
+                        <div className="text-[10px] text-text-muted">{t('skillMatchNote')}</div>
                       </div>
                       <div className="text-sm font-bold text-text-primary">{scoreDetail.details.rule_scoring?.skills?.score ?? '—'}/100</div>
                     </div>
                     <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
                       <div>
-                        <div className="text-[12px] font-medium text-text-primary">Kinh nghiệm</div>
-                        <div className="text-[10px] text-text-muted">{scoreDetail.details.rule_scoring?.experience?.note || 'So sánh số năm kinh nghiệm với yêu cầu'}</div>
+                        <div className="text-[12px] font-medium text-text-primary">{t('experienceLabel')}</div>
+                        <div className="text-[10px] text-text-muted">{scoreDetail.details.rule_scoring?.experience?.note || t('experienceScoreDesc')}</div>
                       </div>
                       <div className="text-sm font-bold text-text-primary">{scoreDetail.details.rule_scoring?.experience?.score ?? '—'}/100</div>
                     </div>
                     <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
                       <div>
-                        <div className="text-[12px] font-medium text-text-primary">Học vấn</div>
-                        <div className="text-[10px] text-text-muted">{scoreDetail.details.rule_scoring?.education?.note || 'So sánh bằng cấp với yêu cầu'}</div>
+                        <div className="text-[12px] font-medium text-text-primary">{t('educationLabel')}</div>
+                        <div className="text-[10px] text-text-muted">{scoreDetail.details.rule_scoring?.education?.note || t('educationScoreDesc')}</div>
                       </div>
                       <div className="text-sm font-bold text-text-primary">{scoreDetail.details.rule_scoring?.education?.score ?? '—'}/100</div>
                     </div>
                     <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
                       <div>
-                        <div className="text-[12px] font-medium text-text-primary">Đánh giá AI</div>
-                        <div className="text-[10px] text-text-muted">AI phân tích tổng quan mức độ phù hợp</div>
+                        <div className="text-[12px] font-medium text-text-primary">{t('aiEvaluationLabel')}</div>
+                        <div className="text-[10px] text-text-muted">{t('aiEvaluationNote')}</div>
                       </div>
                       <div className="text-sm font-bold text-text-primary">{scoreDetail.details.llm_score ?? '—'}/100</div>
                     </div>
@@ -501,15 +539,15 @@ export function JobDetailPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
                       <div>
-                        <div className="text-[12px] font-medium text-text-primary">Kỹ năng khớp</div>
-                        <div className="text-[10px] text-text-muted">Tỷ lệ skills ứng viên trùng với yêu cầu job</div>
+                        <div className="text-[12px] font-medium text-text-primary">{t('skillOverlapPreLabel')}</div>
+                        <div className="text-[10px] text-text-muted">{t('skillOverlapPreNote')}</div>
                       </div>
                       <div className="text-sm font-bold text-text-primary">{Math.round(scoreDetail.skill_score * 100)}%</div>
                     </div>
                     <div className="flex items-center justify-between p-2.5 bg-bg-surface rounded-lg">
                       <div>
-                        <div className="text-[12px] font-medium text-text-primary">Độ tương đồng hồ sơ</div>
-                        <div className="text-[10px] text-text-muted">So sánh nội dung CV với mô tả job bằng AI embedding</div>
+                        <div className="text-[12px] font-medium text-text-primary">{t('profileSimilarityPreLabel')}</div>
+                        <div className="text-[10px] text-text-muted">{t('profileSimilarityPreNote')}</div>
                       </div>
                       <div className="text-sm font-bold text-text-primary">{Math.round(scoreDetail.similarity_score * 100)}%</div>
                     </div>
@@ -518,7 +556,7 @@ export function JobDetailPage() {
 
                 {/* Matched skills */}
                 <div>
-                  <span className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">Skills phù hợp ({scoreDetail.matched_skills.length}/{scoreDetail.required_skills.length})</span>
+                  <span className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{t('matchedSkillsCount', { matched: scoreDetail.matched_skills.length, total: scoreDetail.required_skills.length })}</span>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {scoreDetail.matched_skills.map((s: string) => (
                       <span key={s} className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md font-medium">{s}</span>
@@ -529,7 +567,7 @@ export function JobDetailPage() {
                 {/* Missing skills */}
                 {scoreDetail.missing_skills.length > 0 && (
                   <div>
-                    <span className="text-[11px] font-medium text-red-600 uppercase tracking-wider">Skills còn thiếu ({scoreDetail.missing_skills.length})</span>
+                    <span className="text-[11px] font-medium text-red-600 uppercase tracking-wider">{t('missingSkillsCount', { count: scoreDetail.missing_skills.length })}</span>
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {scoreDetail.missing_skills.map((s: string) => (
                         <span key={s} className="text-[11px] bg-red-50 text-red-600 px-2 py-0.5 rounded-md font-medium">{s}</span>
@@ -541,15 +579,15 @@ export function JobDetailPage() {
                 {/* AI Assessment */}
                 {scoreDetail.details?.llm_summary && (
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                    <span className="text-[10px] font-medium text-blue-700 uppercase">Nhận xét từ AI</span>
-                    <AiSummaryDisplay summary={scoreDetail.details.llm_summary} />
+                    <span className="text-[10px] font-medium text-blue-700 uppercase">{t('aiAssessmentLabel')}</span>
+                    <AiSummaryDisplay summary={scoreDetail.details.llm_summary} t={t} />
                   </div>
                 )}
 
                 {/* Candidate info */}
                 {scoreDetail.candidate_experience_years && (
                   <div className="text-[11px] text-text-tertiary border-t border-border-subtle pt-3">
-                    Kinh nghiệm ứng viên: {scoreDetail.candidate_experience_years} năm
+                    {t('candidateExpYears', { years: scoreDetail.candidate_experience_years })}
                   </div>
                 )}
               </div>
@@ -576,16 +614,16 @@ export function JobDetailPage() {
             <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
               <XCircle size={24} className="text-red-500" />
             </div>
-            <h3 className="text-[15px] font-semibold text-text-primary text-center mb-1">Loại ứng viên</h3>
+            <h3 className="text-[15px] font-semibold text-text-primary text-center mb-1">{t('removeCandidateTitle')}</h3>
             <p className="text-[13px] text-text-tertiary text-center mb-6">
-              Loại <span className="font-medium text-text-primary">{removeCandidate.name}</span> khỏi job này? Ứng viên sẽ quay lại danh sách suggest.
+              {t('removeCandidateDesc', { name: removeCandidate.name })}
             </p>
             <div className="space-y-2">
-              <button onClick={async (e) => { const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Đang xoá...'; await apiClient.delete(`/jobs/${id}/candidates/${removeCandidate.id}`); setRemoveCandidate(null); await queryClient.refetchQueries({ queryKey: ['candidates'] }); }} className="w-full py-2.5 text-[13px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-40">
-                Loại khỏi job
+              <button onClick={async (e) => { const btn = e.currentTarget; btn.disabled = true; btn.textContent = t('removing'); await apiClient.delete(`/jobs/${id}/candidates/${removeCandidate.id}`); setRemoveCandidate(null); await queryClient.refetchQueries({ queryKey: ['candidates'] }); }} className="w-full py-2.5 text-[13px] font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-40">
+                {t('removeFromJobBtn')}
               </button>
               <button onClick={() => setRemoveCandidate(null)} className="w-full py-2.5 text-[13px] font-medium text-text-secondary bg-bg-surface rounded-lg hover:bg-bg-surface/80 transition-colors">
-                Hủy
+                {t('cancel')}
               </button>
             </div>
           </div>
@@ -630,6 +668,7 @@ function TimeSelect({ value, onChange }: { value: string; onChange: (v: string) 
 function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClose }: {
   candidateId: string; candidateName: string; jobId: string; jobTitle: string; onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [date, setDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); });
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
@@ -652,8 +691,8 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
   const handleSave = async () => {
     const start = new Date(`${date}T${startTime}`);
     const end = new Date(`${date}T${endTime}`);
-    if (start < new Date()) { setError('Không thể đặt lịch trong quá khứ'); return; }
-    if (end <= start) { setError('Giờ kết thúc phải sau giờ bắt đầu'); return; }
+    if (start < new Date()) { setError(t('cannotSchedulePast')); return; }
+    if (end <= start) { setError(t('endAfterStart')); return; }
     setError('');
     setSaving(true);
     try {
@@ -678,10 +717,7 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
         candidate_id: candidateId, round, start_time: startIso, end_time: endIso, title: `Round ${round}: ${jobTitle}`, meeting_link: meetingLink || null,
       });
       setEmailPreview({ ...data, bcc: selectedInterviewers.map(i => i.email) });
-    } catch (e: any) {
-      const detail = e.response?.data?.detail;
-      if (detail) { setError(detail); } else { setDone(true); }
-    }
+    } catch { setDone(true); }
     setSaving(false);
   };
 
@@ -697,29 +733,29 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
-          <h2 className="text-[15px] font-semibold text-white">Đặt lịch phỏng vấn</h2>
+          <h2 className="text-[15px] font-semibold text-white">{t('bookInterviewTitle')}</h2>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
         {done ? (
           <div className="p-6 text-center">
             <CheckCircle size={36} className="mx-auto mb-3 text-emerald-500" />
-            <p className="text-[14px] font-medium text-text-primary">Đã đặt lịch thành công!</p>
+            <p className="text-[14px] font-medium text-text-primary">{t('scheduledSuccess')}</p>
             <p className="text-[12px] text-text-muted mt-1">{candidateName} — Round {round} — {date} {startTime}</p>
-            <button onClick={onClose} className="mt-4 px-4 py-2 text-[13px] text-accent hover:bg-accent/10 rounded-lg">Đóng</button>
+            <button onClick={onClose} className="mt-4 px-4 py-2 text-[13px] text-accent hover:bg-accent/10 rounded-lg">{t('close')}</button>
           </div>
         ) : emailPreview ? (
           <div className="p-5 space-y-3">
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-[13px] text-emerald-700">✅ Lịch phỏng vấn đã tạo!</div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-[13px] text-emerald-700">{t('interviewCreated')}</div>
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Email ứng viên</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('candidateEmailLabel')}</label>
               <input value={emailPreview.to_email} onChange={e => setEmailPreview({...emailPreview, to_email: e.target.value})} placeholder="candidate@email.com" className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Subject</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('subjectLabel')}</label>
               <input value={emailPreview.subject} onChange={e => setEmailPreview({...emailPreview, subject: e.target.value})} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Nội dung</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('emailContentLabel')}</label>
               <textarea value={emailPreview.body} onChange={e => setEmailPreview({...emailPreview, body: e.target.value})} rows={3} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" />
             </div>
             <div className="bg-bg-surface rounded-lg p-3 text-[12px] text-text-secondary">
@@ -728,8 +764,8 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
               {emailPreview.meeting_link && <p>🔗 {emailPreview.meeting_link}</p>}
             </div>
             <div className="flex gap-2">
-              <button onClick={handleSendEmail} disabled={!emailPreview.to_email} className="flex-1 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">Gửi email</button>
-              <button onClick={() => setDone(true)} className="flex-1 py-2.5 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-bg-surface/80">Bỏ qua</button>
+              <button onClick={handleSendEmail} disabled={!emailPreview.to_email} className="flex-1 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">{t('sendEmailBtn')}</button>
+              <button onClick={() => setDone(true)} className="flex-1 py-2.5 bg-bg-surface text-text-secondary text-[13px] font-medium rounded-lg hover:bg-bg-surface/80">{t('skipBtn')}</button>
             </div>
           </div>
         ) : (
@@ -738,7 +774,7 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[11px] font-medium text-text-muted uppercase">Vòng phỏng vấn</label>
+                <label className="text-[11px] font-medium text-text-muted uppercase">{t('interviewRound')}</label>
                 <select value={round} onChange={e => setRound(Number(e.target.value))} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px] bg-white">
                   <option value={1}>Round 1</option>
                   <option value={2}>Round 2</option>
@@ -746,7 +782,7 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
                 </select>
               </div>
               <div>
-                <label className="text-[11px] font-medium text-text-muted uppercase">Hình thức</label>
+                <label className="text-[11px] font-medium text-text-muted uppercase">{t('interviewFormat')}</label>
                 <select value={interviewType} onChange={e => setInterviewType(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px] bg-white">
                   <option value="online">Online</option>
                   <option value="onsite">Onsite</option>
@@ -756,11 +792,11 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
 
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="text-[11px] font-medium text-text-muted uppercase">Ngày</label>
+                <label className="text-[11px] font-medium text-text-muted uppercase">{t('dateLabel')}</label>
                 <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full px-2 py-2 border border-border-default rounded-lg text-[13px]" />
               </div>
               <div className="col-span-2">
-                <label className="text-[11px] font-medium text-text-muted uppercase">Thời gian</label>
+                <label className="text-[11px] font-medium text-text-muted uppercase">{t('timeLabel')}</label>
                 <div className="mt-1 flex items-center gap-2">
                   <TimeSelect value={startTime} onChange={v => { setStartTime(v); const [h] = v.split(':'); setEndTime(`${String(Math.min(+h+1,23)).padStart(2,'0')}:00`); }} />
                   <span className="text-text-muted text-[12px]">→</span>
@@ -770,17 +806,17 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
             </div>
 
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Meeting Link</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('meetingLinkLabel')}</label>
               <input value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
 
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Mức lương đề xuất</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('proposedSalaryLabel')}</label>
               <input value={proposedSalary} onChange={e => setProposedSalary(e.target.value)} placeholder="1500-2000 USD" className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
 
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Interviewers</label>
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('interviewersLabel')}</label>
               {availableInterviewers.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1.5 p-2 border border-border-default rounded-lg bg-white min-h-[36px]">
                   {selectedInterviewers.map(i => (
@@ -790,7 +826,7 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
                     </span>
                   ))}
                   <select value="" onChange={e => { const f = availableInterviewers.find(x => x.id === e.target.value); if (f && !selectedInterviewers.some(x => x.id === f.id)) setSelectedInterviewers(prev => [...prev, f]); }} className="flex-1 min-w-[120px] text-[12px] outline-none bg-transparent border-0">
-                    <option value="">+ Chọn interviewer...</option>
+                    <option value="">{t('selectInterviewerOption')}</option>
                     {availableInterviewers.filter(a => !selectedInterviewers.some(s => s.id === a.id)).map(a => (
                       <option key={a.id} value={a.id}>{a.full_name}</option>
                     ))}
@@ -800,13 +836,13 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
             </div>
 
             <div>
-              <label className="text-[11px] font-medium text-text-muted uppercase">Ghi chú</label>
-              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Yêu cầu đặc biệt, người phỏng vấn..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+              <label className="text-[11px] font-medium text-text-muted uppercase">{t('notesFieldLabel')}</label>
+              <input value={notes} onChange={e => setNotes(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
             </div>
 
             {error && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-            <button onClick={handleSave} disabled={saving || selectedInterviewers.length === 0} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
-              {saving ? 'Đang tạo...' : `Đặt lịch Round ${round}`}
+            <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
+              {saving ? t('creating') : t('scheduleRound', { round })}
             </button>
           </div>
         )}
@@ -817,63 +853,95 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
 
 function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void; onSave: (data: any) => void }) {
   const { data: masterData } = useMasterData();
+  const { t, locale } = useI18n();
   const [title, setTitle] = useState(job.title);
-  const [description, setDescription] = useState(job.description || '');
+  const [description, setDescription] = useState('');
   const [skillsList, setSkillsList] = useState<string[]>(job.requiredSkills || []);
   const [location, setLocation] = useState(job.location || '');
   const [salary, setSalary] = useState(job.salaryRange || '');
   const [deadline, setDeadline] = useState(job.deadline?.slice(0, 10) || '');
 
-  const handleSave = () => {
+  useEffect(() => {
+    const raw = job.description || '';
+    let parsed = raw;
+    try {
+      const obj = JSON.parse(raw);
+      parsed = obj[locale] || obj['en'] || obj['vi'] || raw;
+    } catch {}
+    setDescription(parsed);
+  }, [locale, job.description]);
+
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    // Build bilingual description: translate the edited version to the other language
+    let descToSave = description;
+    try {
+      const existing = JSON.parse(job.description || '{}');
+      const otherLocale = locale === 'vi' ? 'en' : 'vi';
+      // Translate to other language
+      const { data: translated } = await apiClient.post('/ai-advanced/translate', {
+        texts: { desc: description },
+        target_locale: otherLocale,
+      });
+      existing[locale] = description;
+      existing[otherLocale] = translated?.desc || existing[otherLocale] || '';
+      descToSave = JSON.stringify(existing);
+    } catch {
+      // Fallback: just save current locale version
+      descToSave = JSON.stringify({ [locale]: description });
+    }
     onSave({
       title,
-      description,
+      description: descToSave,
       requiredSkills: skillsList,
       salaryRange: salary || undefined,
       location: location || undefined,
       deadline: deadline || undefined,
     });
+    setSaving(false);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
-          <h2 className="text-[15px] font-semibold text-white">Edit Job</h2>
+          <h2 className="text-[15px] font-semibold text-white">{t('editJob')}</h2>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
         <div className="p-5 space-y-4">
-          <Field label="Title" value={title} onChange={setTitle} />
+          <Field label={t('titleLabel')} value={title} onChange={setTitle} />
           <div>
-            <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Description</label>
+            <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('descriptionLabel')}</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
           </div>
           <div>
-            <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Skills</label>
-            <TagInput value={skillsList} onChange={setSkillsList} suggestions={masterData?.skills || []} placeholder="Type skill name..." />
+            <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('skillsFieldLabel')}</label>
+            <TagInput value={skillsList} onChange={setSkillsList} suggestions={masterData?.skills || []} placeholder={t('typeSkillName')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Location</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('location')}</label>
               <select value={location} onChange={e => setLocation(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 bg-white">
-                <option value="">Select location</option>
+                <option value="">{t('selectLocation')}</option>
                 {(masterData?.locations || []).map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Salary Range</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('salaryRange')}</label>
               <select value={salary} onChange={e => setSalary(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 bg-white">
-                <option value="">Select range</option>
+                <option value="">{t('selectRange')}</option>
                 {(masterData?.salary_ranges || []).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Deadline</label>
-            <div className="mt-1"><DatePicker value={deadline} onChange={setDeadline} placeholder="Select deadline" /></div>
+            <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('deadlineLabel')}</label>
+            <div className="mt-1"><DatePicker value={deadline} onChange={setDeadline} placeholder={t('selectDeadline')} /></div>
           </div>
           <div className="flex justify-end pt-2">
-            <button onClick={handleSave} className="px-5 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors">Save</button>
+            <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50">{saving ? '...' : t('save')}</button>
           </div>
         </div>
       </div>
@@ -911,7 +979,7 @@ function exportJobPdf(job: any) {
         ${job.deadline ? `<span>📅 Deadline: ${job.deadline.slice(0,10)}</span>` : ''}
       </div>
     </div>
-    ${job.description ? `<h2>Job Description</h2><div class="desc">${job.description}</div>` : ''}
+    ${job.description ? `<h2>Job Description</h2><div class="desc">${(() => { try { const p = JSON.parse(job.description); return p[locale] || p['en'] || job.description; } catch { return job.description; } })()}</div>` : ''}
     <h2>Required Skills</h2>
     <div class="skills">${job.requiredSkills.map((s: string) => `<span>${s}</span>`).join('')}</div>
     <div class="info-grid">
@@ -930,6 +998,7 @@ function ActionModal({ action, onClose, onConfirm }: {
   onClose: () => void;
   onConfirm: (sendEmail: boolean) => void;
 }) {
+  const { t } = useI18n();
   const isApprove = action === 'approved';
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
@@ -938,20 +1007,20 @@ function ActionModal({ action, onClose, onConfirm }: {
           {isApprove ? <CheckCircle size={24} className="text-emerald-500" /> : <XCircle size={24} className="text-red-500" />}
         </div>
         <h3 className="text-[15px] font-semibold text-text-primary text-center mb-1">
-          {isApprove ? 'Approve Candidate' : 'Reject Candidate'}
+          {isApprove ? t('approveCandidate') : t('rejectCandidate')}
         </h3>
         <p className="text-[13px] text-text-tertiary text-center mb-6">
-          {isApprove ? 'Send a reminder email for the interview?' : 'Send a rejection notification email?'}
+          {isApprove ? t('sendReminderQuestion') : t('sendRejectionQuestion')}
         </p>
         <div className="space-y-2">
           <button onClick={() => onConfirm(true)} className={`w-full py-2.5 text-[13px] font-medium rounded-lg transition-colors ${isApprove ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-red-500 text-white hover:bg-red-600'}`}>
-            {isApprove ? 'Approve & Send Reminder' : 'Reject & Send Email'}
+            {isApprove ? t('approveAndSendReminder') : t('rejectAndSendEmail')}
           </button>
           <button onClick={() => onConfirm(false)} className="w-full py-2.5 text-[13px] font-medium text-text-secondary bg-bg-surface rounded-lg hover:bg-bg-surface/80 transition-colors">
-            {isApprove ? 'Approve Only' : 'Reject Only'}
+            {isApprove ? t('approveOnly') : t('rejectOnly')}
           </button>
           <button onClick={onClose} className="w-full py-2 text-[12px] text-text-muted hover:text-text-secondary transition-colors">
-            Cancel
+            {t('cancel')}
           </button>
         </div>
       </div>
@@ -967,6 +1036,7 @@ function EmailComposeModal({ candidateId, templateType, jobTitle, action, onClos
   onClose: () => void;
   onSent: () => void;
 }) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -991,11 +1061,11 @@ function EmailComposeModal({ candidateId, templateType, jobTitle, action, onClos
         setSubject(data.subject);
         setLoading(false);
       })
-      .catch(() => { setError('Failed to load template'); setLoading(false); });
+      .catch(() => { setError(t('loadingTemplate')); setLoading(false); });
   });
 
   const handleSend = async () => {
-    if (!toEmail.trim()) { setError('Email address is required'); return; }
+    if (!toEmail.trim()) { setError(t('emailRequired')); return; }
     setSending(true);
     setError('');
     try {
@@ -1008,13 +1078,13 @@ function EmailComposeModal({ candidateId, templateType, jobTitle, action, onClos
       });
       onSent();
     } catch (e: any) {
-      setError(e.response?.data?.detail || 'Failed to send');
+      setError(e.response?.data?.detail || t('sendFailed'));
       setSending(false);
     }
   };
 
   const isApprove = action === 'approved';
-  const btnLabel = isApprove ? 'Approve & Send' : 'Reject & Send';
+  const btnLabel = isApprove ? t('approveAndSend') : t('rejectAndSend');
   const btnClass = isApprove ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600';
 
   return (
@@ -1023,7 +1093,7 @@ function EmailComposeModal({ candidateId, templateType, jobTitle, action, onClos
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Mail size={16} className="text-white" />
-            <h2 className="text-[15px] font-semibold text-white">{isApprove ? 'Reminder Email' : 'Rejection Email'}</h2>
+            <h2 className="text-[15px] font-semibold text-white">{isApprove ? t('reminderEmailTitle') : t('rejectionEmailTitle')}</h2>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
             <X size={18} className="text-white/80" />
@@ -1031,39 +1101,39 @@ function EmailComposeModal({ candidateId, templateType, jobTitle, action, onClos
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-[13px] text-text-muted">Loading template...</div>
+          <div className="p-8 text-center text-[13px] text-text-muted">{t('loadingTemplate')}</div>
         ) : (
           <div className="p-5 space-y-4">
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">To</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('toLabel')}</label>
               <input value={toEmail} onChange={e => setToEmail(e.target.value)} placeholder="candidate@email.com" className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40" />
             </div>
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Subject</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('subjectLabel')}</label>
               <input value={subject} onChange={e => setSubject(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40" />
             </div>
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Greeting</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('greetingLabel')}</label>
               <input value={greeting} onChange={e => setGreeting(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40" />
             </div>
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Body</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('bodyLabel')}</label>
               <textarea value={body} onChange={e => setBody(e.target.value)} rows={3} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
             </div>
             {templateType === 'rejection' && (
               <div>
-                <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Feedback (optional)</label>
+                <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('feedbackOptional')}</label>
                 <textarea value={feedback} onChange={e => setFeedback(e.target.value)} rows={2} placeholder="Constructive feedback..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
               </div>
             )}
             {templateType === 'reminder' && (
               <div>
-                <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Tips (one per line)</label>
+                <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('tipsPerLine')}</label>
                 <textarea value={tips.join('\n')} onChange={e => setTips(e.target.value.split('\n').filter(Boolean))} rows={3} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
               </div>
             )}
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Closing</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('closingLabel')}</label>
               <textarea value={closing} onChange={e => setClosing(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
             </div>
 
@@ -1072,7 +1142,7 @@ function EmailComposeModal({ candidateId, templateType, jobTitle, action, onClos
             <div className="flex justify-end pt-2">
               <button onClick={handleSend} disabled={sending} className={`flex items-center gap-2 px-5 py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-40 transition-colors ${btnClass}`}>
                 <Send size={14} />
-                {sending ? 'Sending...' : btnLabel}
+                {sending ? t('sending') : btnLabel}
               </button>
             </div>
           </div>
@@ -1083,6 +1153,7 @@ function EmailComposeModal({ candidateId, templateType, jobTitle, action, onClos
 }
 
 function OutreachModal({ jobTitle, onClose }: { jobTitle: string; onClose: () => void }) {
+  const { t } = useI18n();
   const [toEmail, setToEmail] = useState('');
   const [subject, setSubject] = useState(`🚀 Exciting opportunity: ${jobTitle} at LIFULL Tech Vietnam`);
   const [greeting, setGreeting] = useState('Hi there! 👋');
@@ -1094,7 +1165,7 @@ function OutreachModal({ jobTitle, onClose }: { jobTitle: string; onClose: () =>
   const [error, setError] = useState('');
 
   const handleSend = async () => {
-    if (!toEmail.trim()) { setError('Email address is required'); return; }
+    if (!toEmail.trim()) { setError(t('emailRequired')); return; }
     setSending(true);
     setError('');
     try {
@@ -1111,7 +1182,7 @@ function OutreachModal({ jobTitle, onClose }: { jobTitle: string; onClose: () =>
       });
       setSent(true);
     } catch (e: any) {
-      setError(e.response?.data?.detail || 'Failed to send email');
+      setError(e.response?.data?.detail || t('sendFailed'));
     } finally {
       setSending(false);
     }
@@ -1124,7 +1195,7 @@ function OutreachModal({ jobTitle, onClose }: { jobTitle: string; onClose: () =>
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Mail size={16} className="text-white" />
-            <h2 className="text-[15px] font-semibold text-white">Outreach Email</h2>
+            <h2 className="text-[15px] font-semibold text-white">{t('outreachEmailTitle')}</h2>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
             <X size={18} className="text-white/80" />
@@ -1134,33 +1205,33 @@ function OutreachModal({ jobTitle, onClose }: { jobTitle: string; onClose: () =>
         {sent ? (
           <div className="p-8 text-center">
             <CheckCircle size={36} className="mx-auto mb-3 text-emerald-500" />
-            <p className="text-[15px] font-medium text-text-primary">Email sent successfully!</p>
-            <button onClick={onClose} className="mt-4 px-4 py-2 text-[13px] text-accent hover:bg-accent/10 rounded-lg transition-colors">Close</button>
+            <p className="text-[15px] font-medium text-text-primary">{t('emailSentSuccess')}</p>
+            <button onClick={onClose} className="mt-4 px-4 py-2 text-[13px] text-accent hover:bg-accent/10 rounded-lg transition-colors">{t('close')}</button>
           </div>
         ) : (
           <div className="p-5 space-y-4">
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">To</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('toLabel')}</label>
               <input value={toEmail} onChange={e => setToEmail(e.target.value)} placeholder="candidate@email.com" className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40" />
             </div>
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Subject</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('subjectLabel')}</label>
               <input value={subject} onChange={e => setSubject(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40" />
             </div>
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Greeting</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('greetingLabel')}</label>
               <input value={greeting} onChange={e => setGreeting(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40" />
             </div>
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Body</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('bodyLabel')}</label>
               <textarea value={body} onChange={e => setBody(e.target.value)} rows={3} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
             </div>
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Highlights (one per line)</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('highlightsPerLine')}</label>
               <textarea value={highlights} onChange={e => setHighlights(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
             </div>
             <div>
-              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">Closing</label>
+              <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('closingLabel')}</label>
               <textarea value={closing} onChange={e => setClosing(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
             </div>
 
@@ -1169,7 +1240,7 @@ function OutreachModal({ jobTitle, onClose }: { jobTitle: string; onClose: () =>
             <div className="flex justify-end pt-2">
               <button onClick={handleSend} disabled={sending} className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40 transition-colors">
                 <Send size={14} />
-                {sending ? 'Sending...' : 'Send Outreach'}
+                {sending ? t('sending') : t('sendOutreach')}
               </button>
             </div>
           </div>

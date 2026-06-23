@@ -7,6 +7,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Bold, Italic, Underline, List, ListOrdered, Link as LinkIcon, Image as ImageIcon, AlignLeft, AlignCenter, AlignRight, Undo, Redo, Send, Sparkles, Loader2, X, Minus, Maximize2 } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
+import { useI18n } from '@/shared/i18n';
 
 interface Props {
   candidateId: string;
@@ -18,11 +19,11 @@ interface Props {
 }
 
 const PURPOSES = [
-  { value: 'interview_invite', label: '📅 Mời phỏng vấn' },
-  { value: 'outreach', label: '🚀 Outreach' },
-  { value: 'follow_up', label: '🔄 Follow-up' },
-  { value: 'rejection', label: '📝 Từ chối' },
-  { value: 'offer', label: '🎉 Offer' },
+  { value: 'interview_invite', labelKey: 'purposeInterviewInvite' as const },
+  { value: 'outreach', labelKey: 'purposeOutreach' as const },
+  { value: 'follow_up', labelKey: 'purposeFollowUp' as const },
+  { value: 'rejection', labelKey: 'purposeRejection' as const },
+  { value: 'offer', labelKey: 'purposeOffer' as const },
 ];
 
 const TONES = [
@@ -32,6 +33,7 @@ const TONES = [
 ];
 
 export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTitle, onClose, onSent }: Props) {
+  const { t } = useI18n();
   const [toEmail, setToEmail] = useState(candidateEmail || '');
   const [subject, setSubject] = useState('');
   const [minimized, setMinimized] = useState(false);
@@ -49,7 +51,7 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
       Link.configure({ openOnClick: false }),
       Image,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Placeholder.configure({ placeholder: 'Soạn email...' }),
+      Placeholder.configure({ placeholder: t('composePlaceholder') }),
     ],
     content: '',
   });
@@ -65,13 +67,13 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
       editor?.commands.setContent(html);
       setSignature(data.signature);
       setShowAI(false);
-    } catch (e: any) { setError(e.response?.data?.detail || 'AI generation failed'); }
+    } catch (e: any) { setError(e.response?.data?.detail || t('aiGenerationFailed')); }
     setGenerating(false);
   };
 
   const handleSend = async () => {
-    if (!toEmail) { setError('Cần email người nhận'); return; }
-    if (!editor?.getText().trim()) { setError('Email trống'); return; }
+    if (!toEmail) { setError(t('recipientRequired')); return; }
+    if (!editor?.getText().trim()) { setError(t('emailEmpty')); return; }
     setSending(true); setError('');
     try {
       const bodyHtml = editor?.getHTML() || '';
@@ -88,7 +90,7 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
       });
       onSent?.();
       onClose();
-    } catch (e: any) { setError(e.response?.data?.detail || 'Gửi thất bại'); }
+    } catch (e: any) { setError(e.response?.data?.detail || t('sendFailed')); }
     setSending(false);
   };
 
@@ -110,7 +112,7 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
     <div className="fixed bottom-0 right-4 w-[520px] bg-white rounded-t-xl shadow-2xl border border-border-subtle z-50 flex flex-col max-h-[600px]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-accent rounded-t-xl shrink-0">
-        <span className="text-[13px] font-medium text-white">Soạn email</span>
+        <span className="text-[13px] font-medium text-white">{t('composeEmail')}</span>
         <div className="flex gap-1">
           <button onClick={() => setMinimized(true)} className="p-1 hover:bg-white/20 rounded"><Minus size={14} className="text-white" /></button>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded"><X size={14} className="text-white" /></button>
@@ -120,12 +122,12 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
       {/* To + Subject */}
       <div className="shrink-0 border-b border-border-subtle">
         <div className="flex items-center px-4 py-1.5 border-b border-border-subtle">
-          <span className="text-[12px] text-text-muted w-14">To</span>
+          <span className="text-[12px] text-text-muted w-14">{t('sendTo')}</span>
           <input value={toEmail} onChange={e => setToEmail(e.target.value)} className="flex-1 text-[13px] border-0 focus:outline-none" placeholder="email@example.com" />
         </div>
         <div className="flex items-center px-4 py-1.5">
-          <span className="text-[12px] text-text-muted w-14">Subject</span>
-          <input value={subject} onChange={e => setSubject(e.target.value)} className="flex-1 text-[13px] border-0 focus:outline-none" placeholder="Tiêu đề email" />
+          <span className="text-[12px] text-text-muted w-14">{t('subject')}</span>
+          <input value={subject} onChange={e => setSubject(e.target.value)} className="flex-1 text-[13px] border-0 focus:outline-none" placeholder={t('subjectPlaceholder')} />
         </div>
       </div>
 
@@ -134,7 +136,7 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
         <div className="shrink-0 p-3 bg-accent/5 border-b border-accent/20 space-y-2">
           <div className="flex gap-1.5 flex-wrap">
             {PURPOSES.map(p => (
-              <button key={p.value} onClick={() => setPurpose(p.value)} className={`px-2 py-1 text-[11px] rounded-md ${purpose === p.value ? 'bg-accent text-white' : 'bg-white border border-border-subtle text-text-muted'}`}>{p.label}</button>
+              <button key={p.value} onClick={() => setPurpose(p.value)} className={`px-2 py-1 text-[11px] rounded-md ${purpose === p.value ? 'bg-accent text-white' : 'bg-white border border-border-subtle text-text-muted'}`}>{t(p.labelKey)}</button>
             ))}
           </div>
           <div className="flex gap-1.5">
@@ -143,7 +145,7 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
             ))}
             <button onClick={generateAI} disabled={generating} className="ml-auto px-3 py-1 bg-accent text-white text-[11px] font-medium rounded-md hover:bg-accent-hover disabled:opacity-40 flex items-center gap-1">
               {generating ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-              {generating ? 'Writing...' : 'Generate'}
+              {generating ? t('generating') : t('generate')}
             </button>
           </div>
         </div>
@@ -167,7 +169,7 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
         <div className="flex items-center gap-1">
           <button onClick={handleSend} disabled={sending} className="px-4 py-1.5 bg-accent text-white text-[13px] font-medium rounded-md hover:bg-accent-hover disabled:opacity-40 flex items-center gap-1.5">
             {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-            Gửi
+            {t('send')}
           </button>
           {/* Formatting buttons */}
           <div className="flex items-center gap-0.5 ml-2">
