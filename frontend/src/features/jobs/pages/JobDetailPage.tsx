@@ -805,7 +805,7 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
             </div>
 
             {error && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-            <button onClick={handleSave} disabled={saving} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
+            <button onClick={handleSave} disabled={saving || selectedInterviewers.length === 0} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
               {saving ? 'Đang tạo...' : `Đặt lịch Round ${round}`}
             </button>
           </div>
