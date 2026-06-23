@@ -81,7 +81,7 @@ export function JobDetailPage() {
   const [removeCandidate, setRemoveCandidate] = useState<{ id: string; name: string } | null>(null);
   const [compareData, setCompareData] = useState<any | null>(null);
   const [compareLoading, setCompareLoading] = useState(false);
-  const [aiRecommend, setAiRecommend] = useState<string | null>(null);
+  const [aiRecommend, setAiRecommend] = useState<any>(null);
   const [aiRecommendLoading, setAiRecommendLoading] = useState(false);
 
   const handleSuggest = async () => {
@@ -128,7 +128,7 @@ export function JobDetailPage() {
     setAiRecommendLoading(true);
     try {
       const { data } = await apiClient.get(`/jobs/${id}/ai-recommend`);
-      setAiRecommend(data.recommendation);
+      setAiRecommend(data);
     } catch {}
     setAiRecommendLoading(false);
   };
@@ -280,8 +280,32 @@ export function JobDetailPage() {
               </div>
               <button onClick={() => setAiRecommend(null)} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
             </div>
-            <div className="p-5">
-              <div className="text-[13px] text-text-primary whitespace-pre-line leading-relaxed">{aiRecommend}</div>
+            <div className="p-5 space-y-4">
+              {aiRecommend.summary && <p className="text-[13px] text-text-secondary italic">{aiRecommend.summary}</p>}
+              {aiRecommend.rankings?.map((r: any) => (
+                <div key={r.rank} className="border border-border-subtle rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-bold text-white bg-accent w-6 h-6 rounded-full flex items-center justify-center">#{r.rank}</span>
+                      <span className="text-[14px] font-semibold text-text-primary">{r.name}</span>
+                    </div>
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${r.action === 'invite_now' ? 'bg-emerald-100 text-emerald-700' : r.action === 'consider' ? 'bg-amber-100 text-amber-700' : r.action === 'need_more_info' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {r.action === 'invite_now' ? '✅ Mời ngay' : r.action === 'consider' ? '🤔 Xem xét' : r.action === 'need_more_info' ? '📋 Cần thêm info' : '❌ Bỏ qua'}
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-text-secondary mb-2">{r.reason}</p>
+                  {r.strengths?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {r.strengths.map((s: string, i: number) => <span key={i} className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded">✓ {s}</span>)}
+                    </div>
+                  )}
+                  {r.concerns?.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {r.concerns.map((c: string, i: number) => <span key={i} className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded">⚠ {c}</span>)}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>
