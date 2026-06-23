@@ -511,9 +511,11 @@ export function CandidateDetailPage() {
             </div>
 
             {/* Edit parsed data */}
+            {candidate.status !== 'blacklisted' && (
             <div className="border-t border-border-subtle pt-2 mb-2">
               <EditCandidateData candidateId={candidate.id} data={d} />
             </div>
+            )}
 
             {/* Actions */}
             <div className="space-y-2">
