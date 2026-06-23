@@ -82,6 +82,7 @@ export function JobDetailPage() {
   const [compareData, setCompareData] = useState<any | null>(null);
   const [compareLoading, setCompareLoading] = useState(false);
   const [aiRecommend, setAiRecommend] = useState<any>(null);
+  const [showAiRecommend, setShowAiRecommend] = useState(false);
   const [aiRecommendLoading, setAiRecommendLoading] = useState(false);
 
   const handleSuggest = async () => {
@@ -125,6 +126,8 @@ export function JobDetailPage() {
   };
 
   const handleAiRecommend = async () => {
+    setShowAiRecommend(true);
+    if (aiRecommend) return; // cached
     setAiRecommendLoading(true);
     try {
       const { data } = await apiClient.get(`/jobs/${id}/ai-recommend`);
@@ -270,18 +273,21 @@ export function JobDetailPage() {
       )}
 
       {/* AI Recommendation Modal */}
-      {aiRecommend && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setAiRecommend(null)}>
+      {showAiRecommend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAiRecommend(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
               <div className="flex items-center gap-2">
                 <Brain size={16} className="text-white" />
                 <h2 className="text-[15px] font-semibold text-white">AI Recommendation</h2>
               </div>
-              <button onClick={() => setAiRecommend(null)} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
+              <button onClick={() => setShowAiRecommend(false)} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
             </div>
             <div className="p-5 space-y-4">
-              {aiRecommend.summary && <p className="text-[13px] text-text-secondary italic">{aiRecommend.summary}</p>}
+              {aiRecommendLoading && <div className="text-center py-4 text-[13px] text-text-muted">⏳ AI đang phân tích...</div>}
+              {aiRecommend && (
+                <>
+                  {aiRecommend.summary && <p className="text-[13px] text-text-secondary italic">{aiRecommend.summary}</p>}
               {aiRecommend.rankings?.map((r: any) => (
                 <div key={r.rank} className="border border-border-subtle rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -306,6 +312,8 @@ export function JobDetailPage() {
                   )}
                 </div>
               ))}
+                </>
+              )}
             </div>
           </div>
         </div>
