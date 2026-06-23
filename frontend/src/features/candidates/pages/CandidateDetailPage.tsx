@@ -7,7 +7,6 @@ import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Badge } from '@/shared/components/ui/Badge';
 import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { CandidateTimeline } from '../components/CandidateTimeline';
-import { AIAnalysisPanel } from '../components/AIAnalysisPanel';
 import { EmailCompose } from '@/features/outreach/components/EmailCompose';
 import { useI18n } from '@/shared/i18n';
 import { apiClient } from '@/data/api/client';
@@ -215,9 +214,6 @@ export function CandidateDetailPage() {
           </div>
         </div>
         )}
-
-        {/* AI Advanced Analysis */}
-        <AIAnalysisPanel candidateId={candidate.id} />
 
         {/* Skill Level Assessment */}
         {d.skill_level && (
@@ -463,6 +459,14 @@ export function CandidateDetailPage() {
                 </div>
               )}
 
+              {/* AI Tools */}
+              <div className="border-t border-border-subtle pt-3 mt-3">
+                <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">AI Tools</span>
+                <div className="mt-2 space-y-1.5">
+                  <AIToolButton label="🔍 Kiểm tra CV" candidateId={candidate.id} type="authenticity" />
+                  <AIToolButton label="🎯 Culture Fit" candidateId={candidate.id} type="culture" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -712,6 +716,61 @@ function MissingInfoPanel({ data }: { data: any }) {
         ))}
       </div>
       <p className="text-[11px] text-amber-600 mt-2">HR cần xác minh hoặc yêu cầu ứng viên bổ sung các thông tin trên.</p>
+    </div>
+  );
+}
+
+function AIToolButton({ label, candidateId, type }: { label: string; candidateId: string; type: 'authenticity' | 'culture' }) {
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const run = async () => {
+    setLoading(true);
+    try {
+      const endpoint = type === 'authenticity' ? `/ai-advanced/cv-authenticity/${candidateId}` : `/ai-advanced/culture-fit/${candidateId}`;
+      const { data } = await apiClient.post(endpoint);
+      setResult(data);
+    } catch { setResult({ error: true }); }
+    setLoading(false);
+  };
+
+  if (!result) {
+    return (
+      <button onClick={run} disabled={loading} className="w-full text-left px-3 py-2 text-[12px] font-medium text-text-secondary border border-border-subtle rounded-lg hover:bg-bg-surface transition-colors disabled:opacity-40">
+        {loading ? '⏳ Đang phân tích...' : label}
+      </button>
+    );
+  }
+
+  if (result.error) return <div className="px-3 py-2 text-[11px] text-red-500">Phân tích thất bại</div>;
+
+  if (type === 'authenticity') {
+    const color = result.score >= 80 ? 'emerald' : result.score >= 50 ? 'amber' : 'red';
+    return (
+      <div className={`px-3 py-2.5 bg-${color}-50 border border-${color}-200 rounded-lg`}>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px] font-medium text-text-muted">CV Authenticity</span>
+          <span className={`text-[13px] font-bold text-${color}-700`}>{result.score}/100</span>
+        </div>
+        <p className={`text-[11px] text-${color}-700`}>{result.verdict === 'authentic' ? '✅ Xác thực' : result.verdict === 'suspicious' ? '⚠️ Nghi ngờ' : '❌ Có thể AI viết'}</p>
+        {result.reasons?.slice(0, 2).map((r: string, i: number) => (
+          <p key={i} className="text-[10px] text-text-muted mt-0.5 truncate">• {r}</p>
+        ))}
+      </div>
+    );
+  }
+
+  // Culture fit
+  return (
+    <div className="px-3 py-2.5 bg-bg-surface border border-border-subtle rounded-lg">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[11px] font-medium text-text-muted">Culture Fit</span>
+        <span className={`text-[11px] font-bold ${result.retention_risk === 'low' ? 'text-emerald-600' : result.retention_risk === 'medium' ? 'text-amber-600' : 'text-red-600'}`}>
+          Risk: {result.retention_risk}
+        </span>
+      </div>
+      <p className="text-[10px] text-text-secondary">{result.career_trajectory && `Career: ${result.career_trajectory}`} {result.avg_tenure_years && `· Avg ${result.avg_tenure_years}y/job`}</p>
+      {result.recommendation && <p className="text-[10px] text-accent mt-0.5 truncate">💡 {result.recommendation}</p>}
     </div>
   );
 }
