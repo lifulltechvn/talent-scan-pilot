@@ -124,7 +124,7 @@ export function InterviewsPage() {
             </thead>
             <tbody>
               {HOURS.map(hour => (
-                <tr key={hour} className="h-14" id={`hour-${hour}`}>
+                <tr key={hour} className="min-h-14" id={`hour-${hour}`}>
                   <td className="text-[10px] text-text-muted text-right pr-2 align-top pt-1 border-r border-border-subtle">
                     {String(hour).padStart(2, '0')}:00
                   </td>
