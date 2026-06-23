@@ -460,7 +460,9 @@ export function CandidateDetailPage() {
       </div>
 
       {/* Matched Jobs (Smart Pool) */}
-      <MatchedJobsSection candidateId={id!} hasAssignedJob={!!candidate.jobId} />
+      {candidate.status !== 'blacklisted' && (
+        <MatchedJobsSection candidateId={id!} hasAssignedJob={!!candidate.jobId} />
+      )}
 
       {/* Timeline */}
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mt-5">
