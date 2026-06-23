@@ -206,8 +206,9 @@ async def create_interview(
         async def _do():
             from app.database import async_session_factory
             from app.models import Candidate
+            import uuid as _uuid
             async with async_session_factory() as _db:
-                candidate = await _db.get(Candidate, body.candidate_id)
+                candidate = await _db.get(Candidate, _uuid.UUID(body.candidate_id))
                 if not candidate:
                     return
                 d = candidate.structured_data or {}
@@ -247,8 +248,9 @@ async def create_interview(
         loop = asyncio.new_event_loop()
         try:
             loop.run_until_complete(_do())
-        except:
-            pass
+            logger.info(f"Question bank pre-generated for candidate {body.candidate_id}")
+        except Exception as e:
+            logger.warning(f"Question bank pre-generation failed: {e}")
         finally:
             loop.close()
     _th.Thread(target=_gen_question_bank, daemon=True).start()
