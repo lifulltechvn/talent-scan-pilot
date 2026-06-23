@@ -135,7 +135,8 @@ export function CvUploadPage() {
     handleFiles(e.dataTransfer.files);
   }, []);
 
-  const duplicates = batch?.items.filter(i => i.status === 'duplicate') ?? [];
+  const duplicates = batch?.items.filter(i => i.status === 'duplicate' && i.duplicate_reason !== 'blacklisted') ?? [];
+  const blacklisted = batch?.items.filter(i => i.status === 'duplicate' && i.duplicate_reason === 'blacklisted') ?? [];
   const done = batch?.items.filter(i => i.status === 'done') ?? [];
   const errors = batch?.items.filter(i => i.status === 'error') ?? [];
   const processing = batch?.items.filter(i => i.status === 'pending') ?? [];
@@ -212,6 +213,12 @@ export function CvUploadPage() {
               <div className="text-lg font-bold text-amber-600">{duplicates.length}</div>
               <div className="text-[10px] text-text-muted">{t('duplicateCount')}</div>
             </div>
+            {blacklisted.length > 0 && (
+            <div className="bg-bg-panel border border-red-200 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-red-600">{blacklisted.length}</div>
+              <div className="text-[10px] text-red-600">Blacklisted</div>
+            </div>
+            )}
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-red-600">{errors.length}</div>
               <div className="text-[10px] text-text-muted">{t('errorCount')}</div>
@@ -242,6 +249,25 @@ export function CvUploadPage() {
                 <span className="font-medium">{t('steps')}:</span>
                 {['Extract', 'PII Filter', 'AI Parse', 'Embed'].map((step, i) => (
                   <span key={step} className={`px-1.5 py-0.5 rounded ${i <= Math.floor(Date.now() / 2000) % 4 ? 'bg-blue-200 text-blue-800' : 'bg-blue-100 text-blue-400'}`}>{step}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Blacklisted section */}
+          {blacklisted.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[13px] font-medium text-red-800">🚫 Blacklisted ({blacklisted.length})</span>
+              </div>
+              <div className="space-y-1.5">
+                {blacklisted.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-red-100">
+                    <div>
+                      <div className="text-[12px] font-medium text-text-primary">{item.file_name}</div>
+                      <div className="text-[10px] text-red-600">Ứng viên <strong>{item.duplicate_name}</strong> đã bị blacklist</div>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
