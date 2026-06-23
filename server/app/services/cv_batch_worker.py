@@ -191,6 +191,15 @@ def _process_item_sync(batch_id: str, row: dict):
                     if avatar:
                         structured["avatar"] = avatar
 
+                # Assess skill level
+                try:
+                    from app.skill_maps import assess_skill_level
+                    skill_level = assess_skill_level(structured, candidate_id=str(candidate_id))
+                    if skill_level:
+                        structured["skill_level"] = skill_level
+                except Exception:
+                    pass
+
                 # Update candidate
                 from sqlalchemy import update as sql_update
                 await db.execute(

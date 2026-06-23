@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Shield, Brain, Users, Loader2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
+import { useI18n } from '@/shared/i18n';
 
 export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'authenticity' | 'culture'>('authenticity');
   const [authResult, setAuthResult] = useState<any>(null);
   const [cultureResult, setCultureResult] = useState<any>(null);
@@ -53,20 +55,20 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
         <div>
           {!authResult ? (
             <div className="text-center py-4">
-              <p className="text-[12px] text-text-muted mb-3">Phân tích CV có phải AI viết hoặc thông tin giả không</p>
+              <p className="text-[12px] text-text-muted mb-3">{t('analyzeAuthenticityDesc')}</p>
               <button onClick={() => runAuthenticity()} disabled={loading === 'authenticity'} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
-                {loading === 'authenticity' ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Đang phân tích...</span> : '🔍 Kiểm tra CV'}
+                {loading === 'authenticity' ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> {t('analyzingLabel')}</span> : t('checkCvBtnLabel')}
               </button>
             </div>
           ) : authResult.error ? (
-            <p className="text-[13px] text-red-500 text-center py-4">Phân tích thất bại</p>
+            <p className="text-[13px] text-red-500 text-center py-4">{t('analysisFailed')}</p>
           ) : (
             <div className="space-y-3">
               {/* Score */}
               <div className="flex items-center justify-between p-3 rounded-lg border" style={{ borderColor: authResult.score >= 80 ? '#86efac' : authResult.score >= 50 ? '#fde047' : '#fca5a5', backgroundColor: authResult.score >= 80 ? '#f0fdf4' : authResult.score >= 50 ? '#fefce8' : '#fef2f2' }}>
                 <div className="flex items-center gap-2">
                   {authResult.score >= 80 ? <CheckCircle size={16} className="text-emerald-600" /> : authResult.score >= 50 ? <AlertTriangle size={16} className="text-amber-600" /> : <XCircle size={16} className="text-red-600" />}
-                  <span className="text-[13px] font-medium">{authResult.verdict === 'authentic' ? 'CV xác thực' : authResult.verdict === 'suspicious' ? 'Có dấu hiệu nghi ngờ' : 'Có thể AI viết'}</span>
+                  <span className="text-[13px] font-medium">{authResult.verdict === 'authentic' ? t('cvAuthenticVerdict') : authResult.verdict === 'suspicious' ? t('cvSuspiciousVerdict') : t('cvAiVerdict')}</span>
                 </div>
                 <span className="text-[18px] font-bold" style={{ color: authResult.score >= 80 ? '#16a34a' : authResult.score >= 50 ? '#d97706' : '#dc2626' }}>{authResult.score}/100</span>
               </div>
@@ -74,7 +76,7 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
               {/* Reasons */}
               {authResult.reasons?.length > 0 && (
                 <div>
-                  <span className="text-[11px] font-medium text-text-muted uppercase">Phân tích</span>
+                  <span className="text-[11px] font-medium text-text-muted uppercase">{t('analysisReasonsLabel')}</span>
                   <ul className="mt-1.5 space-y-1">
                     {authResult.reasons.map((r: string, i: number) => (
                       <li key={i} className="text-[12px] text-text-secondary flex items-start gap-1.5">
@@ -115,26 +117,26 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
         <div>
           {!cultureResult ? (
             <div className="text-center py-4">
-              <p className="text-[12px] text-text-muted mb-3">Đánh giá mức độ phù hợp văn hoá công ty & rủi ro nghỉ việc</p>
+              <p className="text-[12px] text-text-muted mb-3">{t('cultureFitDesc')}</p>
               <button onClick={() => runCultureFit()} disabled={loading === 'culture'} className="px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40">
-                {loading === 'culture' ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Đang phân tích...</span> : '🎯 Đánh giá Culture Fit'}
+                {loading === 'culture' ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> {t('analyzingLabel')}</span> : t('assessCultureFitBtn')}
               </button>
             </div>
           ) : cultureResult.error ? (
-            <p className="text-[13px] text-red-500 text-center py-4">Phân tích thất bại</p>
+            <p className="text-[13px] text-red-500 text-center py-4">{t('analysisFailed')}</p>
           ) : (
             <div className="space-y-3">
               {/* Scores */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="p-3 bg-bg-surface rounded-lg text-center">
                   <div className={`text-[14px] font-bold ${cultureResult.retention_risk === 'low' ? 'text-emerald-600' : cultureResult.retention_risk === 'medium' ? 'text-amber-600' : 'text-red-600'}`}>
-                    {cultureResult.retention_risk === 'low' ? '✓ Thấp' : cultureResult.retention_risk === 'medium' ? '⚠ TB' : '⚠ Cao'}
+                    {cultureResult.retention_risk === 'low' ? t('riskLow') : cultureResult.retention_risk === 'medium' ? t('riskMedium') : t('riskHigh')}
                   </div>
-                  <div className="text-[10px] text-text-muted">Rủi ro nghỉ</div>
+                  <div className="text-[10px] text-text-muted">{t('retentionRiskLabel')}</div>
                 </div>
                 <div className="p-3 bg-bg-surface rounded-lg text-center">
                   <div className="text-[14px] font-bold text-text-primary">{cultureResult.avg_tenure_years || '?'}y</div>
-                  <div className="text-[10px] text-text-muted">TB mỗi job</div>
+                  <div className="text-[10px] text-text-muted">{t('avgTenureLabel')}</div>
                 </div>
                 <div className="p-3 bg-bg-surface rounded-lg text-center">
                   <div className="text-[14px] font-bold text-accent">{cultureResult.career_trajectory === 'growing' ? '↑' : cultureResult.career_trajectory === 'lateral' ? '→' : '↓'}</div>
@@ -145,15 +147,15 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
               {/* Work style */}
               {cultureResult.work_style && (
                 <div className="p-2.5 bg-blue-50 rounded-lg">
-                  <span className="text-[10px] font-medium text-blue-700 uppercase">Phong cách làm việc</span>
-                  <p className="text-[12px] text-blue-800 mt-0.5">{cultureResult.work_style === 'leader' ? '👥 Thiên hướng leadership' : cultureResult.work_style === 'individual_contributor' ? '🎯 Individual Contributor' : '⚡ Linh hoạt cả hai'}</p>
+                  <span className="text-[10px] font-medium text-blue-700 uppercase">{t('workStyleSection')}</span>
+                  <p className="text-[12px] text-blue-800 mt-0.5">{cultureResult.work_style === 'leader' ? t('workStyleLeader') : cultureResult.work_style === 'individual_contributor' ? t('workStyleIc') : t('workStyleBoth')}</p>
                 </div>
               )}
 
               {/* Strengths */}
               {cultureResult.strengths?.length > 0 && (
                 <div className="p-2.5 bg-emerald-50 rounded-lg">
-                  <span className="text-[10px] font-medium text-emerald-700 uppercase">Điểm mạnh</span>
+                  <span className="text-[10px] font-medium text-emerald-700 uppercase">{t('strengthsCultureLabel')}</span>
                   {cultureResult.strengths.map((r: string, i: number) => (
                     <p key={i} className="text-[11px] text-emerald-700 mt-0.5">✓ {r}</p>
                   ))}
@@ -163,7 +165,7 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
               {/* Risk factors */}
               {cultureResult.risk_factors?.length > 0 && (
                 <div className="p-2.5 bg-amber-50 rounded-lg">
-                  <span className="text-[10px] font-medium text-amber-700 uppercase">Rủi ro</span>
+                  <span className="text-[10px] font-medium text-amber-700 uppercase">{t('riskFactorsLabel')}</span>
                   {cultureResult.risk_factors.map((r: string, i: number) => (
                     <p key={i} className="text-[11px] text-amber-700 mt-0.5">⚠ {r}</p>
                   ))}
@@ -173,7 +175,7 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
               {/* Recommendation */}
               {cultureResult.recommendation && (
                 <div className="p-2.5 bg-bg-surface rounded-lg border border-border-subtle">
-                  <span className="text-[10px] font-medium text-text-muted uppercase">Khuyến nghị</span>
+                  <span className="text-[10px] font-medium text-text-muted uppercase">{t('recommendationCultureLabel')}</span>
                   <p className="text-[12px] text-text-primary mt-0.5 font-medium">{cultureResult.recommendation}</p>
                 </div>
               )}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone, Eye, Globe, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone, Eye, Globe, AlertTriangle, Shield, Loader2 } from 'lucide-react';
 import { useCandidate, useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -23,11 +23,12 @@ function EditCandidateData({ candidateId, data }: { candidateId: string; data: a
   const [saving, setSaving] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useI18n();
 
   if (!editing) {
     return (
       <button onClick={() => setEditing(true)} className="w-full text-[11px] text-accent hover:underline py-1">
-        ✏️ Edit parsed data
+        {t("editData")}
       </button>
     );
   }
@@ -41,9 +42,9 @@ function EditCandidateData({ candidateId, data }: { candidateId: string; data: a
         experience_years: parseInt(expYears) || 0,
       });
       queryClient.invalidateQueries({ queryKey: ['candidates', candidateId] });
-      toast('success', 'Data updated');
+      toast('success', t("dataUpdated"));
       setEditing(false);
-    } catch { toast('error', 'Failed to update'); }
+    } catch { toast('error', t("dataUpdateFailed")); }
     setSaving(false);
   };
 
@@ -54,16 +55,16 @@ function EditCandidateData({ candidateId, data }: { candidateId: string; data: a
         <input value={name} onChange={e => setName(e.target.value)} className="w-full px-2 py-1 border border-border-subtle rounded text-[12px] mt-0.5" />
       </div>
       <div>
-        <label className="text-[10px] text-text-muted uppercase">Skills (comma separated)</label>
+        <label className="text-[10px] text-text-muted uppercase">{t("skills")}</label>
         <input value={skills} onChange={e => setSkills(e.target.value)} className="w-full px-2 py-1 border border-border-subtle rounded text-[12px] mt-0.5" />
       </div>
       <div>
-        <label className="text-[10px] text-text-muted uppercase">Experience (years)</label>
+        <label className="text-[10px] text-text-muted uppercase">{t("experience")}</label>
         <input type="number" value={expYears} onChange={e => setExpYears(e.target.value)} className="w-full px-2 py-1 border border-border-subtle rounded text-[12px] mt-0.5" />
       </div>
       <div className="flex gap-2">
-        <button onClick={handleSave} disabled={saving} className="flex-1 py-1.5 text-[11px] font-medium bg-accent text-white rounded-lg disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
-        <button onClick={() => setEditing(false)} className="flex-1 py-1.5 text-[11px] font-medium text-text-muted border border-border-subtle rounded-lg">Cancel</button>
+        <button onClick={handleSave} disabled={saving} className="flex-1 py-1.5 text-[11px] font-medium bg-accent text-white rounded-lg disabled:opacity-50">{saving ? '...' : t("save")}</button>
+        <button onClick={() => setEditing(false)} className="flex-1 py-1.5 text-[11px] font-medium text-text-muted border border-border-subtle rounded-lg">{t("cancel")}</button>
       </div>
     </div>
   );
@@ -72,6 +73,7 @@ function EditCandidateData({ candidateId, data }: { candidateId: string; data: a
 function CandidateNotes({ candidateId }: { candidateId: string }) {
   const [text, setText] = useState('');
   const queryClient = useQueryClient();
+  const { t } = useI18n();
   const { data: notes = [] } = useQuery<{ id: string; text: string; author: string; created_at: string }[]>({
     queryKey: ['notes', candidateId],
     queryFn: () => apiClient.get(`/candidates/${candidateId}/notes`).then(r => r.data),
@@ -85,11 +87,11 @@ function CandidateNotes({ candidateId }: { candidateId: string }) {
     <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
       <div className="flex items-center gap-2 mb-3">
         <MessageSquare size={15} className="text-accent" />
-        <h2 className="text-sm font-medium text-text-primary">Notes</h2>
+        <h2 className="text-sm font-medium text-text-primary">{t("notes")}</h2>
       </div>
       <div className="flex gap-2 mb-3">
-        <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && text.trim() && addNote.mutate(text)} placeholder="Add a note..." className="flex-1 px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
-        <button onClick={() => text.trim() && addNote.mutate(text)} disabled={!text.trim()} className="px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg disabled:opacity-50">Add</button>
+        <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && text.trim() && addNote.mutate(text)} placeholder={t("addNote")} className="flex-1 px-3 py-1.5 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20" />
+        <button onClick={() => text.trim() && addNote.mutate(text)} disabled={!text.trim()} className="px-3 py-1.5 bg-accent text-white text-xs font-medium rounded-lg disabled:opacity-50">{t("add")}</button>
       </div>
       <div className="space-y-2 max-h-40 overflow-y-auto">
         {notes.map(n => (
@@ -98,7 +100,7 @@ function CandidateNotes({ candidateId }: { candidateId: string }) {
             <div className="text-text-muted mt-0.5">{n.author} · {new Date(n.created_at).toLocaleDateString()}</div>
           </div>
         ))}
-        {notes.length === 0 && <p className="text-xs text-text-muted text-center py-2">📝 No notes yet — add one above</p>}
+        {notes.length === 0 && <p className="text-xs text-text-muted text-center py-2">{t("noNotes")}</p>}
       </div>
     </div>
   );
@@ -132,13 +134,70 @@ function CandidateAvatar({ candidateId, avatar, name }: { candidateId: string; a
   );
 }
 
+function CvAuthenticityButton({ candidateId, cachedResult }: { candidateId: string; cachedResult?: any }) {
+  const [result, setResult] = useState<any>(cachedResult || null);
+  const [loading, setLoading] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const { t, locale } = useI18n();
+
+  const handleCheck = async () => {
+    if (result && !result.error && result.verdict !== 'unknown') {
+      setShowPopup(true);
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await apiClient.post(`/ai-advanced/cv-authenticity/${candidateId}?force=false`);
+      setResult(data);
+      setShowPopup(true);
+    } catch { setResult({ error: true }); }
+    setLoading(false);
+  };
+
+  return (
+    <>
+      <button onClick={handleCheck} disabled={loading} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[12px] font-medium text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors disabled:opacity-40">
+        {loading ? <><Loader2 size={13} className="animate-spin" /> {t("checking")}</> : <><Shield size={13} /> {t("checkCvAi")}</>}
+      </button>
+      {showPopup && result && !result.error && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowPopup(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-80 p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-text-primary">{t("checkCvAi")}</h3>
+              <button onClick={() => setShowPopup(false)} className="text-text-muted hover:text-text-primary">
+                <XCircle size={16} />
+              </button>
+            </div>
+            <div className="flex items-center justify-center mb-4">
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center ${result.score >= 80 ? 'bg-emerald-100' : result.score >= 50 ? 'bg-amber-100' : 'bg-red-100'}`}>
+                <span className={`text-[24px] font-bold ${result.score >= 80 ? 'text-emerald-600' : result.score >= 50 ? 'text-amber-600' : 'text-red-600'}`}>{result.score}%</span>
+              </div>
+            </div>
+            <p className={`text-center text-[13px] font-medium mb-3 ${result.score >= 80 ? 'text-emerald-700' : result.score >= 50 ? 'text-amber-700' : 'text-red-700'}`}>
+              {result.score >= 80 ? t("cvAuthentic") : result.score >= 50 ? t("cvSuspicious") : t("cvLikelyAi")}
+            </p>
+            {result.reasons && (
+              <ul className="space-y-1 mb-3">
+                {(Array.isArray(result.reasons) ? result.reasons : (result.reasons[locale === 'ja' ? 'en' : locale] || result.reasons['en'] || result.reasons['vi'] || [])).map((r: string, i: number) => (
+                  <li key={i} className="text-[11px] text-text-secondary flex items-start gap-1.5"><span className="mt-0.5">•</span>{r}</li>
+                ))}
+              </ul>
+            )}
+            <button onClick={() => setShowPopup(false)} className="w-full py-2 text-[12px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5">{t("close")}</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: candidate, isLoading } = useCandidate(id!);
   const { data: allCandidates } = useCandidates();
   const updateStatus = useUpdateCandidateStatus();
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { toast } = useToast();
   const { confirm } = useConfirm();
   const [cvBlobUrl, setCvBlobUrl] = useState<string | null>(null);
@@ -154,16 +213,28 @@ export function CandidateDetailPage() {
     // Removed auto-mark as reviewed — HR should explicitly mark
   }, [candidate?.id]);
 
-  if (isLoading) return <LoadingSkeleton rows={3} />;
-  if (!candidate) return <EmptyState icon={Users} title="Candidate not found" description="This candidate may have been removed or the link is invalid" action={{ label: 'Back to Candidates', onClick: () => window.history.back() }} />;
+  // Helper to get localized text from i18n object or plain string
+  const d = candidate?.structuredData ?? {} as any;
 
-  const { structuredData: d, score } = candidate;
+  const loc = (val: any) => {
+    if (!val) return '';
+    if (typeof val === 'object' && !Array.isArray(val)) {
+      const target = locale === 'ja' ? 'en' : locale;
+      return val[target] || val['en'] || val['vi'] || '';
+    }
+    return val;
+  };
+
+  if (isLoading) return <LoadingSkeleton rows={3} />;
+  if (!candidate) return <EmptyState icon={Users} title={t("candidateNotFound")} description={t("candidateNotFoundDesc")} action={{ label: t("backToCandidates"), onClick: () => window.history.back() }} />;
+
+  const score = candidate.score;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => window.history.back()} className="text-[13px] text-text-tertiary hover:text-accent flex items-center gap-1">
-          <ArrowLeft size={14} /> Back
+          <ArrowLeft size={14} /> {t("back")}
         </button>
         <div className="flex items-center gap-2">
           <span className="text-[12px] text-text-muted">{currentIdx + 1} / {candidateIds.length}</span>
@@ -185,45 +256,15 @@ export function CandidateDetailPage() {
         {/* Missing Info Warning */}
         <MissingInfoPanel data={d} />
 
-        {/* AI Insight */}
-        {d.insight && (d.insight.strengths || d.insight.weaknesses) && (
-        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={16} className="text-accent" />
-            <h2 className="text-sm font-medium text-text-primary">AI Insight</h2>
-          </div>
-          <div className="space-y-3">
-            {d.insight.strengths && (
-            <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-              <span className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{t("strengths")}</span>
-              <p className="text-[13px] text-emerald-800 mt-1">{d.insight.strengths}</p>
-            </div>
-            )}
-            {d.insight.weaknesses && (
-            <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
-              <span className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">{t("weaknesses")}</span>
-              <p className="text-[13px] text-amber-800 mt-1">{d.insight.weaknesses}</p>
-            </div>
-            )}
-            {d.insight.recommendation && (
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-              <span className="text-[11px] font-medium text-blue-700 uppercase tracking-wider">{t("recommendation")}</span>
-              <p className="text-[13px] text-blue-800 mt-1">{d.insight.recommendation}</p>
-            </div>
-            )}
-          </div>
-        </div>
-        )}
-
         {/* Skill Level Assessment */}
         {d.skill_level && (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="text-[15px]">📊</span>
-              <h2 className="text-sm font-medium text-text-primary">Skill Level Assessment</h2>
+              <h2 className="text-sm font-medium text-text-primary">{t("skillLevelAssessment")}</h2>
             </div>
-            <span className="text-[11px] text-text-muted capitalize bg-bg-secondary px-2 py-0.5 rounded">{d.skill_level.category_title || d.skill_level.category?.replace('_', ' ')}</span>
+            <span className="text-[11px] text-text-muted capitalize bg-bg-secondary px-2 py-0.5 rounded">{loc(d.skill_level.category_title) || d.skill_level.category?.replace('_', ' ')}</span>
           </div>
 
           {/* G Level Badge + Progress */}
@@ -249,9 +290,9 @@ export function CandidateDetailPage() {
           {d.skill_level.level_description && (
             <div className="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-100">
               <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-[11px] font-semibold text-purple-700 uppercase tracking-wider">Tiêu chuẩn {d.skill_level.level}</span>
+                <span className="text-[11px] font-semibold text-purple-700 uppercase tracking-wider">{t("levelStandard", { level: d.skill_level.level })}</span>
               </div>
-              <p className="text-[12px] text-purple-800 leading-relaxed">{d.skill_level.level_description}</p>
+              <p className="text-[12px] text-purple-800 leading-relaxed">{loc(d.skill_level.level_description)}</p>
             </div>
           )}
 
@@ -259,16 +300,16 @@ export function CandidateDetailPage() {
           {d.skill_level.reason && (
             <div className="mb-3 p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
               <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Nhận xét AI</span>
+                <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">{t("aiReason")}</span>
               </div>
-              <p className="text-[12px] text-text-secondary leading-relaxed">{d.skill_level.reason}</p>
+              <p className="text-[12px] text-text-secondary leading-relaxed">{loc(d.skill_level.reason)}</p>
             </div>
           )}
 
           {/* Domains */}
           {d.skill_level.domains && d.skill_level.domains.length > 0 && (
             <div className="pt-3 border-t border-border-subtle/50">
-              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Lĩnh vực đánh giá</span>
+              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t("assessmentDomains")}</span>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {d.skill_level.domains.map((domain, i) => (
                   <span key={i} className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100">{domain.split('(')[0].trim()}</span>
@@ -279,9 +320,52 @@ export function CandidateDetailPage() {
         </div>
         )}
 
+        {/* AI Insight */}
+        {d.insight && (d.insight.strengths || d.insight.weaknesses) && (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles size={16} className="text-accent" />
+            <h2 className="text-sm font-medium text-text-primary">{t("aiInsight")}</h2>
+          </div>
+          <div className="space-y-3">
+            {d.insight.strengths && (
+            <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+              <span className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{t("strengths")}</span>
+              <p className="text-[13px] text-emerald-800 mt-1">{loc(d.insight.strengths)}</p>
+            </div>
+            )}
+            {d.insight.weaknesses && (
+            <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+              <span className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">{t("weaknesses")}</span>
+              <p className="text-[13px] text-amber-800 mt-1">{loc(d.insight.weaknesses)}</p>
+            </div>
+            )}
+            {d.insight.recommendation && (
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+              <span className="text-[11px] font-medium text-blue-700 uppercase tracking-wider">{t("recommendation")}</span>
+              <p className="text-[13px] text-blue-800 mt-1">{loc(d.insight.recommendation)}</p>
+            </div>
+            )}
+            {/* Culture Fit */}
+            {d._ai_culture_fit && (
+            <div className="p-3 bg-violet-50 rounded-lg border border-violet-100">
+              <span className="text-[11px] font-medium text-violet-700 uppercase tracking-wider">{t("cultureFit")}</span>
+              <p className="text-[13px] text-violet-800 mt-1">
+                {d._ai_culture_fit.retention_risk === 'low' ? t("retentionRiskLow") : d._ai_culture_fit.retention_risk === 'medium' ? t("retentionRiskMedium") : t("retentionRiskHigh")}
+                {d._ai_culture_fit.work_style && ` · ${d._ai_culture_fit.work_style === 'leader' ? t("workStyleLeader") : d._ai_culture_fit.work_style === 'individual_contributor' ? t("workStyleIc") : t("workStyleBoth")}`}
+              </p>
+              {d._ai_culture_fit.recommendation && (
+                <p className="text-[12px] text-violet-700 mt-0.5">💡 {loc(d._ai_culture_fit.recommendation)}</p>
+              )}
+            </div>
+            )}
+          </div>
+        </div>
+        )}
+
         {/* Profile */}
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-          <h2 className="text-sm font-medium text-text-primary mb-4">Profile</h2>
+          <h2 className="text-sm font-medium text-text-primary mb-4">{t("profile")}</h2>
           <div className="space-y-4">
             <div>
               <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t("skills")}</span>
@@ -297,9 +381,9 @@ export function CandidateDetailPage() {
                 </div>
                 {d.experience.map((exp, i) => (
                   <div key={i} className="ml-5 py-1.5 border-l-2 border-border-subtle pl-3 mb-1">
-                    <div className="text-[13px] font-medium text-text-primary">{exp.role}</div>
+                    <div className="text-[13px] font-medium text-text-primary">{loc(exp.role)}</div>
                     <div className="text-[12px] text-text-tertiary">{exp.company}{exp.years ? ` · ${exp.years}y` : exp.duration ? ` · ${exp.duration}` : ''}</div>
-                    {exp.description && <div className="text-[11px] text-text-secondary mt-0.5">{exp.description}</div>}
+                    {exp.description && <div className="text-[11px] text-text-secondary mt-0.5">{loc(exp.description)}</div>}
                   </div>
                 ))}
               </div>
@@ -312,7 +396,7 @@ export function CandidateDetailPage() {
                 </div>
                 {d.education.map((edu, i) => (
                   <div key={i} className="ml-5 py-1">
-                    <div className="text-[13px] text-text-primary">{edu.degree}{edu.major ? ` in ${edu.major}` : ''}</div>
+                    <div className="text-[13px] text-text-primary">{loc(edu.degree)}{edu.major ? ` in ${loc(edu.major)}` : ''}</div>
                     <div className="text-[12px] text-text-tertiary">{edu.school}{edu.year ? ` · ${edu.year}` : ''}</div>
                   </div>
                 ))}
@@ -322,7 +406,7 @@ export function CandidateDetailPage() {
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Award size={13} className="text-text-muted" />
-                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Certifications</span>
+                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t("certifications")}</span>
                 </div>
                 {d.certifications.map((cert: any, i: number) => (
                   <div key={i} className="ml-5 py-1">
@@ -335,7 +419,7 @@ export function CandidateDetailPage() {
             {d.hometown && (
               <div className="flex items-center gap-1.5">
                 <MapPin size={13} className="text-text-muted" />
-                <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider mr-2">Location</span>
+                <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider mr-2">{t("address")}</span>
                 <span className="text-[13px] text-text-primary">{d.hometown}</span>
               </div>
             )}
@@ -343,7 +427,7 @@ export function CandidateDetailPage() {
               <div>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Heart size={13} className="text-text-muted" />
-                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Activities</span>
+                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t("activities")}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 ml-5">
                   {d.activities.map((a: string, i: number) => (
@@ -364,7 +448,7 @@ export function CandidateDetailPage() {
             {d.expectedSalary && (
               <div className="flex items-center gap-1.5">
                 <DollarSign size={13} className="text-text-muted" />
-                <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider mr-2">Expected</span>
+                <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider mr-2">{t("expected")}</span>
                 <span className="text-[13px] text-text-primary">{d.expectedSalary}</span>
               </div>
             )}
@@ -373,21 +457,19 @@ export function CandidateDetailPage() {
       </div>
 
       {/* Matched Jobs (Smart Pool) */}
-      <MatchedJobsSection candidateId={id!} />
+      <MatchedJobsSection candidateId={id!} hasAssignedJob={!!candidate.jobId} />
 
       {/* Timeline */}
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mt-5">
         <div className="flex items-center gap-2 mb-4">
           <Clock size={15} className="text-accent" />
-          <h2 className="text-sm font-medium text-text-primary">Timeline</h2>
+          <h2 className="text-sm font-medium text-text-primary">{t("timeline")}</h2>
         </div>
         <CandidateTimeline candidateId={id!} />
       </div>
 
       {/* Notes */}
-      <div className="mt-5">
-        <CandidateNotes candidateId={id!} />
-      </div>
+      <CandidateNotes candidateId={id!} />
 
         </div>{/* end left */}
 
@@ -407,12 +489,12 @@ export function CandidateDetailPage() {
                 }`}>{candidate.status}</span>
               </div>
               {d._parse_confidence != null && d._parse_confidence < 0.8 && (
-                <div className="mt-2 text-[10px] text-amber-600 bg-amber-50 px-2 py-1 rounded-full">⚠ Parse confidence: {Math.round(d._parse_confidence * 100)}% — review carefully</div>
+                <div className="mt-2 text-[10px] text-amber-600 bg-amber-50 px-2 py-1 rounded-full">⚠ Parse: {Math.round(d._parse_confidence * 100)}%</div>
               )}
             </div>
 
             <div className="space-y-2 text-[12px] text-text-secondary border-t border-border-subtle pt-3 mb-4">
-              <div className="flex items-center gap-2"><Briefcase size={12} className="text-text-muted" /> {d.totalYearsExperience}y experience</div>
+              <div className="flex items-center gap-2"><Briefcase size={12} className="text-text-muted" /> {t("yearsExp", { years: d.totalYearsExperience })}</div>
               {d.hometown && d.hometown !== 'null' && <div className="flex items-center gap-2"><MapPin size={12} className="text-text-muted" /> {d.hometown}</div>}
               {Array.isArray(d.languages) && d.languages.filter(l => l.language && l.language !== 'null').length > 0 && <div className="flex items-center gap-2"><Languages size={12} className="text-text-muted" /> {d.languages.filter(l => l.language && l.language !== 'null').map(l => l.language).join(', ')}</div>}
               {d.email && d.email !== '<UNKNOWN>' && d.email !== 'null' && <div className="flex items-center gap-2"><Mail size={12} className="text-text-muted" /> <span className="truncate">{d.email}</span></div>}
@@ -434,30 +516,36 @@ export function CandidateDetailPage() {
                 <Sparkles size={14} /> AI Email
               </button>
               {candidate.status !== 'approved' && candidate.status !== 'rejected' && candidate.status === 'new' && (
-                <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'reviewed' }); toast('success', 'Marked as reviewed'); }} disabled={updateStatus.isPending} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-40">
-                  <CheckCircle size={14} /> {updateStatus.isPending ? 'Updating...' : 'Mark as Reviewed'}
+                <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'reviewed' }); toast('success', t("markReviewed")); }} disabled={updateStatus.isPending} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-40">
+                  <CheckCircle size={14} /> {updateStatus.isPending ? t("updating") : t("markReviewed")}
                 </button>
               )}
-              {candidate.status === 'approved' && <div className="text-center text-[13px] font-medium text-emerald-600 bg-emerald-50 py-2 rounded-lg">✓ Approved</div>}
-              {candidate.status === 'rejected' && <div className="text-center text-[13px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">✗ Rejected</div>}
+              {candidate.status === 'approved' && <div className="text-center text-[13px] font-medium text-emerald-600 bg-emerald-50 py-2 rounded-lg">✓ {t("statusApproved")}</div>}
+              {candidate.status === 'rejected' && <div className="text-center text-[13px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">✗ {t("statusRejected")}</div>}
               {candidate.cvFilePath && (
-                <button onClick={() => {
-                  const token = localStorage.getItem('token');
-                  fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
-                    .then(r => r.blob())
-                    .then(blob => { setCvBlobUrl(URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))); });
-                }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
-                  <Eye size={14} /> View CV
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => {
+                    const token = localStorage.getItem('token');
+                    fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
+                      .then(r => r.blob())
+                      .then(blob => { setCvBlobUrl(URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))); });
+                  }} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
+                    <Eye size={14} /> {t("viewCv")}
+                  </button>
+                  <button onClick={() => {
+                    const token = localStorage.getItem('token');
+                    fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
+                      .then(r => r.blob())
+                      .then(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = candidate.cvFilePath!; a.click(); URL.revokeObjectURL(url); });
+                  }} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-text-muted border border-border-subtle rounded-lg hover:bg-bg-surface transition-colors">
+                    <Download size={14} />
+                  </button>
+                </div>
+              )}
+              {candidate.cvFilePath && (
+                <CvAuthenticityButton candidateId={candidate.id} cachedResult={d._ai_cv_authenticity} />
               )}
 
-              {/* AI Tools */}
-              <div className="border-t border-border-subtle pt-3 mt-3">
-                <div className="space-y-1.5">
-                  <AIToolButton label="🔍 Kiểm tra CV" candidateId={candidate.id} type="authenticity" />
-                  <AIToolButton label="🎯 Culture Fit" candidateId={candidate.id} type="culture" />
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -471,7 +559,7 @@ export function CandidateDetailPage() {
           candidateEmail={d.email || null}
           jobTitle={candidate.jobTitle || undefined}
           onClose={() => setEmailModal(false)}
-          onSent={() => toast('success', 'Email sent!')}
+          onSent={() => toast('success', '✓')}
         />
       )}
 
@@ -480,7 +568,7 @@ export function CandidateDetailPage() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60" onClick={() => { URL.revokeObjectURL(cvBlobUrl); setCvBlobUrl(null); }}>
           <div className="bg-white rounded-2xl shadow-2xl w-[90vw] h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b">
-              <span className="text-sm font-medium">CV Preview — {candidate.structuredData.name}</span>
+              <span className="text-sm font-medium">{t("cvPreview")} — {candidate.structuredData.name}</span>
               <button onClick={() => { URL.revokeObjectURL(cvBlobUrl); setCvBlobUrl(null); }} className="p-1 hover:bg-gray-100 rounded-lg">
                 <XCircle size={18} className="text-gray-500" />
               </button>
@@ -494,8 +582,23 @@ export function CandidateDetailPage() {
 }
 
 function AiSummaryInline({ summary }: { summary: string }) {
+  const { locale } = useI18n();
   try {
     const parsed = JSON.parse(summary);
+    // New format: {en: {summary, strengths, concerns}, vi: {...}}
+    if (parsed.en || parsed.vi) {
+      const target = locale === 'ja' ? 'en' : locale;
+      const data = parsed[target] || parsed['en'] || parsed['vi'] || {};
+      return (
+        <div className="mt-1 space-y-1">
+          {data.summary && <p className="text-[11px] text-blue-800">{data.summary}</p>}
+          {data.strengths?.length > 0 && <p className="text-[10px] text-emerald-700">✓ {data.strengths.join(' • ')}</p>}
+          {data.concerns?.length > 0 && <p className="text-[10px] text-amber-700">⚠ {data.concerns.join(' • ')}</p>}
+          {data.suggestion && <p className="text-[10px] text-purple-700 italic">💡 {data.suggestion}</p>}
+        </div>
+      );
+    }
+    // Legacy format: {summary, strengths, concerns, suggestion}
     if (typeof parsed === 'object' && parsed.summary) {
       return (
         <div className="mt-1 space-y-1">
@@ -510,9 +613,10 @@ function AiSummaryInline({ summary }: { summary: string }) {
   return <p className="text-[11px] text-blue-800 mt-0.5 whitespace-pre-line">{summary}</p>;
 }
 
-function MatchedJobsSection({ candidateId }: { candidateId: string }) {
+function MatchedJobsSection({ candidateId, hasAssignedJob }: { candidateId: string; hasAssignedJob: boolean }) {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
 
@@ -540,7 +644,7 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
     <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mt-5">
       <div className="flex items-center gap-2 mb-4">
         <Briefcase size={15} className="text-accent" />
-        <h2 className="text-sm font-medium text-text-primary">Matched Jobs ({jobs.length})</h2>
+        <h2 className="text-sm font-medium text-text-primary">{t("matchedJobs")} ({jobs.length})</h2>
       </div>
       <div className="space-y-2">
         {jobs.map((j) => {
@@ -570,40 +674,40 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
                       {/* Final */}
                       <div className="flex items-center justify-between p-2.5 bg-accent/5 rounded-lg border border-accent/20">
                         <div>
-                          <div className="text-[12px] font-medium text-accent">Điểm tổng hợp</div>
-                          <div className="text-[10px] text-text-muted">= Kỹ năng×30% + Kinh nghiệm×20% + Học vấn×15% + Ngôn ngữ×10% + AI×30%</div>
+                          <div className="text-[12px] font-medium text-accent">{t("compositeScore")}</div>
+                          <div className="text-[10px] text-text-muted">{t("compositeFormula")}</div>
                         </div>
                         <div className="text-xl font-bold text-accent">{j.final_score}/100</div>
                       </div>
                       {/* Skills */}
                       <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
                         <div>
-                          <div className="text-[12px] font-medium text-text-primary">Kỹ năng phù hợp</div>
-                          <div className="text-[10px] text-text-muted">Ứng viên có bao nhiêu skills mà job yêu cầu</div>
+                          <div className="text-[12px] font-medium text-text-primary">{t("skillMatch")}</div>
+                          <div className="text-[10px] text-text-muted">{t("skillMatchDesc")}</div>
                         </div>
                         <div className="text-sm font-bold text-text-primary">{j.details?.rule_scoring?.skills?.score ?? '—'}/100</div>
                       </div>
                       {/* Experience */}
                       <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
                         <div>
-                          <div className="text-[12px] font-medium text-text-primary">Kinh nghiệm</div>
-                          <div className="text-[10px] text-text-muted">{j.details?.rule_scoring?.experience?.note || 'So sánh số năm kinh nghiệm với yêu cầu job'}</div>
+                          <div className="text-[12px] font-medium text-text-primary">{t("experienceScore")}</div>
+                          <div className="text-[10px] text-text-muted">{j.details?.rule_scoring?.experience?.note || t("experienceScoreDesc")}</div>
                         </div>
                         <div className="text-sm font-bold text-text-primary">{j.details?.rule_scoring?.experience?.score ?? '—'}/100</div>
                       </div>
                       {/* Education */}
                       <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
                         <div>
-                          <div className="text-[12px] font-medium text-text-primary">Học vấn</div>
-                          <div className="text-[10px] text-text-muted">{j.details?.rule_scoring?.education?.note || 'So sánh bằng cấp với yêu cầu job'}</div>
+                          <div className="text-[12px] font-medium text-text-primary">{t("educationScore")}</div>
+                          <div className="text-[10px] text-text-muted">{j.details?.rule_scoring?.education?.note || t("educationScoreDesc")}</div>
                         </div>
                         <div className="text-sm font-bold text-text-primary">{j.details?.rule_scoring?.education?.score ?? '—'}/100</div>
                       </div>
                       {/* LLM */}
                       <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
                         <div>
-                          <div className="text-[12px] font-medium text-text-primary">Đánh giá AI</div>
-                          <div className="text-[10px] text-text-muted">AI phân tích tổng quan mức độ phù hợp của ứng viên</div>
+                          <div className="text-[12px] font-medium text-text-primary">{t("aiEvaluation")}</div>
+                          <div className="text-[10px] text-text-muted">{t("aiEvaluationDesc")}</div>
                         </div>
                         <div className="text-sm font-bold text-text-primary">{j.details?.llm_score ?? '—'}/100</div>
                       </div>
@@ -612,15 +716,15 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
                         <div>
-                          <div className="text-[12px] font-medium text-text-primary">Kỹ năng khớp</div>
-                          <div className="text-[10px] text-text-muted">Tỷ lệ skills ứng viên trùng với yêu cầu job</div>
+                          <div className="text-[12px] font-medium text-text-primary">{t("skillOverlap")}</div>
+                          <div className="text-[10px] text-text-muted">{t("skillOverlapDesc")}</div>
                         </div>
                         <div className="text-sm font-bold text-text-primary">{Math.round(j.skill_score * 100)}%</div>
                       </div>
                       <div className="flex items-center justify-between p-2 bg-bg-surface rounded-lg">
                         <div>
-                          <div className="text-[12px] font-medium text-text-primary">Độ tương đồng hồ sơ</div>
-                          <div className="text-[10px] text-text-muted">So sánh nội dung CV với mô tả job bằng AI embedding</div>
+                          <div className="text-[12px] font-medium text-text-primary">{t("profileSimilarity")}</div>
+                          <div className="text-[10px] text-text-muted">{t("profileSimilarityDesc")}</div>
                         </div>
                         <div className="text-sm font-bold text-text-primary">{Math.round(j.similarity_score * 100)}%</div>
                       </div>
@@ -629,7 +733,7 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
                   {/* Matched skills */}
                   {j.matched_skills?.length > 0 && (
                     <div>
-                      <span className="text-[10px] font-medium text-emerald-700 uppercase">Skills phù hợp</span>
+                      <span className="text-[10px] font-medium text-emerald-700 uppercase">{t("matchedSkills")}</span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {j.matched_skills.map((s: string) => (
                           <span key={s} className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">{s}</span>
@@ -640,7 +744,7 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
                   {/* Missing skills */}
                   {j.missing_skills?.length > 0 && (
                     <div>
-                      <span className="text-[10px] font-medium text-red-600 uppercase">Skills còn thiếu</span>
+                      <span className="text-[10px] font-medium text-red-600 uppercase">{t("missingSkills")}</span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {j.missing_skills.map((s: string) => (
                           <span key={s} className="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded">{s}</span>
@@ -651,7 +755,7 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
                   {/* AI summary */}
                   {j.details?.llm_summary && (
                     <div className="p-2.5 bg-blue-50 rounded-lg border border-blue-100">
-                      <span className="text-[10px] font-medium text-blue-700 uppercase">Nhận xét từ AI</span>
+                      <span className="text-[10px] font-medium text-blue-700 uppercase">{t("aiComment")}</span>
                       <AiSummaryInline summary={j.details.llm_summary} />
                     </div>
                   )}
@@ -659,14 +763,15 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
                     {!isScored && (
                       <button
                         onClick={() => handleAssign(j.job_id)}
-                        disabled={assigning === j.job_id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                        disabled={assigning === j.job_id || hasAssignedJob}
+                        title={hasAssignedJob ? t('candidateAlreadyAssigned') : ''}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        {assigning === j.job_id ? 'Đang chấm điểm...' : 'Assign & Chấm điểm'}
+                        {assigning === j.job_id ? t("scoring") : hasAssignedJob ? t("assignedJob") : t("assignScore")}
                       </button>
                     )}
                     <Link to={`/jobs/${j.job_id}`} className="text-[11px] text-accent hover:underline">
-                      Xem Job →
+                      {t("viewJob")}
                     </Link>
                   </div>
                 </div>
@@ -682,16 +787,17 @@ function MatchedJobsSection({ candidateId }: { candidateId: string }) {
 
 
 function MissingInfoPanel({ data }: { data: any }) {
+  const { t } = useI18n();
   const missing: string[] = [];
   const isEmpty = (v: any) => !v || v === 'null' || v === '<UNKNOWN>';
-  if (isEmpty(data.email)) missing.push('Email');
-  if (isEmpty(data.phone)) missing.push('Số điện thoại');
-  if (!Array.isArray(data.skills) || data.skills.length === 0) missing.push('Skills');
-  if (!Array.isArray(data.experience) || data.experience.length === 0) missing.push('Kinh nghiệm làm việc');
-  if (!Array.isArray(data.education) || data.education.length === 0) missing.push('Học vấn');
-  if (!data.totalYearsExperience) missing.push('Số năm kinh nghiệm');
-  if (!Array.isArray(data.languages) || data.languages.filter((l: any) => l.language && l.language !== 'null').length === 0) missing.push('Ngôn ngữ');
-  if (isEmpty(data.avatar)) missing.push('Ảnh chân dung');
+  if (isEmpty(data.email)) missing.push(t("missingEmail"));
+  if (isEmpty(data.phone)) missing.push(t("missingPhone"));
+  if (!Array.isArray(data.skills) || data.skills.length === 0) missing.push(t("missingSkillsList"));
+  if (!Array.isArray(data.experience) || data.experience.length === 0) missing.push(t("missingExperience"));
+  if (!Array.isArray(data.education) || data.education.length === 0) missing.push(t("missingEducation"));
+  if (!data.totalYearsExperience) missing.push(t("missingYears"));
+  if (!Array.isArray(data.languages) || data.languages.filter((l: any) => l.language && l.language !== 'null').length === 0) missing.push(t("missingLanguages"));
+  if (isEmpty(data.avatar)) missing.push(t("missingAvatar"));
 
   if (missing.length === 0) return null;
 
@@ -699,69 +805,14 @@ function MissingInfoPanel({ data }: { data: any }) {
     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
       <div className="flex items-center gap-2 mb-2">
         <AlertTriangle size={15} className="text-amber-600" />
-        <span className="text-[13px] font-medium text-amber-800">Thông tin còn thiếu ({missing.length})</span>
+        <span className="text-[13px] font-medium text-amber-800">{t("missingInfo", { count: missing.length })}</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {missing.map(m => (
           <span key={m} className="text-[11px] px-2 py-1 bg-amber-100 text-amber-700 rounded-md font-medium">{m}</span>
         ))}
       </div>
-      <p className="text-[11px] text-amber-600 mt-2">HR cần xác minh hoặc yêu cầu ứng viên bổ sung các thông tin trên.</p>
-    </div>
-  );
-}
-
-function AIToolButton({ label, candidateId, type }: { label: string; candidateId: string; type: 'authenticity' | 'culture' }) {
-  const [result, setResult] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
-  const run = async () => {
-    setLoading(true);
-    try {
-      const endpoint = type === 'authenticity' ? `/ai-advanced/cv-authenticity/${candidateId}` : `/ai-advanced/culture-fit/${candidateId}`;
-      const { data } = await apiClient.post(endpoint);
-      setResult(data);
-    } catch { setResult({ error: true }); }
-    setLoading(false);
-  };
-
-  if (!result) {
-    return (
-      <button onClick={run} disabled={loading} className="w-full text-left px-3 py-2 text-[12px] font-medium text-text-secondary border border-border-subtle rounded-lg hover:bg-bg-surface transition-colors disabled:opacity-40">
-        {loading ? '⏳ Đang phân tích...' : label}
-      </button>
-    );
-  }
-
-  if (result.error) return <div className="px-3 py-2 text-[11px] text-red-500">Phân tích thất bại</div>;
-
-  if (type === 'authenticity') {
-    const color = result.score >= 80 ? 'emerald' : result.score >= 50 ? 'amber' : 'red';
-    return (
-      <div className={`px-3 py-2.5 bg-${color}-50 border border-${color}-200 rounded-lg`}>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] font-medium text-text-muted">CV Authenticity</span>
-          <span className={`text-[13px] font-bold text-${color}-700`}>{result.score}/100</span>
-        </div>
-        <p className={`text-[11px] text-${color}-700`}>{result.verdict === 'authentic' ? '✅ Xác thực' : result.verdict === 'suspicious' ? '⚠️ Nghi ngờ' : '❌ Có thể AI viết'}</p>
-        {result.reasons?.slice(0, 2).map((r: string, i: number) => (
-          <p key={i} className="text-[10px] text-text-muted mt-0.5 truncate">• {r}</p>
-        ))}
-      </div>
-    );
-  }
-
-  // Culture fit
-  return (
-    <div className="px-3 py-2.5 bg-bg-surface border border-border-subtle rounded-lg">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] font-medium text-text-muted">Culture Fit</span>
-        <span className={`text-[11px] font-bold ${result.retention_risk === 'low' ? 'text-emerald-600' : result.retention_risk === 'medium' ? 'text-amber-600' : 'text-red-600'}`}>
-          Risk: {result.retention_risk}
-        </span>
-      </div>
-      <p className="text-[10px] text-text-secondary">{result.career_trajectory && `Career: ${result.career_trajectory}`} {result.avg_tenure_years && `· Avg ${result.avg_tenure_years}y/job`}</p>
-      {result.recommendation && <p className="text-[10px] text-accent mt-0.5 truncate">💡 {result.recommendation}</p>}
+      <p className="text-[11px] text-amber-600 mt-2">{t("missingInfoNote")}</p>
     </div>
   );
 }

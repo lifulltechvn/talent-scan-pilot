@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2, X, ChevronDown, ChevronRight, BookOpen, CheckCircle, AlertTriangle } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
+import { useI18n } from '@/shared/i18n';
 
 const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   programming: { label: 'Coding', icon: '💻' },
@@ -21,6 +22,7 @@ interface Question {
 }
 
 export function QuestionBankModal({ candidateId, candidateName, onClose }: { candidateId: string; candidateName: string; onClose: () => void }) {
+  const { t } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [expandedCat, setExpandedCat] = useState<string | null>('programming');
@@ -42,7 +44,7 @@ export function QuestionBankModal({ candidateId, candidateName, onClose }: { can
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl shrink-0">
           <div>
             <h2 className="text-[15px] font-semibold text-white flex items-center gap-2">
-              <BookOpen size={16} /> Bộ câu hỏi phỏng vấn
+              <BookOpen size={16} /> {t('questionBankTitle')}
             </h2>
             <p className="text-[12px] text-white/70 mt-0.5">
               {candidateName} {data ? `· ${data.level} · ${data.skills.join(', ')}` : ''}
@@ -55,10 +57,10 @@ export function QuestionBankModal({ candidateId, candidateName, onClose }: { can
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 size={24} className="text-accent animate-spin" />
-            <span className="ml-2 text-[13px] text-text-muted">Đang tạo câu hỏi...</span>
+            <span className="ml-2 text-[13px] text-text-muted">{t('generatingQuestions')}</span>
           </div>
         ) : !data ? (
-          <div className="flex-1 flex items-center justify-center text-[13px] text-text-muted">Không thể tải câu hỏi</div>
+          <div className="flex-1 flex items-center justify-center text-[13px] text-text-muted">{t('cannotLoadQuestions')}</div>
         ) : (
           <div className="flex-1 flex overflow-hidden">
             {/* Left: Category tabs (vertical) */}
@@ -72,7 +74,7 @@ export function QuestionBankModal({ candidateId, candidateName, onClose }: { can
                       <span className="text-[14px]">{meta.icon}</span>
                       <span className={`text-[13px] font-medium ${expandedCat === cat ? 'text-accent' : 'text-text-primary'}`}>{meta.label}</span>
                     </div>
-                    <span className="text-[11px] text-text-muted ml-6">{qs.length} câu</span>
+                    <span className="text-[11px] text-text-muted ml-6">{t('questionsCountShort', { count: qs.length })}</span>
                   </button>
                 );
               })}
@@ -103,7 +105,7 @@ export function QuestionBankModal({ candidateId, candidateName, onClose }: { can
                             <div>
                               <div className="flex items-center gap-1.5 mb-1.5">
                                 <CheckCircle size={13} className="text-emerald-600" />
-                                <span className="text-[11px] font-semibold text-emerald-700 uppercase">Đáp án đúng</span>
+                                <span className="text-[11px] font-semibold text-emerald-700 uppercase">{t('correctAnswer')}</span>
                               </div>
                               <p className="text-[13px] text-emerald-800 bg-emerald-50 px-3 py-2.5 rounded-lg leading-relaxed">{q.answer}</p>
                             </div>

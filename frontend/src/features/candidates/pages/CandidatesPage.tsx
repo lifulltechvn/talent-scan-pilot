@@ -4,29 +4,30 @@ import { Search, ArrowUpDown, Eye, Briefcase, Calendar, CheckCircle, XCircle, Us
 import { useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
+import { useI18n } from '@/shared/i18n';
 import type { Candidate, CandidateStatus } from '@/domain/models/candidate';
 
 const PAGE_SIZE = 20;
 
-const STATUS_TABS: { key: CandidateStatus | 'all'; label: string }[] = [
-  { key: 'all', label: 'Tất cả' },
-  { key: 'new', label: 'Mới' },
-  { key: 'reviewed', label: 'Đã review' },
-  { key: 'assigned', label: 'Đã assign' },
-  { key: 'pending', label: 'Phỏng vấn' },
-  { key: 'approved', label: 'Đạt' },
-  { key: 'rejected', label: 'Từ chối' },
+const STATUS_TABS: { key: CandidateStatus | 'all'; labelKey: string }[] = [
+  { key: 'all', labelKey: 'tabAll' },
+  { key: 'new', labelKey: 'tabNew' },
+  { key: 'reviewed', labelKey: 'tabReviewed' },
+  { key: 'assigned', labelKey: 'tabAssigned' },
+  { key: 'pending', labelKey: 'tabInterviewing' },
+  { key: 'approved', labelKey: 'tabApproved' },
+  { key: 'rejected', labelKey: 'tabRejected' },
 ];
 
-const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  processing: { label: 'Đang xử lý', cls: 'bg-gray-100 text-gray-600' },
-  new: { label: 'Mới', cls: 'bg-blue-100 text-blue-700' },
-  reviewed: { label: 'Đã review', cls: 'bg-amber-100 text-amber-700' },
-  assigned: { label: 'Đã assign', cls: 'bg-purple-100 text-purple-700' },
-  pending: { label: 'Đang phỏng vấn', cls: 'bg-cyan-100 text-cyan-700' },
-  pending_feedback: { label: 'Đợi đánh giá', cls: 'bg-orange-100 text-orange-700' },
-  approved: { label: 'Đạt', cls: 'bg-emerald-100 text-emerald-700' },
-  rejected: { label: 'Từ chối', cls: 'bg-red-100 text-red-700' },
+const STATUS_BADGE: Record<string, { labelKey: string; cls: string }> = {
+  processing: { labelKey: 'statusProcessing', cls: 'bg-gray-100 text-gray-600' },
+  new: { labelKey: 'tabNew', cls: 'bg-blue-100 text-blue-700' },
+  reviewed: { labelKey: 'tabReviewed', cls: 'bg-amber-100 text-amber-700' },
+  assigned: { labelKey: 'tabAssigned', cls: 'bg-purple-100 text-purple-700' },
+  pending: { labelKey: 'statusInterviewing', cls: 'bg-cyan-100 text-cyan-700' },
+  pending_feedback: { labelKey: 'statusPendingFeedback', cls: 'bg-orange-100 text-orange-700' },
+  approved: { labelKey: 'tabApproved', cls: 'bg-emerald-100 text-emerald-700' },
+  rejected: { labelKey: 'tabRejected', cls: 'bg-red-100 text-red-700' },
 };
 
 function getCandidateBadge(c: Candidate) {
@@ -39,6 +40,7 @@ function getCandidateBadge(c: Candidate) {
 type SortKey = 'name' | 'score' | 'date';
 
 export function CandidatesPage() {
+  const { t } = useI18n();
   const { data: candidates, isLoading } = useCandidates();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<CandidateStatus | 'all'>('all');
@@ -92,25 +94,25 @@ export function CandidatesPage() {
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Ứng viên</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{all.length} ứng viên</p>
+          <h1 className="text-xl font-semibold text-text-primary">{t('candidates')}</h1>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{t('candidateCount', { count: all.length })}</p>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1">
-        {STATUS_TABS.map(t => {
-          const count = t.key === 'all' ? all.length : (counts[t.key] || 0);
-          const active = tab === t.key;
+        {STATUS_TABS.map(st => {
+          const count = st.key === 'all' ? all.length : (counts[st.key] || 0);
+          const active = tab === st.key;
           return (
             <button
-              key={t.key}
-              onClick={() => changeTab(t.key)}
+              key={st.key}
+              onClick={() => changeTab(st.key)}
               className={`px-3 py-1.5 rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors ${
                 active ? 'bg-accent text-white' : 'bg-bg-surface text-text-secondary hover:bg-bg-surface/80'
               }`}
             >
-              {t.label} <span className={`ml-1 ${active ? 'text-white/80' : 'text-text-muted'}`}>({count})</span>
+              {t(st.labelKey as any)} <span className={`ml-1 ${active ? 'text-white/80' : 'text-text-muted'}`}>({count})</span>
             </button>
           );
         })}
@@ -123,31 +125,31 @@ export function CandidatesPage() {
           <input
             value={search}
             onChange={e => changeSearch(e.target.value)}
-            placeholder="Tìm tên hoặc kỹ năng..."
+            placeholder={t('searchNameOrSkill')}
             className="w-full pl-9 pr-3 py-2 bg-bg-panel border border-border-subtle rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
         </div>
         <div className="flex items-center gap-2">
-          <SortButton label="Ngày" active={sortBy === 'date'} dir={sortDir} onClick={() => toggleSort('date')} />
-          <SortButton label="Score" active={sortBy === 'score'} dir={sortDir} onClick={() => toggleSort('score')} />
-          <SortButton label="Tên" active={sortBy === 'name'} dir={sortDir} onClick={() => toggleSort('name')} />
+          <SortButton label={t('sortDate')} active={sortBy === 'date'} dir={sortDir} onClick={() => toggleSort('date')} />
+          <SortButton label={t('score')} active={sortBy === 'score'} dir={sortDir} onClick={() => toggleSort('score')} />
+          <SortButton label={t('sortName')} active={sortBy === 'name'} dir={sortDir} onClick={() => toggleSort('name')} />
         </div>
       </div>
 
       {/* Table */}
       {filtered.length === 0 ? (
-        <EmptyState icon={Users} title="Không có ứng viên" description={search ? 'Thử từ khoá khác' : 'Upload CV để bắt đầu'} />
+        <EmptyState icon={Users} title={t('noCandidates')} description={search ? t('tryOtherKeywords') : t('uploadCvToStart')} />
       ) : (
         <>
           {/* Desktop table */}
           <div className="hidden md:block bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
             <div className="grid grid-cols-[1.2fr_1fr_100px_100px_100px_140px] gap-3 px-4 py-2.5 border-b border-border-subtle text-[11px] font-medium text-text-muted uppercase tracking-wide">
-              <span>Ứng viên</span>
-              <span>Job</span>
-              <span>Ngày tạo</span>
-              <span>Cập nhật</span>
-              <span>Status</span>
-              <span>Action</span>
+              <span>{t('candidateCol')}</span>
+              <span>{t('jobCol')}</span>
+              <span>{t('createdCol')}</span>
+              <span>{t('updatedCol')}</span>
+              <span>{t('statusCol')}</span>
+              <span>{t('actionCol')}</span>
             </div>
             <div className="divide-y divide-border-subtle">
               {paged.map(c => <CandidateRowDesktop key={c.id} candidate={c} />)}
@@ -209,6 +211,7 @@ export function CandidatesPage() {
 
 /* Desktop row */
 function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
+  const { t } = useI18n();
   const badge = getCandidateBadge(c);
   const navigate = useNavigate();
   const updateStatus = useUpdateCandidateStatus();
@@ -223,14 +226,14 @@ function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
           <p className="text-[13px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
           <p className="text-[11px] text-text-muted">
             {c.structuredData.skill_level && <span className="inline-flex items-center px-1.5 py-0 bg-purple-100 text-purple-700 text-[10px] font-bold rounded mr-1.5">{c.structuredData.skill_level.level}</span>}
-            {c.structuredData.totalYearsExperience ? `${c.structuredData.totalYearsExperience} năm KN` : ''}
+            {c.structuredData.totalYearsExperience ? t('yearsExpShort', { years: c.structuredData.totalYearsExperience }) : ''}
           </p>
         </div>
       </Link>
       <div className="text-[12px] text-text-secondary truncate">{c.jobTitle || '—'}</div>
       <div className="text-[12px] text-text-muted">{fmtDate(c.createdAt)}</div>
       <div className="text-[12px] text-text-muted">{fmtDate(c.updatedAt)}</div>
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium w-fit ${badge.cls}`}>{badge.label}</span>
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium w-fit ${badge.cls}`}>{t(badge.labelKey as any)}</span>
       <StatusAction status={c.status} candidateId={c.id} navigate={navigate} updateStatus={updateStatus} />
     </div>
   );
@@ -238,6 +241,7 @@ function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
 
 /* Mobile card */
 function CandidateRowMobile({ candidate: c }: { candidate: Candidate }) {
+  const { t } = useI18n();
   const badge = getCandidateBadge(c);
   const navigate = useNavigate();
   const updateStatus = useUpdateCandidateStatus();
@@ -253,11 +257,11 @@ function CandidateRowMobile({ candidate: c }: { candidate: Candidate }) {
             <p className="text-[14px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
             <p className="text-[12px] text-text-muted">
               {c.structuredData.skill_level && <span className="inline-flex items-center px-1.5 py-0 bg-purple-100 text-purple-700 text-[10px] font-bold rounded mr-1.5">{c.structuredData.skill_level.level}</span>}
-              {c.structuredData.totalYearsExperience ? `${c.structuredData.totalYearsExperience} năm KN` : ''}
+              {c.structuredData.totalYearsExperience ? t('yearsExpShort', { years: c.structuredData.totalYearsExperience }) : ''}
             </p>
           </div>
         </Link>
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${badge.cls}`}>{badge.label}</span>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${badge.cls}`}>{t(badge.labelKey as any)}</span>
       </div>
       <div className="flex items-center justify-between text-[12px] text-text-muted mt-2">
         <div className="flex items-center gap-3">
@@ -282,43 +286,44 @@ function StatusAction({ status, candidateId, navigate, updateStatus }: {
   navigate: (path: string) => void;
   updateStatus: ReturnType<typeof useUpdateCandidateStatus>;
 }) {
+  const { t } = useI18n();
   const base = 'flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors';
 
   switch (status) {
     case 'new':
       return (
         <button onClick={() => navigate(`/candidates/${candidateId}`)} className={`${base} bg-blue-50 text-blue-700 hover:bg-blue-100`}>
-          <Eye size={12} /> Review
+          <Eye size={12} /> {t('review')}
         </button>
       );
     case 'reviewed':
       return (
         <button onClick={() => navigate(`/jobs`)} className={`${base} bg-purple-50 text-purple-700 hover:bg-purple-100`}>
-          <Briefcase size={12} /> Assign Job
+          <Briefcase size={12} /> {t('assignJob')}
         </button>
       );
     case 'assigned':
       return (
         <button onClick={() => navigate(`/interviews`)} className={`${base} bg-cyan-50 text-cyan-700 hover:bg-cyan-100`}>
-          <Calendar size={12} /> Book PV
+          <Calendar size={12} /> {t('bookInterview')}
         </button>
       );
     case 'pending':
       return (
         <span className={`${base} bg-cyan-50 text-cyan-600`}>
-          <Calendar size={12} /> Chờ PV
+          <Calendar size={12} /> {t('waitingInterview')}
         </span>
       );
     case 'approved':
       return (
         <span className={`${base} bg-emerald-50 text-emerald-700`}>
-          <CheckCircle size={12} /> Hoàn thành
+          <CheckCircle size={12} /> {t('done')}
         </span>
       );
     case 'rejected':
       return (
         <span className={`${base} bg-red-50 text-red-600`}>
-          <XCircle size={12} /> Đã từ chối
+          <XCircle size={12} /> {t('rejected')}
         </span>
       );
     default:

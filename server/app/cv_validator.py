@@ -81,9 +81,29 @@ def validate_and_normalize(data: dict) -> tuple[dict, float]:
         languages = [{"language": languages, "level": "Unknown"}]
     data["languages"] = languages if isinstance(languages, list) else []
 
-    # Ensure insight exists
-    if not data.get("insight"):
-        data["insight"] = {"strengths": "", "weaknesses": "", "recommendation": ""}
+    # Normalize insight to {strengths: {en, vi}, weaknesses: {en, vi}}
+    insight = data.get("insight") or {}
+    if "strengths_en" in insight or "strengths_vi" in insight:
+        data["insight"] = {
+            "strengths": {"en": insight.get("strengths_en", ""), "vi": insight.get("strengths_vi", "")},
+            "weaknesses": {"en": insight.get("weaknesses_en", ""), "vi": insight.get("weaknesses_vi", "")},
+        }
+    elif not data.get("insight"):
+        data["insight"] = {"strengths": "", "weaknesses": ""}
+
+    # Normalize experience: role_en/vi → role: {en, vi}
+    for exp in data.get("experience", []):
+        if "role_en" in exp or "role_vi" in exp:
+            exp["role"] = {"en": exp.pop("role_en", ""), "vi": exp.pop("role_vi", "")}
+        if "description_en" in exp or "description_vi" in exp:
+            exp["description"] = {"en": exp.pop("description_en", ""), "vi": exp.pop("description_vi", "")}
+
+    # Normalize education: degree_en/vi → degree: {en, vi}
+    for edu in data.get("education", []):
+        if "degree_en" in edu or "degree_vi" in edu:
+            edu["degree"] = {"en": edu.pop("degree_en", ""), "vi": edu.pop("degree_vi", "")}
+        if "major_en" in edu or "major_vi" in edu:
+            edu["major"] = {"en": edu.pop("major_en", ""), "vi": edu.pop("major_vi", "")}
 
     confidence = score_factors / total_factors
     data["_parse_confidence"] = round(confidence, 2)

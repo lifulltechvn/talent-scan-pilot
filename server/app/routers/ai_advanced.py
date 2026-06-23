@@ -84,7 +84,13 @@ async def check_cv_authenticity(
     experience = d.get("experience", [])
     signals = []
     # Check description patterns
-    descriptions = [e.get("description", "") for e in experience if e.get("description")]
+    descriptions = []
+    for e in experience:
+        desc = e.get("description", "")
+        if isinstance(desc, dict):
+            desc = desc.get("en", "") or desc.get("vi", "")
+        if desc:
+            descriptions.append(desc)
     if descriptions:
         avg_len = sum(len(desc) for desc in descriptions) / len(descriptions)
         if avg_len > 150:
@@ -114,8 +120,8 @@ Detect these SPECIFIC patterns of AI-generated or fake CVs:
 5. FORMATTING: Human CVs have inconsistencies (typos, mixed formatting). AI-written ones are suspiciously perfect.
 6. LANGUAGE NATURALNESS: Real humans write "used Redis for caching" not "leveraged Redis to implement a distributed caching layer"
 
-Reply ONLY valid JSON:
-{{"score": <0-100, 100=authentic>, "verdict": "<authentic|suspicious|likely_ai>", "reasons": ["specific evidence 1", "specific evidence 2", ...], "red_flags": ["concrete flag with quote from CV"], "green_flags": ["concrete positive sign with quote"]}}"""
+Reply ONLY valid JSON (reasons, red_flags, green_flags in both Vietnamese and English):
+{{"score": <0-100, 100=authentic>, "verdict": "<authentic|suspicious|likely_ai>", "reasons": {{"vi": ["bằng chứng tiếng Việt"], "en": ["evidence in English"]}}, "red_flags": {{"vi": ["dấu hiệu nghi ngờ"], "en": ["suspicious sign"]}}, "green_flags": {{"vi": ["dấu hiệu tốt"], "en": ["good sign"]}}}}"""
 
     try:
         # Check cached result
@@ -123,7 +129,7 @@ Reply ONLY valid JSON:
         if cached and not force:
             return {"candidate_id": candidate_id, "candidate_name": d.get("name", "Unknown"), **cached}
 
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=800, feature="cv_authenticity", candidate_id=candidate_id)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1200, feature="cv_authenticity", candidate_id=candidate_id)
         logger.info(f"CV authenticity raw response: {result[:200]}")
         data = _parse_json_response(result)
         response = {
@@ -193,8 +199,8 @@ Analyze and provide:
 3. Consistency check (do scores align with notes?)
 4. Coaching tips for improvement
 
-Reply in JSON:
-{{"overall_quality": "<good|needs_improvement|poor>", "assessments": [{{"name": "...", "quality": "<good|fair|poor>", "issue": "...", "tip": "..."}}], "bias_warning": null or "...", "summary": "..."}}"""
+Reply in JSON (provide text fields in both Vietnamese and English):
+{{"overall_quality": "<good|needs_improvement|poor>", "assessments": [{{"name": "...", "quality": "<good|fair|poor>", "issue": {{"vi": "...", "en": "..."}}, "tip": {{"vi": "...", "en": "..."}}}}], "bias_warning": null or {{"vi": "...", "en": "..."}}, "summary": {{"vi": "...", "en": "..."}}}}"""
 
     try:
         result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="interview_coaching")
@@ -262,7 +268,7 @@ Analyze:
 5. TEAM FIT: Based on roles held, likely leadership/IC preference?
 
 Reply ONLY valid JSON:
-{{"retention_risk": "<low|medium|high>", "avg_tenure_years": {avg_tenure}, "career_trajectory": "<growing|lateral|declining|mixed>", "risk_factors": ["specific factor with evidence"], "strengths": ["specific strength with evidence"], "work_style": "<leader|individual_contributor|both>", "recommendation": "1 sentence actionable advice for HR"}}"""
+{{"retention_risk": "<low|medium|high>", "avg_tenure_years": {avg_tenure}, "career_trajectory": "<growing|lateral|declining|mixed>", "risk_factors": {{"vi": ["lý do tiếng Việt"], "en": ["reason in English"]}}, "strengths": {{"vi": ["điểm mạnh tiếng Việt"], "en": ["strength in English"]}}, "work_style": "<leader|individual_contributor|both>", "recommendation": {{"vi": "khuyến nghị tiếng Việt", "en": "recommendation in English"}}}}"""
 
     try:
         # Check cached result
@@ -287,3 +293,33 @@ Reply ONLY valid JSON:
     except Exception as e:
         logger.warning(f"Culture fit assessment failed: {e}")
         return {"candidate_id": candidate_id, "retention_risk": "unknown", "recommendation": "Assessment unavailable"}
+
+
+class TranslateRequest(BaseModel):
+    texts: dict[str, str]  # {"key": "text to translate", ...}
+    target_locale: str  # "en" | "vi" | "ja"
+
+
+@router.post("/translate")
+async def translate_texts(
+    body: TranslateRequest,
+    _user: User = Depends(get_current_user),
+):
+    """Translate AI-generated texts to target language. Uses Claude Haiku."""
+    locale_names = {"en": "English", "vi": "Vietnamese", "ja": "Japanese"}
+    lang = locale_names.get(body.target_locale, body.target_locale)
+
+    texts_json = json.dumps(body.texts, ensure_ascii=False)
+    prompt = f"""Translate the following JSON values to {lang}. Keep keys unchanged. Keep technical terms natural. Return ONLY valid JSON with same keys.
+
+{texts_json}"""
+
+    try:
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=2000, temperature=0.1, feature="translate")
+        text_resp = result.strip()
+        if text_resp.startswith("```"):
+            text_resp = text_resp.split("\n", 1)[1].rsplit("```", 1)[0]
+        return json.loads(text_resp)
+    except Exception as e:
+        logger.warning(f"Translation failed: {e}")
+        return body.texts  # fallback: return original

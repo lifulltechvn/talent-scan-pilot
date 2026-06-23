@@ -3,6 +3,7 @@
 SKILL_MAPS = {
     "application_engineer": {
         "title_vi": "Nhân viên phát triển phần mềm",
+        "title_ja": "アプリケーションエンジニア",
         "domains": [
             "Programming (Backend, Frontend, optimization, error handling, async/multi-thread)",
             "Data Store (SQL, NoSQL, encryption, tuning, backup, cloud services)",
@@ -18,18 +19,28 @@ SKILL_MAPS = {
             "Improvement Proposals (service optimization, market understanding)",
         ],
         "g_criteria": {
-            "G0": "Can build basic e-commerce page (no payment/security). Basic SQL (SELECT/JOIN). Can follow test docs. Basic OOP knowledge. Basic Linux. Understands why security matters. Basic HTML/CSS/JS.",
-            "G1": "Can code to specs. Knows data normalization. Creates normal testcases. Understands MVC pattern. Can explain server structure. Basic network knowledge. Handles validation/escape. Can complete tasks with schedule guidance.",
-            "G2": "Considers reusability, retry, error handling. Can use multiple data stores. Writes unit tests (C0/C1/C2). Applies SOLID/DRY/KISS. Can use middleware on Linux. Knows network troubleshooting. Can review code for security. Creates own schedule aligned with team. Analyzes data for own projects. Proposes improvements for a page/feature.",
-            "G3": "Optimizes memory/API calls, output logging for debugging. Designs data store (physical+logical). Reviews specs for security issues and non-functional requirements. Loose coupling architecture with sub-objects. Analyzes server/middleware performance. Proposes infra improvements. Designs secure auth (authentication vs authorization). Manages cross-browser, understands ES5+. Creates requirements from client needs. Creates project schedule with risk management. Proposes solutions for project success.",
-            "G4": "Async/multi-thread programming. Encryption, tuning, backup, fault tolerance. Creates test plans for large projects. Domain model + Cloud Native design. Evaluates and tunes server/middleware performance. Designs infra ensuring availability/maintainability/cost. Understands OAuth/SAML, designs full web system security. JIT optimization, UI-Thread mastery. Defines requirements within budget. Full project scheduling with team coordination. Data pipeline design. Proposes solutions for entire service.",
-            "G5": "Designs future-proof architecture meeting both technical and business requirements. Manages all data store lifecycle. Leads QA strategy. Serverless/Microservices/DDD/Clean architecture decisions. Builds sustainable optimization infrastructure. Designs recovery flows. Reviews and guides others on security. Cross-platform performance tuning. Long-term strategic proposals. Leads data analysis across multiple projects.",
+            "G0": "Có thể xây dựng trang e-commerce cơ bản (không có thanh toán/bảo mật). SQL cơ bản (SELECT/JOIN). Có thể làm theo tài liệu test. Hiểu OOP cơ bản. Linux cơ bản. Hiểu tại sao bảo mật quan trọng. HTML/CSS/JS cơ bản.",
+            "G1": "Có thể code theo specs. Biết chuẩn hoá dữ liệu. Tạo được testcase thông thường. Hiểu mô hình MVC. Có thể giải thích cấu trúc server. Kiến thức mạng cơ bản. Xử lý validation/escape. Hoàn thành công việc với hướng dẫn lịch trình.",
+            "G2": "Xem xét reusability, retry, xử lý lỗi. Sử dụng được nhiều loại data store. Viết unit test (C0/C1/C2). Áp dụng SOLID/DRY/KISS. Sử dụng middleware trên Linux. Biết troubleshoot mạng. Review code về bảo mật. Tự tạo lịch trình phù hợp team. Phân tích dữ liệu cho project của mình. Đề xuất cải tiến cho 1 trang/tính năng.",
+            "G3": "Tối ưu memory/API call, output logging để debug. Thiết kế data store (physical+logical). Review specs về bảo mật và yêu cầu phi chức năng. Kiến trúc loose coupling. Phân tích hiệu năng server/middleware. Đề xuất cải tiến hạ tầng. Thiết kế auth an toàn (authentication vs authorization). Quản lý cross-browser, hiểu ES5+. Tạo requirements từ nhu cầu khách hàng. Lập lịch dự án có quản lý rủi ro. Đề xuất giải pháp cho thành công dự án.",
+            "G4": "Lập trình async/multi-thread. Mã hoá, tuning, backup, fault tolerance. Tạo test plan cho dự án lớn. Domain model + Cloud Native design. Đánh giá và tune hiệu năng server/middleware. Thiết kế hạ tầng đảm bảo availability/maintainability/cost. Hiểu OAuth/SAML, thiết kế bảo mật toàn hệ thống web. JIT optimization, UI-Thread mastery. Xác định requirements trong budget. Lập lịch toàn dự án với phối hợp team. Thiết kế data pipeline. Đề xuất giải pháp cho toàn service.",
+            "G5": "Thiết kế kiến trúc bền vững đáp ứng cả yêu cầu kỹ thuật và kinh doanh. Quản lý toàn bộ lifecycle data store. Dẫn dắt chiến lược QA. Quyết định Serverless/Microservices/DDD/Clean architecture. Xây dựng hạ tầng tối ưu bền vững. Thiết kế recovery flow. Review và hướng dẫn người khác về bảo mật. Tuning hiệu năng cross-platform. Đề xuất chiến lược dài hạn. Dẫn dắt phân tích dữ liệu across nhiều dự án.",
+            "G6": "Dẫn dắt đổi mới kinh doanh, tạo giá trị mới cho toàn công ty.",
+        },
+        "g_criteria_en": {
+            "G0": "Can build basic e-commerce page (no payment/security). Basic SQL (SELECT/JOIN). Can follow test docs. Basic OOP. Basic Linux. Understands why security matters. Basic HTML/CSS/JS.",
+            "G1": "Can code to specs. Knows data normalization. Creates testcases. Understands MVC. Can explain server structure. Basic networking. Handles validation/escape. Completes tasks with schedule guidance.",
+            "G2": "Considers reusability, retry, error handling. Uses multiple data stores. Writes unit tests (C0/C1/C2). Applies SOLID/DRY/KISS. Uses middleware on Linux. Network troubleshooting. Reviews code for security. Creates own schedule aligned with team. Analyzes data for own projects. Proposes improvements.",
+            "G3": "Optimizes memory/API calls, logging for debugging. Designs data store (physical+logical). Reviews specs for security & non-functional requirements. Loose coupling architecture. Analyzes server/middleware performance. Proposes infra improvements. Designs secure auth. Manages cross-browser, ES5+. Creates requirements from client needs. Project scheduling with risk management.",
+            "G4": "Async/multi-thread programming. Encryption, tuning, backup, fault tolerance. Test plans for large projects. Domain model + Cloud Native. Tunes server/middleware performance. Designs infra for availability/cost. OAuth/SAML, full web security. JIT optimization, UI-Thread. Defines requirements within budget. Full project scheduling. Data pipeline design.",
+            "G5": "Future-proof architecture for technical and business needs. Full data store lifecycle management. Leads QA strategy. Serverless/Microservices/DDD/Clean architecture decisions. Sustainable optimization infra. Recovery flow design. Guides others on security. Cross-platform performance tuning. Long-term strategic proposals.",
             "G6": "Drives business innovation creating new value across the company.",
         },
         "key_skills": ["Python", "JavaScript", "TypeScript", "React", "Node.js", "SQL", "PostgreSQL", "Docker", "AWS", "Linux", "CI/CD", "Git", "REST API", "Microservices"],
     },
     "bridge_se": {
         "title_vi": "Kỹ sư cầu nối",
+        "title_ja": "ブリッジSE",
         "domains": [
             "Project coordination & facilitation (schedule management, resource planning)",
             "Communication (Japanese-Vietnamese bridge, stakeholder alignment)",
@@ -42,6 +53,7 @@ SKILL_MAPS = {
     },
     "qa_engineer": {
         "title_vi": "Nhân viên kiểm soát chất lượng",
+        "title_ja": "QAエンジニア",
         "domains": [
             "Test Planning (test strategy, scope, risk analysis, estimation)",
             "Test Case Design (equivalence partitioning, boundary value, condition coverage)",
@@ -56,6 +68,7 @@ SKILL_MAPS = {
     },
     "admin": {
         "title_vi": "Nhân viên hành chính",
+        "title_ja": "管理スタッフ",
         "domains": [
             "Labor procedures (onboarding, offboarding)",
             "External coordination (vendors, government agencies)",
@@ -69,6 +82,7 @@ SKILL_MAPS = {
     },
     "hr": {
         "title_vi": "Nhân viên nhân sự",
+        "title_ja": "人事スタッフ",
         "domains": [
             "Confidential information & security management",
             "Labor procedures (onboarding, offboarding, contracts)",
@@ -148,10 +162,11 @@ Candidate:
 - Roles: {roles}
 - Education: {education}
 
-Respond EXACTLY (3 lines):
+Respond EXACTLY (4 lines):
 CATEGORY: <application_engineer|bridge_se|qa_engineer|admin|hr>
 LEVEL: <G0|G1|G2|G3|G4|G5|G6>
-REASON: <In Vietnamese: Write 2-3 complete sentences. State which domains the candidate demonstrates, which key domains are missing, and conclude why this level is appropriate. Use professional language, complete sentences, no abbreviations or cut-off words.>"""
+REASON_VI: <2-3 câu tiếng Việt đầy đủ, chuyên nghiệp>
+REASON_EN: <2-3 complete sentences in English>"""
 
 
 def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, job_category: str | None = None) -> dict | None:
@@ -172,8 +187,8 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
     if not skills:
         return None
 
-    roles = ", ".join(f"{e.get('role', '')} @ {e.get('company', '')}" for e in experience[:3]) or "N/A"
-    edu_str = ", ".join(f"{e.get('degree', '')} {e.get('major', '')} ({e.get('school', '')})" for e in education[:2]) or "N/A"
+    roles = ", ".join(f"{e.get('role_en', '') or e.get('role', '')} @ {e.get('company', '')}" for e in experience[:3]) or "N/A"
+    edu_str = ", ".join(f"{e.get('degree_en', '') or e.get('degree', '')} {e.get('major_en', '') or e.get('major', '')} ({e.get('school', '')})" for e in education[:2]) or "N/A"
 
     if job_category and job_category in SKILL_MAPS:
         category_instruction = f"The candidate is being evaluated for the position category: {job_category} ({SKILL_MAPS[job_category]['title_vi']}). Use ONLY this category for assessment. Set CATEGORY to: {job_category}"
@@ -205,24 +220,38 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
     )
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="skill_level", candidate_id=candidate_id)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="skill_level", candidate_id=candidate_id)
         category = ""
         level = ""
-        reason = ""
+        reason_vi = ""
+        reason_en = ""
         for line in result.strip().split("\n"):
             if line.startswith("CATEGORY:"):
                 category = line.replace("CATEGORY:", "").strip()
             elif line.startswith("LEVEL:"):
                 level = line.replace("LEVEL:", "").strip()
+            elif line.startswith("REASON_VI:"):
+                reason_vi = line.replace("REASON_VI:", "").strip()
+            elif line.startswith("REASON_EN:"):
+                reason_en = line.replace("REASON_EN:", "").strip()
             elif line.startswith("REASON:"):
-                reason = line.replace("REASON:", "").strip()
+                reason_vi = line.replace("REASON:", "").strip()
         if level and category:
             # Enrich with description
             cat_data = SKILL_MAPS.get(category, {})
-            level_desc = cat_data.get("g_criteria", {}).get(level, "")
-            category_title = cat_data.get("title_vi", category)
+            level_desc_vi = cat_data.get("g_criteria", {}).get(level, "")
+            level_desc_en = cat_data.get("g_criteria_en", {}).get(level, "")
+            category_title_vi = cat_data.get("title_vi", category)
+            category_titles = {"vi": category_title_vi, "en": category.replace("_", " ").title(), "ja": cat_data.get("title_ja", category_title_vi)}
             domains = cat_data.get("domains", [])
-            return {"category": category, "level": level, "reason": reason, "level_description": level_desc, "category_title": category_title, "domains": domains}
+            return {
+                "category": category,
+                "level": level,
+                "reason": {"vi": reason_vi, "en": reason_en},
+                "level_description": {"vi": level_desc_vi, "en": level_desc_en},
+                "category_title": category_titles,
+                "domains": domains,
+            }
     except Exception as e:
         logger.warning(f"Skill level assessment failed: {e}")
     return None

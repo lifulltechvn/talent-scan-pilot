@@ -9,11 +9,11 @@ import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { mockTalentPool } from '@/data/mock/data/mock-interviews';
 import type { TalentPoolEntry } from '@/domain/models/talent-pool';
 
-const statusConfig: Record<TalentPoolEntry['status'], { label: string; icon: typeof Clock; color: string; bg: string }> = {
-  active: { label: 'Active', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50' },
-  rematched: { label: 'Re-matched', icon: RefreshCw, color: 'text-accent', bg: 'bg-orange-50' },
-  hired: { label: 'Hired', icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  expired: { label: 'Expired', icon: Clock, color: 'text-text-muted', bg: 'bg-gray-100' },
+const statusConfig: Record<TalentPoolEntry['status'], { icon: typeof Clock; color: string; bg: string }> = {
+  active: { icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50' },
+  rematched: { icon: RefreshCw, color: 'text-accent', bg: 'bg-orange-50' },
+  hired: { icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+  expired: { icon: Clock, color: 'text-text-muted', bg: 'bg-gray-100' },
 };
 
 type Filter = 'all' | TalentPoolEntry['status'];
@@ -32,9 +32,9 @@ export function TalentPoolPage() {
   const rematched = mockTalentPool.filter(tp => tp.status === 'rematched').length;
 
   const filters: { value: Filter; label: string }[] = [
-    { value: 'all', label: `All (${mockTalentPool.length})` },
-    { value: 'active', label: `Active (${active})` },
-    { value: 'rematched', label: `Re-matched (${rematched})` },
+    { value: 'all', label: `${t('all')} (${mockTalentPool.length})` },
+    { value: 'active', label: `${t('active')} (${active})` },
+    { value: 'rematched', label: `${t('rematched')} (${rematched})` },
   ];
 
   return (
@@ -42,7 +42,7 @@ export function TalentPoolPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">{t("navTalentPool")}</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{active} active candidates · Auto re-matched when new jobs are created</p>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{t('talentPoolSubtitle').replace('{count}', String(active))}</p>
         </div>
       </div>
 
@@ -51,21 +51,21 @@ export function TalentPoolPage() {
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1">
             <DatabaseZap size={14} className="text-blue-500" />
-            <span className="text-[11px] text-text-tertiary">In Pool</span>
+            <span className="text-[11px] text-text-tertiary">{t('inPool')}</span>
           </div>
           <span className="text-lg font-bold text-text-primary">{active}</span>
         </div>
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1">
             <RefreshCw size={14} className="text-accent" />
-            <span className="text-[11px] text-text-tertiary">Re-matched</span>
+            <span className="text-[11px] text-text-tertiary">{t('rematched')}</span>
           </div>
           <span className="text-lg font-bold text-text-primary">{rematched}</span>
         </div>
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1">
             <UserCheck size={14} className="text-emerald-500" />
-            <span className="text-[11px] text-text-tertiary">Avg Score</span>
+            <span className="text-[11px] text-text-tertiary">{t('avgScore')}</span>
           </div>
           <span className="text-lg font-bold text-text-primary">
             {Math.round(mockTalentPool.reduce((s, tp) => s + tp.score, 0) / mockTalentPool.length)}
@@ -113,7 +113,7 @@ export function TalentPoolPage() {
                 </div>
                 <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full', sc.bg, sc.color)}>
                   <StatusIcon size={11} />
-                  {sc.label}
+                  {t(tp.status as any)}
                 </span>
               </div>
 
@@ -146,7 +146,7 @@ export function TalentPoolPage() {
 
         {filtered.length === 0 && (
           <div className="col-span-2">
-            <EmptyState icon={DatabaseZap} title="No candidates in pool" description="Candidates scoring below threshold will be added here automatically" />
+            <EmptyState icon={DatabaseZap} title={t('noCandidatesInPool')} description={t('noCandidatesInPoolDescription')} />
           </div>
         )}
       </div>

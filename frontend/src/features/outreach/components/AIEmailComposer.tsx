@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Sparkles, Send, Loader2, X } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
+import { useI18n } from '@/shared/i18n';
 
 const PURPOSES = [
-  { value: 'interview_invite', label: '📅 Mời phỏng vấn' },
-  { value: 'outreach', label: '🚀 Outreach (mời ứng tuyển)' },
-  { value: 'follow_up', label: '🔄 Follow-up (sau phỏng vấn)' },
-  { value: 'rejection', label: '📝 Từ chối (kèm feedback)' },
-  { value: 'offer', label: '🎉 Gửi Offer' },
+  { value: 'interview_invite', labelKey: 'purposeInterviewInvite' as const },
+  { value: 'outreach', labelKey: 'purposeOutreach' as const },
+  { value: 'follow_up', labelKey: 'purposeFollowUp' as const },
+  { value: 'rejection', labelKey: 'purposeRejection' as const },
+  { value: 'offer', labelKey: 'purposeOffer' as const },
 ];
 
 const TONES = [
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function AIEmailComposer({ candidateId, candidateName, candidateEmail, jobTitle, onClose, onSent }: Props) {
+  const { t } = useI18n();
   const [purpose, setPurpose] = useState('outreach');
   const [tone, setTone] = useState('professional');
   const [extraContext, setExtraContext] = useState('');
@@ -57,12 +59,12 @@ export function AIEmailComposer({ candidateId, candidateName, candidateEmail, jo
       setClosing(data.closing);
       setSignature(data.signature);
       setGenerated(true);
-    } catch (e: any) { setError(e.response?.data?.detail || 'Không thể tạo email'); }
+    } catch (e: any) { setError(e.response?.data?.detail || t('cannotGenerateEmail')); }
     setGenerating(false);
   };
 
   const handleSend = async () => {
-    if (!toEmail) { setError('Cần email người nhận'); return; }
+    if (!toEmail) { setError(t('recipientRequired')); return; }
     setSending(true); setError('');
     try {
       await apiClient.post('/outreach/send', {
@@ -75,7 +77,7 @@ export function AIEmailComposer({ candidateId, candidateName, candidateEmail, jo
       });
       onSent?.();
       onClose();
-    } catch (e: any) { setError(e.response?.data?.detail || 'Gửi thất bại'); }
+    } catch (e: any) { setError(e.response?.data?.detail || t('sendFailed')); }
     setSending(false);
   };
 
@@ -86,7 +88,7 @@ export function AIEmailComposer({ candidateId, candidateName, candidateEmail, jo
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-white" />
-            <h2 className="text-[15px] font-semibold text-white">AI Email Writer</h2>
+            <h2 className="text-[15px] font-semibold text-white">{t('aiEmailWriter')}</h2>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
@@ -96,54 +98,54 @@ export function AIEmailComposer({ candidateId, candidateName, candidateEmail, jo
             <>
               {/* Step 1: Choose purpose + tone */}
               <div>
-                <label className="text-[12px] font-medium text-text-muted uppercase">Mục đích email</label>
+                <label className="text-[12px] font-medium text-text-muted uppercase">{t('emailPurpose')}</label>
                 <div className="mt-1.5 space-y-1.5">
                   {PURPOSES.map(p => (
                     <button key={p.value} onClick={() => setPurpose(p.value)} className={`w-full text-left px-3 py-2 text-[13px] rounded-lg border transition-colors ${purpose === p.value ? 'border-accent bg-accent/5 text-accent font-medium' : 'border-border-subtle text-text-secondary hover:bg-bg-surface'}`}>
-                      {p.label}
+                      {t(p.labelKey)}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="text-[12px] font-medium text-text-muted uppercase">Tone</label>
+                <label className="text-[12px] font-medium text-text-muted uppercase">{t('tone')}</label>
                 <div className="flex gap-2 mt-1.5">
-                  {TONES.map(t => (
-                    <button key={t.value} onClick={() => setTone(t.value)} className={`flex-1 py-2 text-[12px] font-medium rounded-lg border ${tone === t.value ? 'border-accent bg-accent/10 text-accent' : 'border-border-subtle text-text-muted'}`}>
-                      {t.label}
+                  {TONES.map(tn => (
+                    <button key={tn.value} onClick={() => setTone(tn.value)} className={`flex-1 py-2 text-[12px] font-medium rounded-lg border ${tone === tn.value ? 'border-accent bg-accent/10 text-accent' : 'border-border-subtle text-text-muted'}`}>
+                      {tn.label}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="text-[12px] font-medium text-text-muted uppercase">Ghi chú thêm cho AI (tuỳ chọn)</label>
-                <input value={extraContext} onChange={e => setExtraContext(e.target.value)} placeholder="VD: Nhấn mạnh remote work, mention lương..." className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
+                <label className="text-[12px] font-medium text-text-muted uppercase">{t('extraNotesForAI')}</label>
+                <input value={extraContext} onChange={e => setExtraContext(e.target.value)} placeholder={t('extraNotesPlaceholder')} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
               </div>
 
               {error && <p className="text-[12px] text-red-600">{error}</p>}
 
               <button onClick={generate} disabled={generating} className="w-full py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40 flex items-center justify-center gap-2">
-                {generating ? <><Loader2 size={14} className="animate-spin" /> AI đang viết...</> : <><Sparkles size={14} /> Tạo email cho {candidateName}</>}
+                {generating ? <><Loader2 size={14} className="animate-spin" /> {t('aiWriting')}</> : <><Sparkles size={14} /> {t('generateEmailFor', { name: candidateName })}</>}
               </button>
             </>
           ) : (
             <>
               {/* Step 2: Review + Edit + Send */}
               <div>
-                <label className="text-[12px] font-medium text-text-muted uppercase">Gửi đến</label>
+                <label className="text-[12px] font-medium text-text-muted uppercase">{t('sendToLabel')}</label>
                 <input value={toEmail} onChange={e => setToEmail(e.target.value)} placeholder="candidate@email.com" className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
               </div>
 
               <div>
-                <label className="text-[12px] font-medium text-text-muted uppercase">Subject</label>
+                <label className="text-[12px] font-medium text-text-muted uppercase">{t('subject')}</label>
                 <input value={subject} onChange={e => setSubject(e.target.value)} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px]" />
               </div>
 
               {/* Email Preview */}
               <div className="border border-border-subtle rounded-lg overflow-hidden">
-                <div className="bg-bg-surface px-4 py-2 text-[10px] text-text-muted uppercase font-medium">Preview</div>
+                <div className="bg-bg-surface px-4 py-2 text-[10px] text-text-muted uppercase font-medium">{t('preview')}</div>
                 <div className="p-4 space-y-3">
                   <input value={greeting} onChange={e => setGreeting(e.target.value)} className="w-full text-[13px] text-text-primary font-medium border-0 border-b border-dashed border-border-subtle pb-1 focus:outline-none focus:border-accent" />
                   <textarea value={body} onChange={e => setBody(e.target.value)} rows={4} className="w-full text-[13px] text-text-secondary border-0 border-b border-dashed border-border-subtle pb-2 focus:outline-none focus:border-accent resize-y" />
@@ -165,11 +167,11 @@ export function AIEmailComposer({ candidateId, candidateName, candidateEmail, jo
 
               <div className="flex gap-2">
                 <button onClick={() => setGenerated(false)} className="flex-1 py-2.5 text-[13px] font-medium text-text-secondary border border-border-subtle rounded-lg hover:bg-bg-surface">
-                  ← Tạo lại
+                  {t('regenerate')}
                 </button>
                 <button onClick={handleSend} disabled={sending} className="flex-1 py-2.5 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover disabled:opacity-40 flex items-center justify-center gap-2">
                   {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                  {sending ? 'Đang gửi...' : 'Gửi email'}
+                  {sending ? t('sending') : t('sendEmail')}
                 </button>
               </div>
             </>

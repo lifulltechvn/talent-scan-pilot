@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Users, Briefcase, Trophy, CalendarCheck, AlertTriangle, Clock, FileText, Plus, ArrowRight } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
 import { Badge } from '@/shared/components/ui/Badge';
+import { useI18n } from '@/shared/i18n';
 
 interface DashboardData {
   stats: {
@@ -28,6 +29,7 @@ const activityIcons: Record<string, string> = {
 };
 
 export function DashboardPage() {
+  const { t, locale } = useI18n();
   const [data, setData] = useState<DashboardData | null>(null);
   const [funnel, setFunnel] = useState<any>(null);
   const [weeklyStats, setWeeklyStats] = useState<any>(null);
@@ -52,7 +54,7 @@ export function DashboardPage() {
   );
 
   const { stats } = data;
-  const greeting = new Date().getHours() < 12 ? 'Chào buổi sáng' : new Date().getHours() < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
+  const greeting = new Date().getHours() < 12 ? t('greetingMorning') : new Date().getHours() < 18 ? t('greetingAfternoon') : t('greetingEvening');
 
   return (
     <div className="space-y-5">
@@ -60,20 +62,20 @@ export function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">{greeting}! 👋</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{new Date().toLocaleDateString('vi', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="text-[13px] text-text-tertiary mt-0.5">{new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
         <Link to="/cv-upload" className="flex items-center gap-1.5 px-4 py-2 bg-accent text-white text-[13px] font-medium rounded-lg hover:bg-accent-hover">
-          <Plus size={14} /> Upload CV
+          <Plus size={14} /> {t('uploadCv')}
         </Link>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard icon={FileText} label="CV mới tuần này" value={stats.new_this_week} color="text-blue-600" bg="bg-blue-50" />
-        <StatCard icon={Briefcase} label="Jobs đang tuyển" value={stats.active_jobs} color="text-accent" bg="bg-orange-50" />
-        <StatCard icon={Trophy} label="Ứng viên Gold" value={stats.gold_count} color="text-amber-600" bg="bg-amber-50" />
-        <StatCard icon={CalendarCheck} label="Phỏng vấn hôm nay" value={stats.interviews_today} color="text-emerald-600" bg="bg-emerald-50" />
-        <StatCard icon={AlertTriangle} label="Cần hành động" value={stats.need_review + stats.need_feedback + stats.pending_duplicates} color="text-red-600" bg="bg-red-50" />
+        <StatCard icon={FileText} label={t('newCvsThisWeek')} value={stats.new_this_week} color="text-blue-600" bg="bg-blue-50" />
+        <StatCard icon={Briefcase} label={t("activeJobs")} value={stats.active_jobs} color="text-accent" bg="bg-orange-50" />
+        <StatCard icon={Trophy} label={t("goldCandidates")} value={stats.gold_count} color="text-amber-600" bg="bg-amber-50" />
+        <StatCard icon={CalendarCheck} label={t("todayInterviews")} value={stats.interviews_today} color="text-emerald-600" bg="bg-emerald-50" />
+        <StatCard icon={AlertTriangle} label={t('needAction')} value={stats.need_review + stats.need_feedback + stats.pending_duplicates} color="text-red-600" bg="bg-red-50" />
       </div>
 
       {/* Hiring Funnel & Weekly Stats */}
@@ -81,14 +83,16 @@ export function DashboardPage() {
         {/* Hiring Funnel */}
         {funnel && (
           <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-            <h2 className="text-sm font-medium text-text-primary mb-4">Hiring Funnel</h2>
+            <h2 className="text-sm font-medium text-text-primary mb-4">{t('hiringFunnel')}</h2>
             <div className="space-y-2">
               {funnel.funnel.map((stage: any, i: number) => {
                 const maxCount = funnel.funnel[0]?.count || 1;
                 const pct = maxCount ? Math.round((stage.count / maxCount) * 100) : 0;
                 return (
                   <div key={stage.stage} className="flex items-center gap-3">
-                    <span className="text-[11px] text-text-muted w-24 shrink-0">{stage.stage}</span>
+                    <span className="text-[11px] text-text-muted w-24 shrink-0">{
+                      ({Total_CVs: t('totalCVs'), Reviewed: t('statusReviewed'), Approved: t('statusApproved'), Interviewed: t('interviewsTitle'), Hired: t('hired')} as any)[stage.stage.replace(' ', '_')] || stage.stage
+                    }</span>
                     <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full rounded-full bg-accent/70 transition-all" style={{ width: `${pct}%` }} />
                     </div>
@@ -98,9 +102,9 @@ export function DashboardPage() {
               })}
             </div>
             <div className="flex gap-4 mt-4 pt-3 border-t border-border-subtle text-[11px] text-text-muted">
-              <span>Approval: <strong className="text-emerald-600">{funnel.approval_rate}%</strong></span>
-              <span>Rejection: <strong className="text-red-500">{funnel.rejection_rate}%</strong></span>
-              <span>Interview: <strong className="text-blue-600">{funnel.interview_rate}%</strong></span>
+              <span>{t('approval')}: <strong className="text-emerald-600">{funnel.approval_rate}%</strong></span>
+              <span>{t('rejection')}: <strong className="text-red-500">{funnel.rejection_rate}%</strong></span>
+              <span>{t('interview')}: <strong className="text-blue-600">{funnel.interview_rate}%</strong></span>
             </div>
           </div>
         )}
@@ -108,7 +112,7 @@ export function DashboardPage() {
         {/* Weekly Stats */}
         {weeklyStats && (
           <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-            <h2 className="text-sm font-medium text-text-primary mb-4">Thống kê 4 tuần</h2>
+            <h2 className="text-sm font-medium text-text-primary mb-4">{t('weeklyStats')}</h2>
             <div className="space-y-3">
               {weeklyStats.weeks.map((w: any) => (
                 <div key={w.week} className="flex items-center gap-3">
@@ -136,23 +140,23 @@ export function DashboardPage() {
           {/* Action items */}
           {(stats.need_review > 0 || stats.need_feedback > 0 || stats.pending_duplicates > 0) && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <h2 className="text-sm font-medium text-amber-800 mb-3 flex items-center gap-2"><AlertTriangle size={14} /> Cần hành động</h2>
+              <h2 className="text-sm font-medium text-amber-800 mb-3 flex items-center gap-2"><AlertTriangle size={14} /> {t('needAction')}</h2>
               <div className="space-y-2">
                 {stats.need_review > 0 && (
                   <Link to="/candidates" className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-amber-100 hover:border-accent/30">
-                    <span className="text-[13px] text-text-primary">📋 {stats.need_review} ứng viên chưa review</span>
+                    <span className="text-[13px] text-text-primary">{t('unreviewedCount', { count: stats.need_review })}</span>
                     <ArrowRight size={14} className="text-text-muted" />
                   </Link>
                 )}
                 {stats.need_feedback > 0 && (
                   <Link to="/interviews" className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-amber-100 hover:border-accent/30">
-                    <span className="text-[13px] text-text-primary">⭐ {stats.need_feedback} phỏng vấn cần feedback</span>
+                    <span className="text-[13px] text-text-primary">{t('needFeedbackCount', { count: stats.need_feedback })}</span>
                     <ArrowRight size={14} className="text-text-muted" />
                   </Link>
                 )}
                 {stats.pending_duplicates > 0 && (
                   <Link to="/cv-upload" className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-amber-100 hover:border-accent/30">
-                    <span className="text-[13px] text-text-primary">⚠️ {stats.pending_duplicates} CV trùng cần xử lý</span>
+                    <span className="text-[13px] text-text-primary">{t('duplicateCvCount', { count: stats.pending_duplicates })}</span>
                     <ArrowRight size={14} className="text-text-muted" />
                   </Link>
                 )}
@@ -163,8 +167,8 @@ export function DashboardPage() {
           {/* Recent candidates */}
           <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
-              <h2 className="text-sm font-medium text-text-primary">Ứng viên gần đây</h2>
-              <Link to="/candidates" className="text-[11px] text-accent hover:underline">Xem tất cả →</Link>
+              <h2 className="text-sm font-medium text-text-primary">{t('recentCandidatesTitle')}</h2>
+              <Link to="/candidates" className="text-[11px] text-accent hover:underline">{t('viewAll')} →</Link>
             </div>
             <div className="divide-y divide-border-subtle">
               {data.recent_candidates.map(c => (
@@ -175,7 +179,7 @@ export function DashboardPage() {
                     </div>
                     <div>
                       <div className="text-[13px] font-medium text-text-primary">{c.name}</div>
-                      <div className="text-[11px] text-text-muted">{c.job_title || 'Chưa match job'}</div>
+                      <div className="text-[11px] text-text-muted">{c.job_title || t('noJobMatch')}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -186,7 +190,7 @@ export function DashboardPage() {
                 </Link>
               ))}
               {data.recent_candidates.length === 0 && (
-                <div className="px-4 py-6 text-center text-[13px] text-text-muted">Chưa có ứng viên</div>
+                <div className="px-4 py-6 text-center text-[13px] text-text-muted">{t('noCandidatesYet')}</div>
               )}
             </div>
           </div>
@@ -194,20 +198,20 @@ export function DashboardPage() {
           {/* Jobs overview */}
           <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
-              <h2 className="text-sm font-medium text-text-primary">Jobs đang tuyển</h2>
-              <Link to="/jobs" className="text-[11px] text-accent hover:underline">Xem tất cả →</Link>
+              <h2 className="text-sm font-medium text-text-primary">{t('jobsRecruiting')}</h2>
+              <Link to="/jobs" className="text-[11px] text-accent hover:underline">{t('viewAll')} →</Link>
             </div>
             <div className="divide-y divide-border-subtle">
               {data.jobs_overview.map(j => (
                 <Link key={j.id} to={`/jobs/${j.id}`} className="flex items-center justify-between px-4 py-3 hover:bg-bg-surface/50 transition-colors">
                   <div>
                     <div className="text-[13px] font-medium text-text-primary">{j.title}</div>
-                    {j.deadline && <div className="text-[10px] text-text-muted">Deadline: {new Date(j.deadline).toLocaleDateString('vi')}</div>}
+                    {j.deadline && <div className="text-[10px] text-text-muted">Deadline: {new Date(j.deadline).toLocaleDateString(locale)}</div>}
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <div className="text-[13px] font-medium text-text-primary">{j.candidate_count}</div>
-                      <div className="text-[10px] text-text-muted">ứng viên</div>
+                      <div className="text-[10px] text-text-muted">{t('candidateCount')}</div>
                     </div>
                     {j.gold > 0 && (
                       <div className="text-right">
@@ -219,7 +223,7 @@ export function DashboardPage() {
                 </Link>
               ))}
               {data.jobs_overview.length === 0 && (
-                <div className="px-4 py-6 text-center text-[13px] text-text-muted">Chưa có job</div>
+                <div className="px-4 py-6 text-center text-[13px] text-text-muted">{t('noJobsYet')}</div>
               )}
             </div>
           </div>
@@ -230,10 +234,10 @@ export function DashboardPage() {
           {/* Today's interviews */}
           <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
             <h2 className="text-sm font-medium text-text-primary mb-3 flex items-center gap-2">
-              <CalendarCheck size={14} className="text-accent" /> Phỏng vấn hôm nay
+              <CalendarCheck size={14} className="text-accent" /> {t('todayInterviews')}
             </h2>
             {data.today_interviews.length === 0 ? (
-              <p className="text-[12px] text-text-muted py-2">Không có lịch phỏng vấn</p>
+              <p className="text-[12px] text-text-muted py-2">{t('noInterviewsToday')}</p>
             ) : (
               <div className="space-y-2">
                 {data.today_interviews.map(i => (
@@ -241,7 +245,7 @@ export function DashboardPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-[12px] font-medium text-text-primary">{i.candidate_name}</span>
                       <span className="text-[10px] text-accent font-medium">
-                        {new Date(i.start_time).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(i.start_time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                     <div className="text-[10px] text-text-muted mt-0.5">{i.job_title || i.title}</div>
@@ -254,7 +258,7 @@ export function DashboardPage() {
           {/* Activity feed */}
           <div className="bg-bg-panel border border-border-subtle rounded-xl p-4">
             <h2 className="text-sm font-medium text-text-primary mb-3 flex items-center gap-2">
-              <Clock size={14} className="text-text-muted" /> Hoạt động gần đây
+              <Clock size={14} className="text-text-muted" /> {t('recentActivity')}
             </h2>
             <div className="space-y-2.5">
               {data.activity.map((a, i) => (
@@ -262,11 +266,11 @@ export function DashboardPage() {
                   <span className="text-[12px] shrink-0">{activityIcons[a.type] || '•'}</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-[12px] text-text-secondary truncate">{a.detail}</div>
-                    <div className="text-[10px] text-text-muted">{formatTimeAgo(a.created_at)}</div>
+                    <div className="text-[10px] text-text-muted">{formatTimeAgo(a.created_at, t)}</div>
                   </div>
                 </div>
               ))}
-              {data.activity.length === 0 && <p className="text-[12px] text-text-muted">Chưa có hoạt động</p>}
+              {data.activity.length === 0 && <p className="text-[12px] text-text-muted">{t('noData')}</p>}
             </div>
           </div>
         </div>
@@ -287,12 +291,12 @@ function StatCard({ icon: Icon, label, value, color, bg }: { icon: any; label: s
   );
 }
 
-function formatTimeAgo(iso: string): string {
+function formatTimeAgo(iso: string, t: (key: any, params?: any) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins} phút trước`;
+  if (mins < 60) return t('minutesAgo', { count: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} giờ trước`;
+  if (hours < 24) return t('hoursAgo', { count: hours });
   const days = Math.floor(hours / 24);
-  return `${days} ngày trước`;
+  return t('daysAgo', { count: days });
 }
