@@ -25,6 +25,7 @@ function mapCandidate(raw: any, score?: Score | null): Candidate {
       address: raw.structured_data?.address ?? null,
       date_of_birth: raw.structured_data?.date_of_birth ?? null,
       _parse_confidence: raw.structured_data?._parse_confidence ?? null,
+      _ai_authenticity: raw.structured_data?._ai_authenticity ?? null,
       skill_level: raw.structured_data?.skill_level ?? null,
     },
     status: raw.status,

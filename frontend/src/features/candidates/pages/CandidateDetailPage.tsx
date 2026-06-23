@@ -544,7 +544,7 @@ export function CandidateDetailPage() {
                 </div>
               )}
               {candidate.cvFilePath && (
-                <CvAuthenticityButton candidateId={candidate.id} cachedResult={d._ai_cv_authenticity} />
+                <CvAuthenticityButton candidateId={candidate.id} cachedResult={d._ai_authenticity} />
               )}
 
             </div>
