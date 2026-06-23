@@ -29,6 +29,7 @@ export const ja: Record<TranslationKey, string> = {
   navTalentPool: 'タレントプール',
   navOutreach: 'メール送信',
   navCvUpload: 'CVアップロード',
+  navBlacklist: 'ブラックリスト',
   navSettings: '設定',
 
   // Dashboard

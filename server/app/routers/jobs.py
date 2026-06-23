@@ -346,6 +346,8 @@ async def assign_candidate_to_job(
     candidate = result.scalar_one_or_none()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
+    if candidate.status == 'blacklisted':
+        raise HTTPException(status_code=400, detail="Candidate is blacklisted")
 
     # Update job_candidates status to 'assigned'
     await db.execute(text("""

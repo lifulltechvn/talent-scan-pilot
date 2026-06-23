@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone, Eye, Globe, AlertTriangle, Shield, Loader2 } from 'lucide-react';
 import { useCandidate, useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
@@ -160,8 +161,8 @@ function CvAuthenticityButton({ candidateId, cachedResult }: { candidateId: stri
       <button onClick={handleCheck} disabled={loading} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[12px] font-medium text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors disabled:opacity-40">
         {loading ? <><Loader2 size={13} className="animate-spin" /> {t("checking")}</> : <><Shield size={13} /> {t("checkCvAi")}</>}
       </button>
-      {showPopup && result && !result.error && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowPopup(false)}>
+      {showPopup && result && !result.error && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={() => setShowPopup(false)}>
           <div className="bg-white rounded-xl shadow-2xl w-80 p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-text-primary">{t("checkCvAi")}</h3>
@@ -187,7 +188,7 @@ function CvAuthenticityButton({ candidateId, cachedResult }: { candidateId: stri
             <button onClick={() => setShowPopup(false)} className="w-full py-2 text-[12px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5">{t("close")}</button>
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 }
@@ -203,6 +204,7 @@ export function CandidateDetailPage() {
   const { confirm } = useConfirm();
   const [cvBlobUrl, setCvBlobUrl] = useState<string | null>(null);
   const [emailModal, setEmailModal] = useState(false);
+  const [blacklistModal, setBlacklistModal] = useState(false);
 
   // Find prev/next candidates
   const candidateIds = allCandidates?.map(c => c.id) ?? [];
@@ -461,7 +463,9 @@ export function CandidateDetailPage() {
       </div>
 
       {/* Matched Jobs (Smart Pool) */}
-      <MatchedJobsSection candidateId={id!} hasAssignedJob={!!candidate.jobId} />
+      {candidate.status !== 'blacklisted' && (
+        <MatchedJobsSection candidateId={id!} hasAssignedJob={!!candidate.jobId} />
+      )}
 
       {/* Timeline */}
       <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mt-5">
@@ -510,12 +514,16 @@ export function CandidateDetailPage() {
             </div>
 
             {/* Edit parsed data */}
+            {candidate.status !== 'blacklisted' && (
             <div className="border-t border-border-subtle pt-2 mb-2">
               <EditCandidateData candidateId={candidate.id} data={d} />
             </div>
+            )}
 
             {/* Actions */}
             <div className="space-y-2">
+              {candidate.status !== 'blacklisted' && (
+              <>
               <button onClick={() => setEmailModal(true)} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
                 <Sparkles size={14} /> AI Email
               </button>
@@ -546,8 +554,26 @@ export function CandidateDetailPage() {
                   </button>
                 </div>
               )}
-              {candidate.cvFilePath && (
-                <CvAuthenticityButton candidateId={candidate.id} cachedResult={d._ai_cv_authenticity} />
+              </>
+              )}
+              {candidate.status !== 'blacklisted' && candidate.cvFilePath && (
+                <CvAuthenticityButton candidateId={candidate.id} cachedResult={d._ai_authenticity} />
+              )}
+              {candidate.status !== 'blacklisted' ? (
+                <button onClick={() => setBlacklistModal(true)} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[12px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                  🚫 Blacklist
+                </button>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="text-center text-[11px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">🚫 Blacklisted</div>
+                  <button onClick={async () => {
+                    const ok = await confirm({ title: 'Gỡ Blacklist', message: `Gỡ blacklist cho ${d.name}?`, confirmLabel: 'Gỡ blacklist', variant: 'danger' });
+                    if (!ok) return;
+                    await apiClient.post(`/candidates/${candidate.id}/unblacklist`);
+                    toast('success', 'Đã gỡ blacklist');
+                    window.location.reload();
+                  }} className="w-full text-[11px] text-text-muted hover:text-accent text-center">Gỡ blacklist</button>
+                </div>
               )}
 
             </div>
@@ -566,6 +592,9 @@ export function CandidateDetailPage() {
           onSent={() => toast('success', '✓')}
         />
       )}
+
+      {/* Blacklist Modal */}
+      {blacklistModal && <BlacklistModal candidateId={candidate.id} candidateName={d.name} onClose={() => setBlacklistModal(false)} onDone={() => { toast('success', 'Đã blacklist ứng viên'); window.location.reload(); }} />}
 
       {/* CV Preview Modal */}
       {cvBlobUrl && (
@@ -818,5 +847,38 @@ function MissingInfoPanel({ data }: { data: any }) {
       </div>
       <p className="text-[11px] text-amber-600 mt-2">{t("missingInfoNote")}</p>
     </div>
+  );
+}
+
+function BlacklistModal({ candidateId, candidateName, onClose, onDone }: { candidateId: string; candidateName: string; onClose: () => void; onDone: () => void }) {
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!reason.trim()) return;
+    setSaving(true);
+    try {
+      await apiClient.post(`/candidates/${candidateId}/blacklist`, { reason });
+      onDone();
+    } catch { }
+    setSaving(false);
+  };
+
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-96 p-5" onClick={e => e.stopPropagation()}>
+        <h3 className="text-[15px] font-semibold text-text-primary mb-1">🚫 Blacklist ứng viên</h3>
+        <p className="text-[12px] text-text-muted mb-4">Ứng viên <strong>{candidateName}</strong> sẽ bị chặn vĩnh viễn khỏi suggest, matching.</p>
+        <label className="text-[11px] font-medium text-text-muted uppercase">Lý do *</label>
+        <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} autoFocus className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder="VD: Fake CV, thái độ xấu, vi phạm NDA..." />
+        <div className="flex gap-2 mt-4">
+          <button onClick={handleSubmit} disabled={saving || !reason.trim()} className="flex-1 py-2.5 bg-red-600 text-white text-[13px] font-medium rounded-lg hover:bg-red-700 disabled:opacity-40">
+            {saving ? 'Đang xử lý...' : 'Xác nhận Blacklist'}
+          </button>
+          <button onClick={onClose} className="px-4 py-2.5 text-[13px] text-text-muted border border-border-subtle rounded-lg hover:bg-bg-surface">Huỷ</button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }

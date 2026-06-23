@@ -122,18 +122,19 @@ def _process_item_sync(batch_id: str, row: dict):
         sf = async_sessionmaker(engine, expire_on_commit=False)
         try:
             async with sf() as db:
-                # Check duplicate by hash
+                # Check duplicate by hash (prioritize blacklist detection)
                 existing = await db.execute(text(
-                    "SELECT id, structured_data->>'name' as name FROM candidates WHERE cv_hash = :h"
+                    "SELECT id, structured_data->>'name' as name, status FROM candidates WHERE cv_hash = :h"
                 ), {"h": file_hash})
                 dup = existing.mappings().first()
 
                 if dup:
+                    reason = 'blacklisted' if dup["status"] == 'blacklisted' else 'hash_match'
                     await db.execute(text("""
-                        UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id, duplicate_reason = 'hash_match' WHERE id = :id
-                    """), {"dup_id": str(dup["id"]), "id": item_id})
+                        UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id, duplicate_reason = :reason WHERE id = :id
+                    """), {"dup_id": str(dup["id"]), "reason": reason, "id": item_id})
                     await db.commit()
-                    print(f"[TIMING] {file_name}: DUP {time.time()-t0:.1f}s", flush=True)
+                    print(f"[TIMING] {file_name}: {reason} {time.time()-t0:.1f}s", flush=True)
                     return
 
                 # Extract

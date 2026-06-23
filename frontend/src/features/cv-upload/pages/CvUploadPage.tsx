@@ -149,7 +149,8 @@ export function CvUploadPage() {
     handleFiles(e.dataTransfer.files);
   }, []);
 
-  const duplicates = batch?.items.filter(i => i.status === 'duplicate') ?? [];
+  const duplicates = batch?.items.filter(i => i.status === 'duplicate' && i.duplicate_reason !== 'blacklisted') ?? [];
+  const blacklisted = batch?.items.filter(i => i.status === 'duplicate' && i.duplicate_reason === 'blacklisted') ?? [];
   const done = batch?.items.filter(i => i.status === 'done') ?? [];
   const errors = batch?.items.filter(i => i.status === 'error') ?? [];
   const processing = batch?.items.filter(i => i.status === 'pending') ?? [];
@@ -217,7 +218,7 @@ export function CvUploadPage() {
           </div>
 
           {/* Summary cards */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-emerald-600">{done.length}</div>
               <div className="text-[10px] text-text-muted">{t('successCount')}</div>
@@ -225,6 +226,10 @@ export function CvUploadPage() {
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-amber-600">{duplicates.length}</div>
               <div className="text-[10px] text-text-muted">{t('duplicateCount')}</div>
+            </div>
+            <div className="bg-bg-panel border border-red-200 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold text-red-600">{blacklisted.length}</div>
+              <div className="text-[10px] text-red-600">Blacklisted</div>
             </div>
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-red-600">{errors.length}</div>
@@ -261,6 +266,25 @@ export function CvUploadPage() {
             </div>
           )}
 
+          {/* Blacklisted section */}
+          {blacklisted.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[13px] font-medium text-red-800">🚫 Blacklisted ({blacklisted.length})</span>
+              </div>
+              <div className="space-y-1.5">
+                {blacklisted.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-red-100">
+                    <div>
+                      <div className="text-[12px] font-medium text-text-primary">{item.file_name}</div>
+                      <div className="text-[10px] text-red-600">Ứng viên <strong>{item.duplicate_name}</strong> đã bị blacklist</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Duplicates section */}
           {duplicates.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
@@ -292,12 +316,13 @@ export function CvUploadPage() {
                         <div className="min-w-0 flex-1">
                           <div className="text-[12px] font-medium text-text-primary truncate">{item.file_name}</div>
                           <div className="text-[10px] text-text-muted">
+                            {item.duplicate_reason === 'blacklisted' && <span className="text-red-600 font-medium">🚫 Ứng viên đã bị Blacklist: </span>}
                             {item.duplicate_reason === 'hash_match' && t('hashMatch')}
                             {item.duplicate_reason === 'email_match' && t('emailMatch')}
                             {item.duplicate_reason === 'phone_match' && t('phoneMatch')}
                             {!item.duplicate_reason && t('duplicateWith')}
                             <span className="font-medium">{item.duplicate_name}</span>
-                            {item.duplicate_status && <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-medium ${item.duplicate_status === 'rejected' ? 'bg-red-100 text-red-700' : item.duplicate_status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{item.duplicate_status}</span>}
+                            {item.duplicate_status && item.duplicate_reason !== 'blacklisted' && <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-medium ${item.duplicate_status === 'rejected' ? 'bg-red-100 text-red-700' : item.duplicate_status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{item.duplicate_status}</span>}
                             {item.duplicate_of && <Link to={`/candidates/${item.duplicate_of}`} className="text-accent ml-1 hover:underline">{t('view')}</Link>}
                           </div>
                           {item.duplicate_details && (
