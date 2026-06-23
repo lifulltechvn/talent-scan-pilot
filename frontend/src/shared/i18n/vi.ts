@@ -29,6 +29,7 @@ export const vi: Record<TranslationKey, string> = {
   navTalentPool: 'Talent Pool',
   navOutreach: 'Email',
   navCvUpload: 'Upload CV',
+  navBlacklist: 'Blacklist',
   navSettings: 'Cài đặt',
 
   // Dashboard
