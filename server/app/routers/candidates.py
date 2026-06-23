@@ -153,6 +153,58 @@ async def list_candidates(
     return out
 
 
+@router.post("/{candidate_id}/blacklist")
+async def blacklist_candidate(
+    candidate_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Add candidate to blacklist."""
+    from sqlalchemy import text as sqt
+    reason = body.get("reason", "")
+    if not reason:
+        raise HTTPException(400, "Reason is required")
+    await db.execute(sqt("""
+        UPDATE candidates SET status = 'blacklisted', blacklist_reason = :reason,
+            blacklisted_at = NOW(), blacklisted_by = :uid WHERE id = :cid
+    """), {"reason": reason, "uid": str(user.id), "cid": str(candidate_id)})
+    await db.commit()
+    return {"status": "blacklisted"}
+
+
+@router.post("/{candidate_id}/unblacklist")
+async def unblacklist_candidate(
+    candidate_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Remove candidate from blacklist."""
+    from sqlalchemy import text as sqt
+    await db.execute(sqt("""
+        UPDATE candidates SET status = 'reviewed', blacklist_reason = NULL,
+            blacklisted_at = NULL, blacklisted_by = NULL WHERE id = :cid
+    """), {"cid": str(candidate_id)})
+    await db.commit()
+    return {"status": "unblacklisted"}
+
+
+@router.get("/blacklist")
+async def get_blacklisted(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Get all blacklisted candidates."""
+    from sqlalchemy import text as sqt
+    rows = await db.execute(sqt("""
+        SELECT c.id, c.structured_data->>'name' as name, c.structured_data->>'email' as email,
+            c.blacklist_reason, c.blacklisted_at, u.full_name as blacklisted_by_name
+        FROM candidates c LEFT JOIN users u ON u.id = c.blacklisted_by
+        WHERE c.status = 'blacklisted' ORDER BY c.blacklisted_at DESC
+    """))
+    return [dict(r) for r in rows.mappings().all()]
+
+
 @router.get("/export")
 async def export_candidates(
     format: str = Query("csv", regex="^(csv|excel)$"),

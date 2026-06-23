@@ -547,6 +547,26 @@ export function CandidateDetailPage() {
               {candidate.cvFilePath && (
                 <CvAuthenticityButton candidateId={candidate.id} cachedResult={d._ai_authenticity} />
               )}
+              {candidate.status !== 'blacklisted' ? (
+                <button onClick={async () => {
+                  const reason = prompt('Lý do blacklist:');
+                  if (!reason) return;
+                  await apiClient.post(`/candidates/${candidate.id}/blacklist`, { reason });
+                  toast('success', 'Đã blacklist ứng viên');
+                  window.location.reload();
+                }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[12px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                  🚫 Blacklist
+                </button>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="text-center text-[11px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">🚫 Blacklisted</div>
+                  <button onClick={async () => {
+                    await apiClient.post(`/candidates/${candidate.id}/unblacklist`);
+                    toast('success', 'Đã gỡ blacklist');
+                    window.location.reload();
+                  }} className="w-full text-[11px] text-text-muted hover:text-accent text-center">Gỡ blacklist</button>
+                </div>
+              )}
 
             </div>
           </div>
