@@ -3,10 +3,13 @@ import { Loader2, X, ChevronDown, ChevronRight, BookOpen, CheckCircle, AlertTria
 import { apiClient } from '@/data/api/client';
 
 const CATEGORY_META: Record<string, { label: string; icon: string }> = {
-  programming: { label: 'Programming', icon: '💻' },
-  architecture: { label: 'Architecture', icon: '🏗️' },
-  technical: { label: 'Technical', icon: '⚙️' },
+  programming: { label: 'Coding', icon: '💻' },
+  system_design: { label: 'System Design', icon: '📐' },
+  tech_stack: { label: 'Tech Stack', icon: '⚙️' },
+  testing: { label: 'Testing & Debug', icon: '🧪' },
   security: { label: 'Security', icon: '🔒' },
+  devops: { label: 'DevOps / CI/CD', icon: '🚀' },
+  problem_solving: { label: 'Problem Solving', icon: '🔥' },
   soft_skills: { label: 'Soft Skills', icon: '🤝' },
 };
 

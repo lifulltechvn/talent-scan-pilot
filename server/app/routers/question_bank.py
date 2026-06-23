@@ -15,7 +15,7 @@ from app.models import Candidate, User
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/question-bank", tags=["question-bank"])
 
-CATEGORIES = ["programming", "architecture", "technical", "security", "soft_skills"]
+CATEGORIES = ["programming", "system_design", "tech_stack", "testing", "security", "devops", "problem_solving", "soft_skills"]
 
 
 def _determine_level(exp_years: int) -> str:
