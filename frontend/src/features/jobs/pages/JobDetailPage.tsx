@@ -678,7 +678,10 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
         candidate_id: candidateId, round, start_time: startIso, end_time: endIso, title: `Round ${round}: ${jobTitle}`, meeting_link: meetingLink || null,
       });
       setEmailPreview({ ...data, bcc: selectedInterviewers.map(i => i.email) });
-    } catch { setDone(true); }
+    } catch (e: any) {
+      const detail = e.response?.data?.detail;
+      if (detail) { setError(detail); } else { setDone(true); }
+    }
     setSaving(false);
   };
 
