@@ -1,5 +1,6 @@
 """Interviews API — CRUD for calendar events + feedback."""
 import json
+import logging
 import uuid
 from datetime import datetime
 
@@ -12,6 +13,7 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models import User
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
 
@@ -42,7 +44,9 @@ async def _pre_generate_question_bank(candidate_id: str):
                 skills_str = ', '.join(skills[:5])
                 prompt = f"""Generate exactly 5 interview questions for a {level}-level developer.\nCategory: {category}\nSkills to cover (pick from these): {skills_str}\n\nFor each question provide:\n- skill: which skill this question tests\n- question: the interview question (1-2 sentences)\n- answer: the correct/expected answer (2-3 sentences, specific and technical)\n- trap: red flag if candidate doesn't know (1 sentence)\n\nReply ONLY a valid JSON array of exactly 5 objects:\n[{{"skill": "...", "question": "...", "answer": "...", "trap": "..."}}]"""
                 try:
-                    raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1200, feature="question_bank", candidate_id=candidate_id)
+                    import asyncio
+                    loop = asyncio.get_event_loop()
+                    raw = await loop.run_in_executor(None, lambda: invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1200, feature="question_bank", candidate_id=candidate_id))
                     cleaned = re.sub(r'^```(?:json)?\s*', '', raw.strip())
                     cleaned = re.sub(r'\s*```$', '', cleaned)
                     cleaned = re.sub(r',\s*]', ']', cleaned)
