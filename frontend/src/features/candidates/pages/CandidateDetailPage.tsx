@@ -453,8 +453,7 @@ export function CandidateDetailPage() {
 
               {/* AI Tools */}
               <div className="border-t border-border-subtle pt-3 mt-3">
-                <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">AI Tools</span>
-                <div className="mt-2 space-y-1.5">
+                <div className="space-y-1.5">
                   <AIToolButton label="🔍 Kiểm tra CV" candidateId={candidate.id} type="authenticity" />
                   <AIToolButton label="🎯 Culture Fit" candidateId={candidate.id} type="culture" />
                 </div>
