@@ -124,28 +124,40 @@ export function InterviewsPage() {
             </thead>
             <tbody>
               {HOURS.map(hour => (
-                <tr key={hour} className="min-h-14" id={`hour-${hour}`}>
+                <tr key={hour} className="h-14" id={`hour-${hour}`}>
                   <td className="text-[10px] text-text-muted text-right pr-2 align-top pt-1 border-r border-border-subtle">
                     {String(hour).padStart(2, '0')}:00
                   </td>
                   {weekDates.map(d => {
                     const events = getEventsForSlot(d, hour);
                     return (
-                      <td key={fmt(d) + hour} onClick={() => setShowCreate({ date: fmt(d), time: `${String(hour).padStart(2, '0')}:00` })} className="border-b border-r border-border-subtle/50 p-0.5 align-top relative cursor-pointer hover:bg-accent/5">
-                        <div className="flex gap-0.5">
-                        {events.map(ev => (
+                      <td key={fmt(d) + hour} onClick={() => setShowCreate({ date: fmt(d), time: `${String(hour).padStart(2, '0')}:00` })} className="border-b border-r border-border-subtle/50 p-0.5 align-top cursor-pointer hover:bg-accent/5" style={{ minWidth: '80px' }}>
+                        {events.length <= 1 ? events.map(ev => (
                           <div
                             key={ev.id}
                             onClick={(e) => { e.stopPropagation(); setShowDetail(ev); }}
-                            className={`flex-1 min-w-0 text-[10px] px-1.5 py-1 rounded cursor-pointer ${
+                            className={`text-[10px] px-1.5 py-1 rounded cursor-pointer truncate ${
                               ev.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-accent/10 text-accent'
                             }`}
                           >
                             <div className="font-medium truncate">{ev.candidate_name}</div>
                             <div className="truncate opacity-70">R{ev.round || 1} · {ev.interview_type || 'online'}</div>
                           </div>
-                        ))}
-                        </div>
+                        )) : (
+                          <div className="flex gap-0.5 h-full">
+                            {events.map(ev => (
+                              <div
+                                key={ev.id}
+                                onClick={(e) => { e.stopPropagation(); setShowDetail(ev); }}
+                                className={`flex-1 text-[9px] px-1 py-0.5 rounded cursor-pointer overflow-hidden ${
+                                  ev.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-accent/10 text-accent'
+                                }`}
+                              >
+                                <div className="font-medium truncate">{ev.candidate_name}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </td>
                     );
                   })}
