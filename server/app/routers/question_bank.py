@@ -1,4 +1,4 @@
-"""Interview Question Bank — AI generates per skill/level/category, cached for reuse."""
+"""Interview Question Bank — cached questions per skill/level/category."""
 import json
 import logging
 
@@ -6,8 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bedrock import invoke_claude
-from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import Candidate, User
@@ -46,7 +44,6 @@ async def get_questions_for_candidate(
         raise HTTPException(400, "Candidate has no skills parsed")
 
     result = {}
-    skills_to_generate = {}  # {category: [skills needing generation]}
 
     for category in CATEGORIES:
         result[category] = []
@@ -74,62 +71,6 @@ async def get_questions_for_candidate(
             for row in fill.mappings().all():
                 if row["question"][:50] not in existing_ids:
                     result[category].append({"skill": row["skill"], "question": row["question"], "answer": row["answer"], "trap": row["trap"]})
-
-        if len(result[category]) < 5:
-            # Find which skills have no cache
-            cached_skills = {r["skill"] for r in result[category]}
-            missing = [s for s in skills if s.lower().strip() not in cached_skills]
-            if missing:
-                skills_to_generate[category] = missing
-
-    # Generate missing questions
-    for category, missing_skills in skills_to_generate.items():
-        if len(result[category]) >= 5:
-            continue  # Already have enough
-
-        needed = 5 - len(result[category])
-        skills_for_prompt = missing_skills[:min(needed, 5)]
-
-        prompt = f"""Generate exactly 5 interview questions for a {level}-level developer.
-Category: {category}
-Skills to cover (pick from these): {', '.join(skills_for_prompt)}
-
-For each question provide:
-- skill: which skill this question tests
-- question: the interview question (1-2 sentences)
-- answer: the correct/expected answer (2-3 sentences, specific and technical)
-- trap: red flag if candidate doesn't know (1 sentence)
-
-Reply ONLY a valid JSON array of exactly 5 objects:
-[{{"skill": "...", "question": "...", "answer": "...", "trap": "..."}}]"""
-
-        try:
-            raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1200, feature="question_bank", candidate_id=candidate_id)
-            # Parse
-            import re
-            cleaned = re.sub(r'^```(?:json)?\s*', '', raw.strip())
-            cleaned = re.sub(r'\s*```$', '', cleaned)
-            cleaned = re.sub(r',\s*]', ']', cleaned)  # trailing comma
-            try:
-                questions = json.loads(cleaned)
-            except json.JSONDecodeError:
-                # Try extract array
-                match = re.search(r'\[.*\]', cleaned, re.DOTALL)
-                questions = json.loads(match.group()) if match else []
-
-            for q in questions:
-                skill_lower = q.get("skill", skills_for_prompt[0]).lower().strip()
-                # Save to cache
-                await db.execute(text("""
-                    INSERT INTO question_cache (skill, level, category, question, answer, trap)
-                    VALUES (:skill, :level, :cat, :question, :answer, :trap)
-                """), {"skill": skill_lower, "level": level, "cat": category, "question": q["question"], "answer": q["answer"], "trap": q["trap"]})
-
-                result[category].append({"skill": q.get("skill", skill_lower), "question": q["question"], "answer": q["answer"], "trap": q["trap"]})
-
-            await db.commit()
-        except Exception as e:
-            logger.warning(f"Question generation failed for {category}/{missing_skills}: {e}")
 
         # Trim to 5
         result[category] = result[category][:5]
