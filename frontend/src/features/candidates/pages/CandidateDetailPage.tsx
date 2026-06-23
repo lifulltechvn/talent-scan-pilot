@@ -554,7 +554,7 @@ export function CandidateDetailPage() {
               )}
               </>
               )}
-              {candidate.cvFilePath && (
+              {candidate.status !== 'blacklisted' && candidate.cvFilePath && (
                 <CvAuthenticityButton candidateId={candidate.id} cachedResult={d._ai_authenticity} />
               )}
               {candidate.status !== 'blacklisted' ? (
