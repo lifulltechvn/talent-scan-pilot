@@ -439,24 +439,14 @@ export function CandidateDetailPage() {
               {candidate.status === 'approved' && <div className="text-center text-[13px] font-medium text-emerald-600 bg-emerald-50 py-2 rounded-lg">✓ Approved</div>}
               {candidate.status === 'rejected' && <div className="text-center text-[13px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">✗ Rejected</div>}
               {candidate.cvFilePath && (
-                <div className="flex gap-2">
-                  <button onClick={() => {
-                    const token = localStorage.getItem('token');
-                    fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
-                      .then(r => r.blob())
-                      .then(blob => { setCvBlobUrl(URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))); });
-                  }} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
-                    <Eye size={14} /> View CV
-                  </button>
-                  <button onClick={() => {
-                    const token = localStorage.getItem('token');
-                    fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
-                      .then(r => r.blob())
-                      .then(blob => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = candidate.cvFilePath!; a.click(); URL.revokeObjectURL(url); });
-                  }} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-text-muted border border-border-subtle rounded-lg hover:bg-bg-surface transition-colors">
-                    <Download size={14} />
-                  </button>
-                </div>
+                <button onClick={() => {
+                  const token = localStorage.getItem('token');
+                  fetch(`/api/v1/candidates/${candidate.id}/cv`, { headers: { Authorization: `Bearer ${token}` } })
+                    .then(r => r.blob())
+                    .then(blob => { setCvBlobUrl(URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }))); });
+                }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
+                  <Eye size={14} /> View CV
+                </button>
               )}
 
               {/* AI Tools */}
