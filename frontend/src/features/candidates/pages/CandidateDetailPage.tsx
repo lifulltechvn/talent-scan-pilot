@@ -161,7 +161,7 @@ function CvAuthenticityButton({ candidateId, cachedResult }: { candidateId: stri
         {loading ? <><Loader2 size={13} className="animate-spin" /> {t("checking")}</> : <><Shield size={13} /> {t("checkCvAi")}</>}
       </button>
       {showPopup && result && !result.error && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowPopup(false)}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={() => setShowPopup(false)}>
           <div className="bg-white rounded-xl shadow-2xl w-80 p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-text-primary">{t("checkCvAi")}</h3>
