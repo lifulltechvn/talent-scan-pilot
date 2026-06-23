@@ -132,18 +132,20 @@ export function InterviewsPage() {
                     const events = getEventsForSlot(d, hour);
                     return (
                       <td key={fmt(d) + hour} onClick={() => setShowCreate({ date: fmt(d), time: `${String(hour).padStart(2, '0')}:00` })} className="border-b border-r border-border-subtle/50 p-0.5 align-top relative cursor-pointer hover:bg-accent/5">
+                        <div className="flex gap-0.5">
                         {events.map(ev => (
                           <div
                             key={ev.id}
                             onClick={(e) => { e.stopPropagation(); setShowDetail(ev); }}
-                            className={`text-[10px] px-1.5 py-1 rounded cursor-pointer truncate ${
+                            className={`flex-1 min-w-0 text-[10px] px-1.5 py-1 rounded cursor-pointer ${
                               ev.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-accent/10 text-accent'
                             }`}
                           >
                             <div className="font-medium truncate">{ev.candidate_name}</div>
-                            <div className="truncate opacity-70">R{ev.round || 1} · {ev.interview_type || 'online'} · {ev.job_title || ev.title}</div>
+                            <div className="truncate opacity-70">R{ev.round || 1} · {ev.interview_type || 'online'}</div>
                           </div>
                         ))}
+                        </div>
                       </td>
                     );
                   })}
