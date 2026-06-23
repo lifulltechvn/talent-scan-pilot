@@ -16,7 +16,7 @@ from app.pii_filter import filter_pii
 from app.services.cv_upload import CV_UPLOAD_DIR, _background_ai_task
 
 logger = logging.getLogger(__name__)
-_executor = ThreadPoolExecutor(max_workers=20)
+_executor = ThreadPoolExecutor(max_workers=15)
 
 
 _engine = None
@@ -71,11 +71,14 @@ async def _process_batch(batch_id: str):
         ), {"bid": batch_id})
         rows = items.mappings().all()
 
+    # Collect items for Phase 2 enrichment (after all Phase 1 done)
+    _post_items: list = []
+
     # Process items in TRUE parallel using thread pool (not asyncio)
     from concurrent.futures import as_completed
     futures = []
     for row in rows:
-        f = _executor.submit(_process_item_sync, batch_id, dict(row))
+        f = _executor.submit(_process_item_sync, batch_id, dict(row), _post_items)
         futures.append(f)
 
     # Wait for all to complete
@@ -97,15 +100,75 @@ async def _process_batch(batch_id: str):
         c = counts.mappings().first()
         total = await db.execute(text("SELECT total_files FROM cv_batches WHERE id = :bid"), {"bid": batch_id})
         t = total.scalar()
-        status = "done" if c["processed"] >= t else "processing"
+        status = "done" if t and c["processed"] >= t else "processing"
 
         await db.execute(text("""
             UPDATE cv_batches SET processed = :p, duplicates = :d, errors = :e, status = :s WHERE id = :bid
         """), {"p": c["processed"], "d": c["duplicates"], "e": c["errors"], "s": status, "bid": batch_id})
         await db.commit()
 
+    # Phase 2: Background enrichment (after ALL items done — no Bedrock contention with Phase 1)
+    if _post_items:
+        import threading
+        def _run_enrichment():
+            import asyncio as _aio, json as _json
+            from app.services.cv_upload import _parse_cv_enrichment, get_embedding
+            from app.skill_maps import SKILL_MAPS
+            from app.services.cv_translate import translate_candidate_background
 
-def _process_item_sync(batch_id: str, row: dict):
+            async def _enrich_one(cid, cv_text, base_sd):
+                from sqlalchemy.ext.asyncio import create_async_engine as _ce, async_sessionmaker as _asm
+                from sqlalchemy import text as _text
+                _eng = _ce(settings.DATABASE_URL, pool_size=1)
+                _sf = _asm(_eng, expire_on_commit=False)
+                try:
+                    enriched = _parse_cv_enrichment(cv_text, cid)
+                    sd = dict(base_sd)
+                    if enriched.get("experience"): sd["experience"] = enriched["experience"]
+                    if enriched.get("education"): sd["education"] = enriched["education"]
+                    if enriched.get("certifications"): sd["certifications"] = enriched["certifications"]
+                    if enriched.get("languages"): sd["languages"] = enriched["languages"]
+                    sd["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
+                    sl = enriched.get("skill_level")
+                    if sl and isinstance(sl, dict) and sl.get("level") and sl.get("category"):
+                        cat_data = SKILL_MAPS.get(sl["category"], {})
+                        sd["skill_level"] = {
+                            "category": sl["category"], "level": sl["level"],
+                            "reason": {"en": sl.get("reason", ""), "vi": ""},
+                            "category_title": {"vi": cat_data.get("title_vi", sl["category"]), "en": sl["category"].replace("_", " ").title()},
+                            "domains": cat_data.get("domains", []),
+                        }
+                    emb = get_embedding(" ".join(sd.get("skills", [])), candidate_id=cid)
+                    async with _sf() as _db:
+                        await _db.execute(_text(
+                            "UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"
+                        ), {"sd": _json.dumps(sd, ensure_ascii=False), "emb": str(emb) if emb else None, "id": cid})
+                        await _db.commit()
+                    translate_candidate_background(cid, sd)
+                except Exception as e:
+                    logger.warning(f"Enrichment failed {cid}: {e}")
+                finally:
+                    await _eng.dispose()
+
+            def _worker(cid, cv_text, base_sd):
+                loop = _aio.new_event_loop()
+                try:
+                    loop.run_until_complete(_enrich_one(cid, cv_text, base_sd))
+                except Exception:
+                    pass
+                finally:
+                    loop.close()
+
+            from concurrent.futures import ThreadPoolExecutor as _TP, as_completed as _ac
+            with _TP(max_workers=5) as pool:
+                futs = [pool.submit(_worker, cid, txt, sd) for cid, txt, sd in _post_items]
+                for f in _ac(futs):
+                    try: f.result()
+                    except Exception: pass
+        threading.Thread(target=_run_enrichment, daemon=True).start()
+
+
+def _process_item_sync(batch_id: str, row: dict, _post_items: list):
     """Process a single batch item SYNCHRONOUSLY in its own thread."""
     import time
     import asyncio
@@ -118,7 +181,7 @@ def _process_item_sync(batch_id: str, row: dict):
 
     async def _run():
         from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-        engine = create_async_engine(settings.DATABASE_URL, pool_size=1)
+        engine = create_async_engine(settings.DATABASE_URL, pool_size=2, max_overflow=3)
         sf = async_sessionmaker(engine, expire_on_commit=False)
         try:
             async with sf() as db:
@@ -192,52 +255,19 @@ def _process_item_sync(batch_id: str, row: dict):
                     if avatar:
                         structured["avatar"] = avatar
 
-                # Update candidate (done — fast path)
+                # Update candidate (done — fast path, enrichment in background)
                 from sqlalchemy import update as sql_update
                 await db.execute(
                     sql_update(Candidate).where(Candidate.id == candidate_id)
-                    .values(structured_data=structured, embedding=embedding, status="new")
+                    .values(structured_data=structured, status="new")
                 )
                 await db.execute(text("UPDATE cv_batch_items SET status = 'done' WHERE id = :id"), {"id": item_id})
                 await db.commit()
 
-                # Post-processing (non-blocking, doesn't affect scan speed)
-                def _post_process():
-                    import asyncio as _aio
-                    async def _run_post():
-                        from sqlalchemy.ext.asyncio import create_async_engine as _ce, async_sessionmaker as _asm
-                        _eng = _ce(settings.DATABASE_URL, pool_size=1)
-                        _sf = _asm(_eng, expire_on_commit=False)
-                        try:
-                            # Skill level assessment
-                            from app.skill_maps import assess_skill_level
-                            skill_level = assess_skill_level(structured, candidate_id=str(candidate_id))
-                            if skill_level:
-                                async with _sf() as _db:
-                                    from sqlalchemy import update as _su
-                                    sd = dict(structured)
-                                    sd["skill_level"] = skill_level
-                                    await _db.execute(_su(Candidate).where(Candidate.id == candidate_id).values(structured_data=sd))
-                                    await _db.commit()
-                        except Exception:
-                            pass
-                        finally:
-                            await _eng.dispose()
-                    _loop = _aio.new_event_loop()
-                    try:
-                        _loop.run_until_complete(_run_post())
-                    except Exception:
-                        pass
-                    finally:
-                        _loop.close()
-                import threading
-                threading.Thread(target=_post_process, daemon=True).start()
+                # Post-processing: enrich + embed + translate (all background)
+                # Store for batch-level post-processing (after ALL items done)
+                _post_items.append((str(candidate_id), masked_text, structured))
 
-                # Background translation EN → VI (with retry)
-                from app.services.cv_translate import translate_candidate_background
-                translate_candidate_background(str(candidate_id), structured)
-
-                # Smart pool
                 from app.services.smart_pool import background_match_candidate
                 background_match_candidate(str(candidate_id))
 

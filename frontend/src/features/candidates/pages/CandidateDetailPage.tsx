@@ -12,6 +12,7 @@ import { EmailCompose } from '@/features/outreach/components/EmailCompose';
 import { useI18n } from '@/shared/i18n';
 import { G_CRITERIA, CATEGORY_TITLES } from '@/data/g-criteria';
 import { apiClient } from '@/data/api/client';
+import { candidateApiRepo } from '@/data/repositories/candidates.api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MessageSquare } from 'lucide-react';
 import { useToast } from '@/shared/components/ui/Toast';
@@ -195,7 +196,18 @@ function CvAuthenticityButton({ candidateId, cachedResult }: { candidateId: stri
 
 export function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: candidate, isLoading } = useCandidate(id!);
+  const { data: candidate, isLoading } = useQuery({
+    queryKey: ['candidates', id],
+    queryFn: () => candidateApiRepo.getById(id!),
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      if (!d) return 5000;
+      const sd = d.structuredData || d.structured_data;
+      // Auto-refetch until enrichment has real content
+      if (!sd?.experience?.length || !sd?.insight?.strengths) return 5000;
+      return false;
+    },
+  });
   const { data: allCandidates } = useCandidates();
   const updateStatus = useUpdateCandidateStatus();
   const navigate = useNavigate();
@@ -263,7 +275,7 @@ export function CandidateDetailPage() {
         <MissingInfoPanel data={d} />
 
         {/* Skill Level Assessment */}
-        {d.skill_level && (
+        {d.skill_level ? (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -324,10 +336,21 @@ export function CandidateDetailPage() {
             </div>
           )}
         </div>
+        ) : (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-purple-100 animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 bg-gray-200 rounded w-1/3 animate-pulse" />
+              <div className="h-2 bg-gray-100 rounded w-2/3 animate-pulse" />
+            </div>
+          </div>
+          <p className="text-[10px] text-text-muted mt-3">⏳ Đang phân tích skill level... Sẽ tự cập nhật trong vài giây.</p>
+        </div>
         )}
 
         {/* AI Insight */}
-        {d.insight && (d.insight.strengths || d.insight.weaknesses) && (
+        {d.insight && (d.insight.strengths || d.insight.weaknesses) ? (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles size={16} className="text-accent" />
@@ -366,6 +389,18 @@ export function CandidateDetailPage() {
             </div>
             )}
           </div>
+        </div>
+        ) : (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Loader2 size={14} className="animate-spin text-accent" />
+            <span className="text-sm font-medium text-text-primary">AI Insight</span>
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 bg-gray-100 rounded w-3/4 animate-pulse" />
+            <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse" />
+          </div>
+          <p className="text-[10px] text-text-muted mt-3">⏳ Đang phân tích chi tiết... tự cập nhật trong vài giây</p>
         </div>
         )}
 

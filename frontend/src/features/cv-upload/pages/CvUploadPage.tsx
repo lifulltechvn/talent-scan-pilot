@@ -3,6 +3,7 @@ import { Upload, CheckCircle, AlertTriangle, XCircle, Loader2, RefreshCw, UserPl
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/data/api/client';
 import { startBatchTracking } from '@/shared/batch-store';
+import { useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '@/shared/i18n';
 
 interface BatchItem {
@@ -39,6 +40,7 @@ interface BatchStatus {
 
 export function CvUploadPage() {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -85,7 +87,7 @@ export function CvUploadPage() {
           setUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0);
         },
       });
-      setBatch({ ...data, items: [] });
+      setBatch({ ...data, items: [], processed: 0, duplicates: 0, errors: 0 });
       setUploading(false);
       startBatchTracking(data.batch_id, data.total_files);
       pollBatch(data.batch_id);
@@ -96,15 +98,25 @@ export function CvUploadPage() {
   };
 
   const pollBatch = (batchId: string) => {
+    // Fast polling first 20s (1s interval), then slow (3s)
+    let elapsed = 0;
     const interval = setInterval(async () => {
+      elapsed += 1;
       try {
         const { data } = await apiClient.get(`/cv/batch/${batchId}`);
         setBatch(data);
-        // Only stop polling when batch is done AND no items are still pending
         const allDone = data.status === 'done' && data.items.every((i: BatchItem) => i.status !== 'pending');
-        if (allDone) clearInterval(interval);
+        if (allDone) {
+          clearInterval(interval);
+          queryClient.invalidateQueries({ queryKey: ['candidates'] });
+        }
+        // Switch to slow polling after 20s
+        if (elapsed > 20 && !allDone) {
+          clearInterval(interval);
+          pollBatch(batchId); // restart with slow interval handled by recursive call
+        }
       } catch { /* ignore */ }
-    }, 3000);
+    }, elapsed < 20 ? 1000 : 3000);
     apiClient.get(`/cv/batch/${batchId}`).then(({ data }) => setBatch(data)).catch(() => {});
   };
 
@@ -198,23 +210,53 @@ export function CvUploadPage() {
         <div className="space-y-3">
           {/* Overall progress */}
           <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-text-primary">
-                {batch.status === 'done' && processing.length === 0 ? t('processingComplete') : t('processing')}
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-text-muted">{t('filesProgress').replace('{processed}', String(batch.processed)).replace('{total}', String(batch.total_files))}</span>
-                {batch.status === 'done' && processing.length === 0 && (
-                  <button onClick={() => setBatch(null)} className="text-xs text-text-muted hover:text-text-primary">{t('closeBtn')}</button>
+            {batch.status === 'done' && processing.length === 0 ? (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-emerald-700">{t('processingComplete')}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-text-muted">{batch.processed}/{batch.total_files}</span>
+                    <button onClick={() => setBatch(null)} className="text-xs text-text-muted hover:text-text-primary">{t('closeBtn')}</button>
+                  </div>
+                </div>
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full w-full transition-all duration-500" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="relative">
+                    <Loader2 className="animate-spin text-accent" size={20} />
+                    <div className="absolute inset-0 animate-ping rounded-full bg-accent/20" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">
+                      {batch.processed === 0 ? '🧠 AI đang phân tích CV...' : `⚡ ${batch.processed}/${batch.total_files} hoàn tất`}
+                    </p>
+                    <p className="text-[11px] text-text-muted">
+                      {batch.processed === 0 ? `Đang trích xuất thông tin từ ${batch.total_files} file` : 'Đang xử lý các file còn lại...'}
+                    </p>
+                  </div>
+                </div>
+                {/* Animated progress bar */}
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  {batch.processed === 0 ? (
+                    <div className="h-full rounded-full bg-gradient-to-r from-accent/50 via-accent to-accent/50 animate-pulse" style={{ width: '70%' }} />
+                  ) : (
+                    <div className="h-full bg-accent rounded-full transition-all duration-700 ease-out" style={{ width: `${Math.round((batch.processed / batch.total_files) * 100)}%` }} />
+                  )}
+                </div>
+                {/* Step indicators */}
+                {batch.processed === 0 && (
+                  <div className="flex items-center gap-4 mt-3 text-[10px] text-text-muted">
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Đọc file</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" /> Phân tích AI</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-gray-300" /> Đánh giá G-level</span>
+                  </div>
                 )}
-              </div>
-            </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${batch.status === 'done' && processing.length === 0 ? 'bg-emerald-500' : 'bg-accent'}`}
-                style={{ width: `${Math.round((batch.processed / batch.total_files) * 100)}%` }}
-              />
-            </div>
+              </>
+            )}
           </div>
 
           {/* Summary cards */}

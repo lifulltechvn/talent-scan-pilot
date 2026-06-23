@@ -63,6 +63,7 @@ async def send_30min_reminders():
 def start_scheduler():
     scheduler.add_job(send_30min_reminders, "interval", minutes=5, id="30min_reminders", replace_existing=True)
     scheduler.add_job(_retry_translations, "interval", minutes=10, id="retry_translations", replace_existing=True)
+    scheduler.add_job(_retry_skill_levels, "interval", minutes=5, id="retry_skill_levels", replace_existing=True)
     scheduler.start()
 
 
@@ -78,6 +79,56 @@ def _retry_translations():
             if count:
                 import logging
                 logging.getLogger(__name__).info(f"Retrying {count} failed translations")
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(_run())
+    except Exception:
+        pass
+    finally:
+        loop.close()
+
+
+def _retry_skill_levels():
+    """Assess skill level for candidates that don't have it yet."""
+    import asyncio
+    from sqlalchemy import text
+    from app.database import async_session
+    from app.skill_maps import assess_skill_level
+
+    async def _run():
+        async with async_session() as db:
+            result = await db.execute(text("""
+                SELECT id, structured_data FROM candidates
+                WHERE structured_data->>'skill_level' IS NULL
+                  AND structured_data->'skill_level' IS NULL
+                  AND status != 'processing'
+                  AND structured_data->>'name' IS NOT NULL
+                  AND jsonb_array_length(COALESCE(structured_data->'skills', '[]'::jsonb)) > 0
+                LIMIT 5
+            """))
+            rows = result.mappings().all()
+            if not rows:
+                return
+
+            import logging
+            import json
+            logger = logging.getLogger(__name__)
+            logger.info(f"Assessing skill level for {len(rows)} candidates")
+
+            for row in rows:
+                try:
+                    sd = row["structured_data"]
+                    level = assess_skill_level(sd, candidate_id=str(row["id"]))
+                    if level:
+                        sd_copy = dict(sd)
+                        sd_copy["skill_level"] = level
+                        await db.execute(text(
+                            "UPDATE candidates SET structured_data = :sd WHERE id = :id"
+                        ), {"sd": json.dumps(sd_copy, ensure_ascii=False), "id": str(row["id"])})
+                except Exception as e:
+                    logger.warning(f"Skill level assessment failed for {row['id']}: {e}")
+            await db.commit()
 
     loop = asyncio.new_event_loop()
     try:

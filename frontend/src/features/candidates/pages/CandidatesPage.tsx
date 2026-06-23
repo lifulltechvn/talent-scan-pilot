@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ArrowUpDown, Eye, Briefcase, Calendar, CheckCircle, XCircle, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
@@ -42,6 +42,16 @@ type SortKey = 'name' | 'score' | 'date';
 export function CandidatesPage() {
   const { t } = useI18n();
   const { data: candidates, isLoading } = useCandidates();
+  const [enrichWait, setEnrichWait] = useState(true);
+
+  // Wait up to 3s for G-level data if any candidate is missing it
+  useEffect(() => {
+    if (!candidates || candidates.length === 0) { setEnrichWait(false); return; }
+    const allHaveG = candidates.every((c: any) => c.structuredData?.skill_level || c.structured_data?.skill_level);
+    if (allHaveG) { setEnrichWait(false); return; }
+    const timer = setTimeout(() => setEnrichWait(false), 3000);
+    return () => clearTimeout(timer);
+  }, [candidates]);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<CandidateStatus | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortKey>('date');
@@ -88,7 +98,7 @@ export function CandidatesPage() {
     setPage(1);
   };
 
-  if (isLoading) return <LoadingSkeleton rows={8} />;
+  if (isLoading || enrichWait) return <LoadingSkeleton rows={8} />;
 
   return (
     <div>

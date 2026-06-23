@@ -89,45 +89,48 @@ def _ocr_scanned_pdf(file_bytes: bytes, candidate_id: str | None = None) -> str:
 
 
 def _parse_cv_text(text: str, candidate_id: str | None = None) -> dict:
-    """Parse CV text into structured data using Claude Haiku with tool_use."""
+    """Phase 1: Fast parse — core fields only (name, skills, years). ~150 output tokens."""
     client = get_bedrock_client()
     tools = [{
         "name": "save_cv_data",
-        "description": "Save parsed CV data",
+        "description": "Save parsed CV core data",
         "input_schema": {
             "type": "object",
             "properties": {
                 "name": {"type": "string"},
                 "email": {"type": "string"},
                 "phone": {"type": "string"},
-                "skills": {"type": "array", "items": {"type": "string"}},
-                "experience": {"type": "array", "items": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}, "duration": {"type": "string"}, "description": {"type": "string"}}}},
-                "education": {"type": "array", "items": {"type": "object", "properties": {"school": {"type": "string"}, "degree": {"type": "string"}, "major": {"type": "string"}, "year": {"type": "string"}}}},
-                "certifications": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "issuer": {"type": "string"}}}},
-                "languages": {"type": "array", "items": {"type": "object", "properties": {"language": {"type": "string"}, "level": {"type": "string"}}}},
+                "skills": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
                 "experience_years": {"type": "number"},
-                "insight": {"type": "object", "properties": {"strengths": {"type": "string"}, "weaknesses": {"type": "string"}}},
+                "skill_level": {"type": "object", "description": "G0=no skills, G1=junior, G2=mid(4+domains), G3=senior(7+domains). Most are G1-G2.", "properties": {
+                    "category": {"type": "string", "enum": ["application_engineer", "bridge_se", "qa_engineer", "admin", "hr"]},
+                    "level": {"type": "string", "enum": ["G0", "G1", "G2", "G3"]},
+                }},
             },
-            "required": ["name", "skills", "experience", "education", "experience_years"],
+            "required": ["name", "skills", "experience_years", "skill_level"],
         },
     }]
     from app.prompts import CV_PARSE_SYSTEM, CV_PARSE_USER
     from app.injection_guard import sanitize_for_llm
 
-    cleaned = _clean_text(text)[:2500]
+    cleaned = _clean_text(text)[:1200]
     safe_text = sanitize_for_llm(cleaned, "CV_CONTENT")
     body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1024,
+        "max_tokens": 400,
         "temperature": 0,
         "system": CV_PARSE_SYSTEM,
         "messages": [{"role": "user", "content": CV_PARSE_USER.format(text=safe_text)}],
         "tools": tools,
         "tool_choice": {"type": "tool", "name": "save_cv_data"},
     }
+    import time as _t
+    _t0 = _t.time()
     response = client.invoke_model(modelId=settings.BEDROCK_MODEL_HAIKU, body=json.dumps(body))
+    _t1 = _t.time()
     result = json.loads(response["body"].read())
     usage = result.get("usage", {})
+    print(f"[TIMING] parse_cv_p1: bedrock={_t1-_t0:.1f}s in={usage.get('input_tokens',0)} out={usage.get('output_tokens',0)}", flush=True)
     _log_usage(settings.BEDROCK_MODEL_HAIKU, "cv_parsing", usage.get("input_tokens", 0), usage.get("output_tokens", 0), candidate_id=candidate_id)
     for block in result["content"]:
         if block["type"] == "tool_use":
@@ -135,28 +138,79 @@ def _parse_cv_text(text: str, candidate_id: str | None = None) -> dict:
     return {}
 
 
+def _parse_cv_enrichment(text: str, candidate_id: str | None = None) -> dict:
+    """Phase 2: Full enrichment — experience, education, skill_level. Background."""
+    client = get_bedrock_client()
+    tools = [{
+        "name": "enrich_cv",
+        "description": "Enrich CV with detailed data",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "experience": {"type": "array", "items": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}, "duration": {"type": "string"}}}, "maxItems": 3},
+                "education": {"type": "array", "items": {"type": "object", "properties": {"school": {"type": "string"}, "degree": {"type": "string"}, "major": {"type": "string"}}}, "maxItems": 2},
+                "certifications": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "issuer": {"type": "string"}}}},
+                "languages": {"type": "array", "items": {"type": "object", "properties": {"language": {"type": "string"}, "level": {"type": "string"}}}},
+                "strengths": {"type": "string", "description": "1-2 sentences"},
+                "weaknesses": {"type": "string", "description": "1 sentence"},
+                "skill_level": {"type": "object", "description": "G0=no skills, G1=junior, G2=mid(4+domains), G3=senior(7+domains). Most are G1-G2.", "properties": {
+                    "category": {"type": "string", "enum": ["application_engineer", "bridge_se", "qa_engineer", "admin", "hr"]},
+                    "level": {"type": "string", "enum": ["G0", "G1", "G2", "G3"]},
+                    "reason": {"type": "string", "description": "1-2 sentences English"},
+                }},
+            },
+            "required": ["experience", "education", "skill_level"],
+        },
+    }]
+    from app.prompts import CV_PARSE_SYSTEM
+    from app.injection_guard import sanitize_for_llm
+
+    cleaned = _clean_text(text)[:2000]
+    safe_text = sanitize_for_llm(cleaned, "CV_CONTENT")
+    body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 1024,
+        "temperature": 0,
+        "system": CV_PARSE_SYSTEM,
+        "messages": [{"role": "user", "content": f"Extract detailed experience, education, certifications, languages, and assess skill level from this CV:\n\n{safe_text}"}],
+        "tools": tools,
+        "tool_choice": {"type": "tool", "name": "enrich_cv"},
+    }
+    import time as _t
+    _t0 = _t.time()
+    response = client.invoke_model(modelId=settings.BEDROCK_MODEL_HAIKU, body=json.dumps(body))
+    result = json.loads(response["body"].read())
+    usage = result.get("usage", {})
+    print(f"[TIMING] parse_cv_p2: bedrock={_t.time()-_t0:.1f}s in={usage.get('input_tokens',0)} out={usage.get('output_tokens',0)}", flush=True)
+    _log_usage(settings.BEDROCK_MODEL_HAIKU, "cv_enrichment", usage.get("input_tokens", 0), usage.get("output_tokens", 0), candidate_id=candidate_id)
+    for block in result["content"]:
+        if block["type"] == "tool_use":
+            return block["input"]
+    return {}
+
+
 def _process_ai_sync(masked_text: str, candidate_id: str | None = None) -> tuple[dict, list[float] | None]:
-    """Run AI parsing + embedding in parallel. Embed uses raw text to avoid blocking on parse."""
+    """Phase 1 only: fast parse (name, skills, years, G-level). Enrichment runs in background."""
     from app.cv_validator import validate_and_normalize
-    from concurrent.futures import ThreadPoolExecutor
 
-    # Embed uses raw text (first 500 chars) — runs parallel with parse, no dependency
-    embed_input = masked_text[:500]
+    structured = _parse_cv_text(masked_text, candidate_id)
+    structured, confidence = validate_and_normalize(structured)
+    logger.info(f"CV parsed: {structured.get('name', '?')}, confidence: {confidence:.0%}, skills: {len(structured.get('skills', []))}")
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        parse_future = pool.submit(_parse_cv_text, masked_text, candidate_id)
-        embed_future = pool.submit(get_embedding, embed_input, candidate_id=candidate_id)
+    # Normalize skill_level
+    sl = structured.get("skill_level")
+    if sl and isinstance(sl, dict) and sl.get("level") and sl.get("category"):
+        from app.skill_maps import SKILL_MAPS
+        cat_data = SKILL_MAPS.get(sl["category"], {})
+        structured["skill_level"] = {
+            "category": sl["category"],
+            "level": sl["level"],
+            "reason": {"en": "", "vi": ""},
+            "category_title": {"vi": cat_data.get("title_vi", sl["category"]), "en": sl["category"].replace("_", " ").title()},
+            "domains": cat_data.get("domains", []),
+        }
 
-        structured = parse_future.result()
-        structured, confidence = validate_and_normalize(structured)
-        logger.info(f"CV parsed: {structured.get('name', '?')}, confidence: {confidence:.0%}, skills: {len(structured.get('skills', []))}")
-
-        try:
-            embedding = embed_future.result()
-        except Exception:
-            embedding = None
-
-    return structured, embedding
+    return structured, None
 
 
 def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, file_bytes: bytes | None, pii_data: dict | None = None):
