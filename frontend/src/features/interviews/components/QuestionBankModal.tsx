@@ -27,10 +27,12 @@ export function QuestionBankModal({ candidateId, candidateName, onClose }: { can
   const [expandedQ, setExpandedQ] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     apiClient.get(`/question-bank/for-candidate/${candidateId}`)
-      .then(({ data }) => setData(data))
+      .then(({ data }) => { if (!cancelled) setData(data); })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [candidateId]);
 
   return (
