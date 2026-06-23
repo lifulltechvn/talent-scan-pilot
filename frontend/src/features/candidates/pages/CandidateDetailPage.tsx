@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone, Eye, Globe, AlertTriangle, Shield, Loader2 } from 'lucide-react';
 import { useCandidate, useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
@@ -160,7 +161,7 @@ function CvAuthenticityButton({ candidateId, cachedResult }: { candidateId: stri
       <button onClick={handleCheck} disabled={loading} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[12px] font-medium text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors disabled:opacity-40">
         {loading ? <><Loader2 size={13} className="animate-spin" /> {t("checking")}</> : <><Shield size={13} /> {t("checkCvAi")}</>}
       </button>
-      {showPopup && result && !result.error && (
+      {showPopup && result && !result.error && ReactDOM.createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={() => setShowPopup(false)}>
           <div className="bg-white rounded-xl shadow-2xl w-80 p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
@@ -187,7 +188,7 @@ function CvAuthenticityButton({ candidateId, cachedResult }: { candidateId: stri
             <button onClick={() => setShowPopup(false)} className="w-full py-2 text-[12px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5">{t("close")}</button>
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 }
