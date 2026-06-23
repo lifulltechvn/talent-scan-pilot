@@ -384,7 +384,9 @@ export function JobDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {candidates.map(c => (
+            {candidates.map(c => {
+              const aiRank = aiRecommend?.rankings?.find((r: any) => r.name === c.structuredData.name);
+              return (
               <tr key={c.id} className="border-b border-border-subtle last:border-0 hover:bg-bg-surface/30 transition-colors">
                 <td className="px-4 py-3">
                   <Link to={`/candidates/${c.id}`} className="flex items-center gap-2.5">
@@ -393,6 +395,7 @@ export function JobDetailPage() {
                     </div>
                     <span className="text-[13px] font-medium text-accent hover:underline">{c.structuredData.name}</span>
                     {c.structuredData.skill_level && <span className="ml-1.5 px-1.5 py-0 bg-purple-100 text-purple-700 text-[10px] font-bold rounded">{c.structuredData.skill_level.level}</span>}
+                    {aiRank && <span className={`ml-1.5 px-1.5 py-0.5 text-[9px] font-bold rounded ${aiRank.action === 'invite_now' ? 'bg-emerald-100 text-emerald-700' : aiRank.action === 'consider' ? 'bg-amber-100 text-amber-700' : aiRank.action === 'need_more_info' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>AI #{aiRank.rank}</span>}
                   </Link>
                 </td>
                 <td className="px-4 py-3"><ScoreBar score={c.score?.finalScore ?? 0} /></td>
@@ -417,7 +420,7 @@ export function JobDetailPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+            ); })}
           </tbody>
         </table>
         {candidates.length === 0 && <EmptyState icon={Users} title="No candidates yet" description="Candidates will appear here after CV scanning" />}
