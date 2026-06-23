@@ -217,13 +217,16 @@ export function CandidateDetailPage() {
   // Helper to get localized text from i18n object or plain string
   const d = candidate?.structuredData ?? {} as any;
 
-  const loc = (val: any) => {
-    if (!val) return '';
+  const loc = (val: any, viVal?: any) => {
+    if (!val && !viVal) return '';
+    // If explicit VI value provided and locale is VI, use it
+    if (viVal && locale === 'vi') return viVal;
+    // If val is object with locale keys
     if (typeof val === 'object' && !Array.isArray(val)) {
       const target = locale === 'ja' ? 'en' : locale;
       return val[target] || val['en'] || val['vi'] || '';
     }
-    return val;
+    return val || '';
   };
 
   if (isLoading) return <LoadingSkeleton rows={3} />;
@@ -332,13 +335,13 @@ export function CandidateDetailPage() {
             {d.insight.strengths && (
             <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
               <span className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{t("strengths")}</span>
-              <p className="text-[13px] text-emerald-800 mt-1">{loc(d.insight.strengths)}</p>
+              <p className="text-[13px] text-emerald-800 mt-1">{loc(d.insight.strengths, d.insight.strengths_vi)}</p>
             </div>
             )}
             {d.insight.weaknesses && (
             <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
               <span className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">{t("weaknesses")}</span>
-              <p className="text-[13px] text-amber-800 mt-1">{loc(d.insight.weaknesses)}</p>
+              <p className="text-[13px] text-amber-800 mt-1">{loc(d.insight.weaknesses, d.insight.weaknesses_vi)}</p>
             </div>
             )}
             {d.insight.recommendation && (
@@ -380,11 +383,11 @@ export function CandidateDetailPage() {
                   <Briefcase size={13} className="text-text-muted" />
                   <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t("experience")}</span>
                 </div>
-                {d.experience.map((exp, i) => (
+                {d.experience.map((exp: any, i: number) => (
                   <div key={i} className="ml-5 py-1.5 border-l-2 border-border-subtle pl-3 mb-1">
-                    <div className="text-[13px] font-medium text-text-primary">{loc(exp.role)}</div>
+                    <div className="text-[13px] font-medium text-text-primary">{loc(exp.role, exp.role_vi)}</div>
                     <div className="text-[12px] text-text-tertiary">{exp.company}{exp.years ? ` · ${exp.years}y` : exp.duration ? ` · ${exp.duration}` : ''}</div>
-                    {exp.description && <div className="text-[11px] text-text-secondary mt-0.5">{loc(exp.description)}</div>}
+                    {(exp.description || exp.description_vi) && <div className="text-[11px] text-text-secondary mt-0.5">{loc(exp.description, exp.description_vi)}</div>}
                   </div>
                 ))}
               </div>
@@ -397,7 +400,7 @@ export function CandidateDetailPage() {
                 </div>
                 {d.education.map((edu, i) => (
                   <div key={i} className="ml-5 py-1">
-                    <div className="text-[13px] text-text-primary">{loc(edu.degree)}{edu.major ? ` in ${loc(edu.major)}` : ''}</div>
+                    <div className="text-[13px] text-text-primary">{loc(edu.degree, edu.degree_vi)}{edu.major ? ` in ${loc(edu.major, edu.major_vi)}` : ''}</div>
                     <div className="text-[12px] text-text-tertiary">{edu.school}{edu.year ? ` · ${edu.year}` : ''}</div>
                   </div>
                 ))}

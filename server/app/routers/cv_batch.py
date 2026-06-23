@@ -165,6 +165,19 @@ async def resolve_duplicate(
     # Re-process with force or update
     from app.services.cv_batch_worker import process_single_item
     update_id = str(row["duplicate_of"]) if action == "update" else None
+
+    # If updating a rejected candidate → reset to reviewed + add timeline log
+    if action == "update" and row["duplicate_of"]:
+        cand = await db.execute(text("SELECT status FROM candidates WHERE id = :id"), {"id": str(row["duplicate_of"])})
+        cand_row = cand.mappings().first()
+        if cand_row and cand_row["status"] == "rejected":
+            await db.execute(text("UPDATE candidates SET status = 'reviewed' WHERE id = :id"), {"id": str(row["duplicate_of"])})
+            await db.execute(text("""
+                INSERT INTO timeline_events (id, candidate_id, event_type, description, created_at)
+                VALUES (gen_random_uuid(), :cid, 'reopened', 'Ứng viên được mở lại sau khi bị reject — CV mới được upload', now())
+            """), {"cid": str(row["duplicate_of"])})
+            await db.commit()
+
     process_single_item(str(item_id), row["file_path"], row["file_name"], row["file_hash"], force=True, update_id=update_id)
 
     return {"status": "processing"}

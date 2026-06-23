@@ -251,6 +251,9 @@ export function JobDetailPage() {
                     {s.experience_years}y exp · Score: {Math.round(s.combined_score * 100)}%
                     {s.matched_skills.length > 0 && <span className="text-emerald-600"> · Match: {s.matched_skills.join(', ')}</span>}
                   </div>
+                  {s.combined_score < 0.3 && (
+                    <div className="text-[10px] text-amber-600 mt-0.5">💡 Điểm phù hợp thấp — ứng viên có thể cần cập nhật CV hoặc chưa phù hợp vị trí này</div>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-1 max-w-[200px]">
                   {s.skills.slice(0, 4).map((sk: string) => (

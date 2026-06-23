@@ -191,16 +191,7 @@ def _process_item_sync(batch_id: str, row: dict):
                     if avatar:
                         structured["avatar"] = avatar
 
-                # Assess skill level
-                try:
-                    from app.skill_maps import assess_skill_level
-                    skill_level = assess_skill_level(structured, candidate_id=str(candidate_id))
-                    if skill_level:
-                        structured["skill_level"] = skill_level
-                except Exception:
-                    pass
-
-                # Update candidate
+                # Update candidate (done — fast path)
                 from sqlalchemy import update as sql_update
                 await db.execute(
                     sql_update(Candidate).where(Candidate.id == candidate_id)
@@ -208,6 +199,42 @@ def _process_item_sync(batch_id: str, row: dict):
                 )
                 await db.execute(text("UPDATE cv_batch_items SET status = 'done' WHERE id = :id"), {"id": item_id})
                 await db.commit()
+
+                # Post-processing (non-blocking, doesn't affect scan speed)
+                def _post_process():
+                    import asyncio as _aio
+                    async def _run_post():
+                        from sqlalchemy.ext.asyncio import create_async_engine as _ce, async_sessionmaker as _asm
+                        _eng = _ce(settings.DATABASE_URL, pool_size=1)
+                        _sf = _asm(_eng, expire_on_commit=False)
+                        try:
+                            # Skill level assessment
+                            from app.skill_maps import assess_skill_level
+                            skill_level = assess_skill_level(structured, candidate_id=str(candidate_id))
+                            if skill_level:
+                                async with _sf() as _db:
+                                    from sqlalchemy import update as _su
+                                    sd = dict(structured)
+                                    sd["skill_level"] = skill_level
+                                    await _db.execute(_su(Candidate).where(Candidate.id == candidate_id).values(structured_data=sd))
+                                    await _db.commit()
+                        except Exception:
+                            pass
+                        finally:
+                            await _eng.dispose()
+                    _loop = _aio.new_event_loop()
+                    try:
+                        _loop.run_until_complete(_run_post())
+                    except Exception:
+                        pass
+                    finally:
+                        _loop.close()
+                import threading
+                threading.Thread(target=_post_process, daemon=True).start()
+
+                # Background translation EN → VI (with retry)
+                from app.services.cv_translate import translate_candidate_background
+                translate_candidate_background(str(candidate_id), structured)
 
                 # Smart pool
                 from app.services.smart_pool import background_match_candidate

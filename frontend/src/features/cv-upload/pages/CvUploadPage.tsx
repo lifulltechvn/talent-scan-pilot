@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Upload, CheckCircle, AlertTriangle, XCircle, Loader2, RefreshCw, UserPlus, SkipForward, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Upload, CheckCircle, AlertTriangle, XCircle, Loader2, RefreshCw, UserPlus, SkipForward, ChevronDown, ChevronUp, ExternalLink, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/data/api/client';
 import { startBatchTracking } from '@/shared/batch-store';
@@ -45,6 +45,7 @@ export function CvUploadPage() {
   const [batch, setBatch] = useState<BatchStatus | null>(null);
   const [error, setError] = useState('');
   const [expandedSection, setExpandedSection] = useState<string | null>('duplicates');
+  const [resolving, setResolving] = useState(false);
 
   // Restore active batch on mount — fetch latest from server
   useEffect(() => {
@@ -108,25 +109,38 @@ export function CvUploadPage() {
   };
 
   const handleResolve = async (itemId: string, action: string) => {
-    if (!batch) return;
+    if (!batch || resolving) return;
+    setResolving(true);
     try {
       await apiClient.post(`/cv/batch/${batch.batch_id}/items/${itemId}/resolve?action=${action}`);
-      const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
-      setBatch(data);
+      // Poll until resolved
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
+        setBatch(data);
+        if (!data.items?.some((it: any) => it.status === 'duplicate' && it.id === itemId)) break;
+      }
     } catch (e: any) {
       console.error('Resolve failed:', e?.response?.data || e);
     }
+    setResolving(false);
   };
 
   const handleResolveAll = async (action: string) => {
-    if (!batch) return;
+    if (!batch || resolving) return;
+    setResolving(true);
     try {
       await apiClient.post(`/cv/batch/${batch.batch_id}/resolve-all?action=${action}`);
-      const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
-      setBatch(data);
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const { data } = await apiClient.get(`/cv/batch/${batch.batch_id}`);
+        setBatch(data);
+        if (!data.items?.some((it: any) => it.status === 'duplicate')) break;
+      }
     } catch (e: any) {
       console.error('Resolve all failed:', e?.response?.data || e);
     }
+    setResolving(false);
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -303,6 +317,12 @@ export function CvUploadPage() {
                                 {item.duplicate_details.existing_status === 'rejected' && (
                                   <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">{t('previouslyRejected')}</span>
                                 )}
+                                {(item.duplicate_details.existing_status === 'assigned' || item.duplicate_details.existing_status === 'pending') && (
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">⚠️ Đang phỏng vấn</span>
+                                )}
+                                {item.duplicate_details.existing_status === 'approved' && (
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">✅ Đã approved</span>
+                                )}
                               </div>
                               {item.duplicate_details.recommendation_reason && (
                                 <div className={`text-[10px] px-2 py-1 rounded ${item.duplicate_details.recommendation === 'update' ? 'bg-accent/10 text-accent' : 'bg-gray-100 text-text-muted'}`}>
@@ -313,15 +333,23 @@ export function CvUploadPage() {
                           )}
                         </div>
                         <div className="flex gap-1 shrink-0 ml-2">
-                          <button onClick={() => handleResolve(item.id, 'update')} className="p-1.5 text-accent hover:bg-accent/10 rounded-md" title={t('updateCvTooltip')}>
-                            <RefreshCw size={13} />
-                          </button>
-                          <button onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title={t('createNewTooltip')}>
-                            <UserPlus size={13} />
-                          </button>
-                          <button onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md" title={t('skipTooltip')}>
-                            <SkipForward size={13} />
-                          </button>
+                          {item.duplicate_details?.existing_status === 'assigned' || item.duplicate_details?.existing_status === 'pending' ? (
+                            <>
+                              {item.duplicate_of && <Link to={`/candidates/${item.duplicate_of}`} className="p-1.5 text-accent hover:bg-accent/10 rounded-md" title="Xem hồ sơ"><Eye size={13} /></Link>}
+                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md disabled:opacity-40" title="Bỏ qua"><SkipForward size={13} /></button>
+                            </>
+                          ) : item.duplicate_details?.existing_status === 'approved' ? (
+                            <>
+                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md disabled:opacity-40" title="Tạo hồ sơ mới (vị trí khác)"><UserPlus size={13} /></button>
+                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md disabled:opacity-40" title="Bỏ qua"><SkipForward size={13} /></button>
+                            </>
+                          ) : (
+                            <>
+                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'update')} className="p-1.5 text-accent hover:bg-accent/10 rounded-md disabled:opacity-40" title={item.duplicate_details?.existing_status === 'rejected' ? 'Mở lại + cập nhật CV' : t('updateCvTooltip')}><RefreshCw size={13} /></button>
+                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md disabled:opacity-40" title={t('createNewTooltip')}><UserPlus size={13} /></button>
+                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md disabled:opacity-40" title={t('skipTooltip')}><SkipForward size={13} /></button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

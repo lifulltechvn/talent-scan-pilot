@@ -55,6 +55,7 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting || createJob.isPending) return;
     const errors: Record<string, string> = {};
     if (!form.title.trim()) errors.title = t('jobTitleRequired');
     if (!form.description.trim()) errors.description = t('jobDescRequired');
@@ -137,8 +138,8 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
         </div>
         <div className="flex justify-end gap-2 mt-5">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('cancel')}</button>
-          <button type="submit" disabled={createJob.isPending} className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover disabled:opacity-50">
-            {createJob.isPending ? t('creating') : t('createJob')}
+          <button type="submit" disabled={createJob.isPending || submitting} className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover disabled:opacity-50">
+            {(createJob.isPending || submitting) ? t('creating') : t('createJob')}
           </button>
         </div>
       </form>

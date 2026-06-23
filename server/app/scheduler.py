@@ -62,4 +62,27 @@ async def send_30min_reminders():
 
 def start_scheduler():
     scheduler.add_job(send_30min_reminders, "interval", minutes=5, id="30min_reminders", replace_existing=True)
+    scheduler.add_job(_retry_translations, "interval", minutes=10, id="retry_translations", replace_existing=True)
     scheduler.start()
+
+
+def _retry_translations():
+    """Retry failed CV translations every 10 minutes."""
+    import asyncio
+    from app.database import async_session
+    from app.services.cv_translate import retry_failed_translations
+
+    async def _run():
+        async with async_session() as db:
+            count = await retry_failed_translations(db)
+            if count:
+                import logging
+                logging.getLogger(__name__).info(f"Retrying {count} failed translations")
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(_run())
+    except Exception:
+        pass
+    finally:
+        loop.close()

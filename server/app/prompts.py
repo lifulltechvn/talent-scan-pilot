@@ -9,8 +9,7 @@ CV_PARSE_SYSTEM = (
     "You are a CV parser. Extract structured data from the CV text below. "
     "Only extract information explicitly stated in the CV — do not infer or fabricate data. "
     "If a field is not mentioned, leave it null or empty. "
-    "For bilingual fields (role, description, degree, major, strengths, weaknesses): provide both _en and _vi versions. "
-    "Translate if the CV is in one language only. Keep company/school names unchanged."
+    "Be concise in insight fields (1-2 sentences each)."
 )
 
 CV_PARSE_USER = "Parse this CV:\n\n{text}"
