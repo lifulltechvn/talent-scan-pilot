@@ -382,6 +382,7 @@ export function CandidateDetailPage() {
           <h2 className="text-sm font-medium text-text-primary">Timeline</h2>
         </div>
         <CandidateTimeline candidateId={id!} />
+      </div>
 
       {/* Notes */}
       <div className="mt-5">
