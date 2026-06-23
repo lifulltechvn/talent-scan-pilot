@@ -9,6 +9,7 @@ import { ScoreBar } from '@/shared/components/ui/ScoreBar';
 import { CandidateTimeline } from '../components/CandidateTimeline';
 import { EmailCompose } from '@/features/outreach/components/EmailCompose';
 import { useI18n } from '@/shared/i18n';
+import { G_CRITERIA, CATEGORY_TITLES } from '@/data/g-criteria';
 import { apiClient } from '@/data/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MessageSquare } from 'lucide-react';
@@ -264,7 +265,7 @@ export function CandidateDetailPage() {
               <span className="text-[15px]">📊</span>
               <h2 className="text-sm font-medium text-text-primary">{t("skillLevelAssessment")}</h2>
             </div>
-            <span className="text-[11px] text-text-muted capitalize bg-bg-secondary px-2 py-0.5 rounded">{loc(d.skill_level.category_title) || d.skill_level.category?.replace('_', ' ')}</span>
+            <span className="text-[11px] text-text-muted capitalize bg-bg-secondary px-2 py-0.5 rounded">{CATEGORY_TITLES[d.skill_level.category]?.[locale === 'ja' ? 'ja' : locale] || d.skill_level.category?.replace('_', ' ')}</span>
           </div>
 
           {/* G Level Badge + Progress */}
@@ -287,12 +288,12 @@ export function CandidateDetailPage() {
           </div>
 
           {/* Level Description */}
-          {d.skill_level.level_description && (
+          {G_CRITERIA[d.skill_level.category]?.[d.skill_level.level] && (
             <div className="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-100">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-[11px] font-semibold text-purple-700 uppercase tracking-wider">{t("levelStandard", { level: d.skill_level.level })}</span>
               </div>
-              <p className="text-[12px] text-purple-800 leading-relaxed">{loc(d.skill_level.level_description)}</p>
+              <p className="text-[12px] text-purple-800 leading-relaxed">{G_CRITERIA[d.skill_level.category][d.skill_level.level][locale === 'ja' ? 'en' : locale as 'en' | 'vi']}</p>
             </div>
           )}
 
