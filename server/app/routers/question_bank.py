@@ -50,23 +50,37 @@ async def get_questions_for_candidate(
 
     for category in CATEGORIES:
         result[category] = []
-        for skill in skills:
-            skill_lower = skill.lower().strip()
-            # Check cache
-            cached = await db.execute(text("""
-                SELECT question, answer, trap FROM question_cache
-                WHERE skill = :skill AND level = :level AND category = :cat
-                LIMIT 1
-            """), {"skill": skill_lower, "level": level, "cat": category})
-            row = cached.mappings().first()
-            if row:
-                result[category].append({"skill": skill, "question": row["question"], "answer": row["answer"], "trap": row["trap"]})
-            else:
-                skills_to_generate.setdefault(category, []).append(skill)
+        # First: get ALL cached questions matching any of candidate's skills for this category
+        skills_lower = [s.lower().strip() for s in skills]
+        cached_all = await db.execute(text("""
+            SELECT question, answer, trap, skill FROM question_cache
+            WHERE skill = ANY(:skills) AND level = :level AND category = :cat
+            LIMIT 5
+        """), {"skills": skills_lower, "level": level, "cat": category})
+        for row in cached_all.mappings().all():
+            result[category].append({"skill": row["skill"], "question": row["question"], "answer": row["answer"], "trap": row["trap"]})
 
-        # If we have 5+ already, trim
-        if len(result[category]) >= 5:
-            result[category] = result[category][:5]
+        if len(result[category]) < 5:
+            # Fallback: get any questions for this category + level to fill up
+            if result[category]:
+                existing_ids = [r["question"][:50] for r in result[category]]
+            else:
+                existing_ids = []
+            fill = await db.execute(text("""
+                SELECT question, answer, trap, skill FROM question_cache
+                WHERE level = :level AND category = :cat
+                ORDER BY RANDOM() LIMIT :n
+            """), {"level": level, "cat": category, "n": 5 - len(result[category])})
+            for row in fill.mappings().all():
+                if row["question"][:50] not in existing_ids:
+                    result[category].append({"skill": row["skill"], "question": row["question"], "answer": row["answer"], "trap": row["trap"]})
+
+        if len(result[category]) < 5:
+            # Find which skills have no cache
+            cached_skills = {r["skill"] for r in result[category]}
+            missing = [s for s in skills if s.lower().strip() not in cached_skills]
+            if missing:
+                skills_to_generate[category] = missing
 
     # Generate missing questions
     for category, missing_skills in skills_to_generate.items():
