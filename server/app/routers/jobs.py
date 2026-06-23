@@ -88,14 +88,10 @@ async def generate_job_description(
     prompt = JD_GENERATE_PROMPT.format(title=title, context=context)
 
     try:
-        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=600, feature="jd_generate")
+        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="jd_generate")
         start = raw.find("{")
         end = raw.rfind("}") + 1
-        data = json.loads(raw[start:end])
-        # Merge description_en/vi into single JSON string for DB storage
-        if "description_en" in data:
-            data["description"] = json.dumps({"en": data.pop("description_en", ""), "vi": data.pop("description_vi", "")}, ensure_ascii=False)
-        return data
+        return json.loads(raw[start:end])
     except Exception as e:
         raise HTTPException(500, f"AI generation failed: {e}")
 
@@ -361,6 +357,8 @@ async def assign_candidate_to_job(
     # Also set candidate.job_id for backward compatibility
     candidate.job_id = job_id
     candidate.status = "assigned"
+    # Invalidate AI recommend cache for this job
+    await db.execute(text("DELETE FROM master_config WHERE key = :k"), {"k": f"ai_recommend_{job_id}"})
     await db.commit()
 
     # Run full scoring (skip LLM if score already exists for this candidate)
@@ -517,13 +515,22 @@ async def compare_top_candidates(
 @router.get("/{job_id}/ai-recommend")
 async def ai_recommend_candidates(
     job_id: uuid.UUID,
+    force: bool = False,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """AI recommends which candidates to interview with reasoning."""
+    """AI recommends which candidates to interview with detailed reasoning."""
     from app.bedrock import invoke_claude
     from app.config import settings
     from sqlalchemy import text
+    import re as _re
+
+    # Check cache
+    if not force:
+        cache_row = await db.execute(text("SELECT value FROM master_config WHERE key = :k"), {"k": f"ai_recommend_{job_id}"})
+        cached = cache_row.scalar()
+        if cached:
+            return json.loads(cached)
 
     result = await db.execute(select(Job).where(Job.id == job_id))
     job = result.scalar_one_or_none()
@@ -531,7 +538,7 @@ async def ai_recommend_candidates(
         raise HTTPException(404, "Job not found")
 
     rows = await db.execute(text("""
-        SELECT jc.final_score, jc.classification, c.structured_data
+        SELECT jc.final_score, jc.classification, jc.candidate_id, c.structured_data
         FROM job_candidates jc
         JOIN candidates c ON c.id = jc.candidate_id
         WHERE jc.job_id = :jid AND jc.final_score IS NOT NULL
@@ -540,27 +547,64 @@ async def ai_recommend_candidates(
     candidates = rows.mappings().all()
 
     if not candidates:
-        return {"recommendation": "No scored candidates yet. Run scoring first.", "candidates": []}
+        return {"recommendation": None, "rankings": [], "total_candidates": 0}
 
-    # Build summary for AI
-    cand_summaries = []
+    # Get interview feedback if available
+    cand_ids = [str(c["candidate_id"]) for c in candidates]
+    fb_rows = await db.execute(text("""
+        SELECT i.candidate_id, ii.score, ii.notes, u.full_name
+        FROM interview_interviewers ii
+        JOIN interviews i ON i.id = ii.interview_id
+        JOIN users u ON u.id = ii.user_id
+        WHERE i.candidate_id::text = ANY(:cids) AND ii.score IS NOT NULL
+    """), {"cids": cand_ids})
+    feedback_map: dict = {}
+    for fb in fb_rows.mappings().all():
+        feedback_map.setdefault(str(fb["candidate_id"]), []).append(f"{fb['full_name']}: {fb['score']}/10 - {fb['notes'] or ''}")
+
+    # Build detailed context
+    job_skills_set = set(s.lower() for s in (job.required_skills or []))
+    cand_details = []
     for i, c in enumerate(candidates):
         sd = c["structured_data"]
-        cand_summaries.append(f"{i+1}. {sd.get('name','?')} — Score: {c['final_score']}, Skills: {sd.get('skills',[][:5])}, Exp: {sd.get('experience_years',0)}y, Class: {c['classification']}")
+        cand_skills = set(s.lower() for s in (sd.get("skills") or []))
+        matched = sorted(job_skills_set & cand_skills)
+        missing = sorted(job_skills_set - cand_skills)
+        feedback = feedback_map.get(str(c["candidate_id"]), [])
+        cand_details.append(
+            f"{i+1}. {sd.get('name','?')} | Score: {c['final_score']} ({c['classification']})\n"
+            f"   Skills matched: {', '.join(matched) or 'none'}\n"
+            f"   Skills missing: {', '.join(missing) or 'none'}\n"
+            f"   Experience: {sd.get('experience_years',0)}y | Latest: {sd.get('experience',[{}])[0].get('role','')} at {sd.get('experience',[{}])[0].get('company','')}\n"
+            f"   Interview feedback: {'; '.join(feedback) if feedback else 'Not interviewed yet'}"
+        )
 
-    from app.prompts import RECOMMENDATION_PROMPT
+    prompt = f"""You are a senior HR advisor. Analyze these candidates for the position: {job.title}
+Required skills: {', '.join(job.required_skills or [])}
 
-    prompt = RECOMMENDATION_PROMPT.format(
-        job_title=job.title,
-        job_skills=job.required_skills,
-        candidates=chr(10).join(cand_summaries),
-    )
+Candidates (ranked by score):
+{chr(10).join(cand_details)}
+
+Provide:
+1. Top 3 ranking with specific reasons (why #1 is better than #2)
+2. Action for each: "invite_now" / "consider" / "pass" / "need_more_info"
+3. Overall summary (1-2 sentences)
+
+Reply ONLY valid JSON:
+{{"summary": "...", "rankings": [{{"rank": 1, "name": "...", "action": "...", "reason": "...", "strengths": ["..."], "concerns": ["..."]}}]}}"""
 
     try:
-        recommendation = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=700, feature="recommendation")
-        parts = recommendation.split("---EN---")
-        rec_vi = parts[0].strip()
-        rec_en = parts[1].strip() if len(parts) > 1 else rec_vi
-        return {"recommendation": {"vi": rec_vi, "en": rec_en}, "total_candidates": len(candidates)}
+        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=800, feature="recommendation")
+        cleaned = _re.sub(r'^```(?:json)?\s*', '', raw.strip())
+        cleaned = _re.sub(r'\s*```$', '', cleaned)
+        cleaned = _re.sub(r',\s*}', '}', cleaned)
+        cleaned = _re.sub(r',\s*]', ']', cleaned)
+        data = json.loads(cleaned)
+        response = {"total_candidates": len(candidates), **data}
+        # Cache result
+        await db.execute(text("INSERT INTO master_config (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value = :v"),
+            {"k": f"ai_recommend_{job_id}", "v": json.dumps(response)})
+        await db.commit()
+        return response
     except Exception as e:
-        return {"recommendation": {"vi": f"AI không khả dụng: {e}", "en": f"AI unavailable: {e}"}, "total_candidates": len(candidates)}
+        return {"summary": f"AI unavailable: {str(e)[:100]}", "rankings": [], "total_candidates": len(candidates)}
