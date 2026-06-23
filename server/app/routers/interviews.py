@@ -1,9 +1,10 @@
 """Interviews API — CRUD for calendar events + feedback."""
 import json
+import logging
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,57 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models import User
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/interviews", tags=["interviews"])
+
+
+async def _pre_generate_question_bank(candidate_id: str):
+    """Background task: generate question bank for candidate skills."""
+    import re
+    import uuid as _uuid
+    from app.database import async_session_factory
+    from app.models import Candidate
+    from app.routers.question_bank import _determine_level, CATEGORIES
+    from app.bedrock import invoke_claude
+    from app.config import settings
+
+    try:
+        async with async_session_factory() as _db:
+            candidate = await _db.get(Candidate, _uuid.UUID(candidate_id))
+            if not candidate:
+                return
+            d = candidate.structured_data or {}
+            skills = d.get("skills", [])[:6]
+            if not skills:
+                return
+            level = _determine_level(d.get("experience_years", 0))
+            for category in CATEGORIES:
+                cached = await _db.execute(text("SELECT COUNT(*) FROM question_cache WHERE skill = ANY(:skills) AND level = :level AND category = :cat"), {"skills": [s.lower().strip() for s in skills], "level": level, "cat": category})
+                if (cached.scalar() or 0) >= 5:
+                    continue
+                skills_str = ', '.join(skills[:5])
+                prompt = f"""Generate exactly 5 interview questions for a {level}-level developer.\nCategory: {category}\nSkills to cover (pick from these): {skills_str}\n\nFor each question provide:\n- skill: which skill this question tests\n- question: the interview question (1-2 sentences)\n- answer: the correct/expected answer (2-3 sentences, specific and technical)\n- trap: red flag if candidate doesn't know (1 sentence)\n\nReply ONLY a valid JSON array of exactly 5 objects:\n[{{"skill": "...", "question": "...", "answer": "...", "trap": "..."}}]"""
+                try:
+                    import asyncio
+                    loop = asyncio.get_event_loop()
+                    raw = await loop.run_in_executor(None, lambda: invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1200, feature="question_bank", candidate_id=candidate_id))
+                    cleaned = re.sub(r'^```(?:json)?\s*', '', raw.strip())
+                    cleaned = re.sub(r'\s*```$', '', cleaned)
+                    cleaned = re.sub(r',\s*]', ']', cleaned)
+                    try:
+                        questions = json.loads(cleaned)
+                    except json.JSONDecodeError:
+                        match = re.search(r'\[.*\]', cleaned, re.DOTALL)
+                        questions = json.loads(match.group()) if match else []
+                    for q in questions:
+                        await _db.execute(text("INSERT INTO question_cache (skill, level, category, question, answer, trap) VALUES (:skill, :level, :cat, :q, :a, :t)"),
+                            {"skill": q.get("skill", "").lower().strip(), "level": level, "cat": category, "q": q["question"], "a": q["answer"], "t": q["trap"]})
+                    await _db.commit()
+                except Exception:
+                    pass
+        logger.info(f"Question bank pre-generated for candidate {candidate_id}")
+    except Exception as e:
+        logger.warning(f"Question bank pre-generation failed: {e}")
 
 
 class InterviewCreate(BaseModel):
@@ -115,6 +166,7 @@ async def list_interviews(
 @router.post("", status_code=201)
 async def create_interview(
     body: InterviewCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -198,60 +250,7 @@ async def create_interview(
         threading.Thread(target=_gen_questions, daemon=True).start()
 
     # Pre-generate question bank (per candidate skills) in background
-    import threading as _th
-    def _gen_question_bank():
-        import asyncio
-        from app.routers.question_bank import get_questions_for_candidate
-        # Trigger generation by calling the endpoint logic directly
-        async def _do():
-            from app.database import async_session_factory
-            from app.models import Candidate
-            async with async_session_factory() as _db:
-                candidate = await _db.get(Candidate, body.candidate_id)
-                if not candidate:
-                    return
-                d = candidate.structured_data or {}
-                skills = d.get("skills", [])[:6]
-                if not skills:
-                    return
-                from app.routers.question_bank import _determine_level, CATEGORIES
-                from app.bedrock import invoke_claude
-                from app.config import settings
-                import re
-                level = _determine_level(d.get("experience_years", 0))
-                for category in CATEGORIES:
-                    # Check if already cached for all skills
-                    from sqlalchemy import text as sqt
-                    cached = await _db.execute(sqt("SELECT COUNT(*) FROM question_cache WHERE skill = ANY(:skills) AND level = :level AND category = :cat"), {"skills": [s.lower().strip() for s in skills], "level": level, "cat": category})
-                    if (cached.scalar() or 0) >= 5:
-                        continue
-                    # Generate
-                    skills_str = ', '.join(skills[:5])
-                    prompt = f"""Generate exactly 5 interview questions for a {level}-level developer.\nCategory: {category}\nSkills to cover (pick from these): {skills_str}\n\nFor each question provide:\n- skill: which skill this question tests\n- question: the interview question (1-2 sentences)\n- answer: the correct/expected answer (2-3 sentences, specific and technical)\n- trap: red flag if candidate doesn't know (1 sentence)\n\nReply ONLY a valid JSON array of exactly 5 objects:\n[{{"skill": "...", "question": "...", "answer": "...", "trap": "..."}}]"""
-                    try:
-                        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1200, feature="question_bank", candidate_id=body.candidate_id)
-                        cleaned = re.sub(r'^```(?:json)?\s*', '', raw.strip())
-                        cleaned = re.sub(r'\s*```$', '', cleaned)
-                        cleaned = re.sub(r',\s*]', ']', cleaned)
-                        try:
-                            questions = json.loads(cleaned)
-                        except:
-                            match = re.search(r'\[.*\]', cleaned, re.DOTALL)
-                            questions = json.loads(match.group()) if match else []
-                        for q in questions:
-                            await _db.execute(sqt("INSERT INTO question_cache (skill, level, category, question, answer, trap) VALUES (:skill, :level, :cat, :q, :a, :t)"),
-                                {"skill": q.get("skill", "").lower().strip(), "level": level, "cat": category, "q": q["question"], "a": q["answer"], "t": q["trap"]})
-                        await _db.commit()
-                    except:
-                        pass
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(_do())
-        except:
-            pass
-        finally:
-            loop.close()
-    _th.Thread(target=_gen_question_bank, daemon=True).start()
+    background_tasks.add_task(_pre_generate_question_bank, body.candidate_id)
 
     return {"id": str(interview_id), "status": "scheduled", "round": body.round}
 

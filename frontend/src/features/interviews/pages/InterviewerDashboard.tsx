@@ -3,6 +3,7 @@ import { Calendar, Star, MessageSquare, Clock, CheckCircle, X, User, Briefcase, 
 import { apiClient } from '@/data/api/client';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useI18n } from '@/shared/i18n';
+import { QuestionBankModal } from '../components/QuestionBankModal';
 
 interface CandidateProfile {
   skills: string[];
@@ -265,7 +266,7 @@ export function InterviewerDashboard() {
 
       {/* Questions Modal */}
       {questionsModal && (
-        <QuestionsModal interview={questionsModal} onClose={() => setQuestionsModal(null)} />
+        <QuestionBankModal key={questionsModal.candidate_id} candidateId={questionsModal.candidate_id} candidateName={questionsModal.candidate_name} onClose={() => setQuestionsModal(null)} />
       )}
     </div>
   );
