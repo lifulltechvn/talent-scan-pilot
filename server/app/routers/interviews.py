@@ -127,6 +127,25 @@ async def create_interview(
         if rej_check.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Candidate was rejected for this job")
     from datetime import datetime as dt
+    start = dt.fromisoformat(body.start_time)
+    end = dt.fromisoformat(body.end_time)
+
+    # Check interviewer time conflicts
+    if body.interviewer_ids:
+        conflicts = await db.execute(text("""
+            SELECT u.full_name, i.title, i.start_time, i.end_time
+            FROM interview_interviewers ii
+            JOIN interviews i ON i.id = ii.interview_id
+            JOIN users u ON u.id = ii.user_id
+            WHERE ii.user_id = ANY(:uids)
+              AND i.status = 'scheduled'
+              AND i.start_time < :end AND i.end_time > :start
+        """), {"uids": body.interviewer_ids, "start": start, "end": end})
+        conflict_list = conflicts.mappings().all()
+        if conflict_list:
+            names = list(set(c["full_name"] for c in conflict_list))
+            raise HTTPException(status_code=400, detail=f"Interviewer bị trùng lịch: {', '.join(names)}")
+
     interview_id = uuid.uuid4()
     await db.execute(text("""
         INSERT INTO interviews (id, candidate_id, job_id, title, start_time, end_time, notes, interviewer_emails, round, proposed_salary, meeting_link, interview_type, created_by)
@@ -134,7 +153,7 @@ async def create_interview(
     """), {
         "id": str(interview_id), "cid": body.candidate_id,
         "jid": body.job_id, "title": body.title,
-        "start": dt.fromisoformat(body.start_time), "end": dt.fromisoformat(body.end_time),
+        "start": start, "end": end,
         "notes": body.notes, "emails": json.dumps(body.interviewer_emails),
         "round": body.round,
         "salary": body.proposed_salary, "link": body.meeting_link,
