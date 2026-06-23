@@ -278,12 +278,13 @@ export function CvUploadPage() {
                         <div className="min-w-0 flex-1">
                           <div className="text-[12px] font-medium text-text-primary truncate">{item.file_name}</div>
                           <div className="text-[10px] text-text-muted">
+                            {item.duplicate_reason === 'blacklisted' && <span className="text-red-600 font-medium">🚫 Ứng viên đã bị Blacklist: </span>}
                             {item.duplicate_reason === 'hash_match' && t('hashMatch')}
                             {item.duplicate_reason === 'email_match' && t('emailMatch')}
                             {item.duplicate_reason === 'phone_match' && t('phoneMatch')}
                             {!item.duplicate_reason && t('duplicateWith')}
                             <span className="font-medium">{item.duplicate_name}</span>
-                            {item.duplicate_status && <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-medium ${item.duplicate_status === 'rejected' ? 'bg-red-100 text-red-700' : item.duplicate_status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{item.duplicate_status}</span>}
+                            {item.duplicate_status && item.duplicate_reason !== 'blacklisted' && <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-medium ${item.duplicate_status === 'rejected' ? 'bg-red-100 text-red-700' : item.duplicate_status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{item.duplicate_status}</span>}
                             {item.duplicate_of && <Link to={`/candidates/${item.duplicate_of}`} className="text-accent ml-1 hover:underline">{t('view')}</Link>}
                           </div>
                           {item.duplicate_details && (

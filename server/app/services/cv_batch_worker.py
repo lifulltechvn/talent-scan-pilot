@@ -136,6 +136,18 @@ def _process_item_sync(batch_id: str, row: dict):
                     print(f"[TIMING] {file_name}: DUP {time.time()-t0:.1f}s", flush=True)
                     return
 
+                # Check if hash matches a blacklisted candidate
+                blacklisted = await db.execute(text(
+                    "SELECT id, structured_data->>'name' as name FROM candidates WHERE cv_hash = :h AND status = 'blacklisted'"
+                ), {"h": file_hash})
+                bl = blacklisted.mappings().first()
+                if bl:
+                    await db.execute(text("""
+                        UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id, duplicate_reason = 'blacklisted' WHERE id = :id
+                    """), {"dup_id": str(bl["id"]), "id": item_id})
+                    await db.commit()
+                    return
+
                 # Extract
                 t1 = time.time()
                 with open(file_path, "rb") as f:
