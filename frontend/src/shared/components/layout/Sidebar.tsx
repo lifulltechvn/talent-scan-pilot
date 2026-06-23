@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Briefcase, CalendarCheck, Upload, Settings, UserCog, ShieldOff } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, CalendarCheck, Upload, Settings, UserCog } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useI18n } from '@/shared/i18n';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -11,7 +11,6 @@ const navItems: { to: string; labelKey: TranslationKey; icon: typeof LayoutDashb
   { to: '/jobs', labelKey: 'navJobs', icon: Briefcase, roles: ['admin', 'hr'] },
   { to: '/interviews', labelKey: 'navInterviews', icon: CalendarCheck, roles: ['admin', 'hr'] },
   { to: '/cv-upload', labelKey: 'navCvUpload', icon: Upload, roles: ['admin', 'hr'] },
-  { to: '/blacklist', labelKey: 'navBlacklist', icon: ShieldOff, roles: ['admin', 'hr'] },
   { to: '/interviewer', labelKey: 'navInterviews', icon: CalendarCheck, roles: ['interviewer'] },
 ];
 

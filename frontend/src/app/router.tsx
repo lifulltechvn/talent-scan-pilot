@@ -15,7 +15,6 @@ const InterviewsPage = lazy(() => import('@/features/interviews/pages/Interviews
 const InterviewerDashboard = lazy(() => import('@/features/interviews/pages/InterviewerDashboard').then(m => ({ default: m.InterviewerDashboard })));
 const SettingsPage = lazy(() => import('@/features/settings/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const CvUploadPage = lazy(() => import('@/features/cv-upload/pages/CvUploadPage').then(m => ({ default: m.CvUploadPage })));
-const BlacklistPage = lazy(() => import('@/features/candidates/pages/BlacklistPage').then(m => ({ default: m.BlacklistPage })));
 
 function LazyLoad({ children }: { children: React.ReactNode }) {
   return (
@@ -49,7 +48,6 @@ export const router = createBrowserRouter([
           { path: 'jobs/:id', element: <LazyLoad><JobDetailPage /></LazyLoad> },
           { path: 'interviews', element: <LazyLoad><InterviewsPage /></LazyLoad> },
           { path: 'cv-upload', element: <LazyLoad><CvUploadPage /></LazyLoad> },
-          { path: 'blacklist', element: <LazyLoad><BlacklistPage /></LazyLoad> },
           { path: 'settings', element: <LazyLoad><SettingsPage /></LazyLoad> },
           { path: 'interviewer', element: <LazyLoad><InterviewerDashboard /></LazyLoad> },
           { path: '*', element: <Navigate to="/" replace /> },
