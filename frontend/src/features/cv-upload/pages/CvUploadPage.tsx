@@ -204,7 +204,7 @@ export function CvUploadPage() {
           </div>
 
           {/* Summary cards */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-emerald-600">{done.length}</div>
               <div className="text-[10px] text-text-muted">{t('successCount')}</div>
@@ -213,12 +213,10 @@ export function CvUploadPage() {
               <div className="text-lg font-bold text-amber-600">{duplicates.length}</div>
               <div className="text-[10px] text-text-muted">{t('duplicateCount')}</div>
             </div>
-            {blacklisted.length > 0 && (
             <div className="bg-bg-panel border border-red-200 rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-red-600">{blacklisted.length}</div>
               <div className="text-[10px] text-red-600">Blacklisted</div>
             </div>
-            )}
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-red-600">{errors.length}</div>
               <div className="text-[10px] text-text-muted">{t('errorCount')}</div>
