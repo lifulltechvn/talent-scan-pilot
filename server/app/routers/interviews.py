@@ -126,7 +126,7 @@ No markdown."""
 
             CATS = ["programming", "system_design", "tech_stack", "testing", "security", "devops", "problem_solving", "soft_skills"]
             for cat in CATS:
-                for q in (data.get(cat) or [])[:3]:
+                for q in (data.get(cat) or [])[:5]:
                     q_text = q.get("q") or q.get("question", "")
                     skill = q.get("skill", skills[0])
                     if not q_text:
@@ -355,10 +355,14 @@ async def create_interview(
         threading.Thread(target=_gen_questions, daemon=True).start()
 
     # Pre-generate question bank in separate thread
+    _cid = body.candidate_id
+    _jid = body.job_id
+    _rnd = body.round
     def _gen_qbank():
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(_pre_generate_question_bank(body.candidate_id, body.job_id, body.round))
+            loop.run_until_complete(_pre_generate_question_bank(_cid, _jid, _rnd))
+            logger.info(f"Question bank generated for {_cid} round {_rnd}")
         except Exception as e:
             logger.warning(f"Question bank gen failed: {e}")
         finally:

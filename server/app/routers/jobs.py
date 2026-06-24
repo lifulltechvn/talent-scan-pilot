@@ -211,6 +211,7 @@ async def remove_candidate_from_job(
     from sqlalchemy import text
     await db.execute(text("UPDATE job_candidates SET status = 'suggested' WHERE job_id = :jid AND candidate_id = :cid"), {"jid": str(job_id), "cid": str(candidate_id)})
     await db.execute(text("UPDATE candidates SET status = 'reviewed', job_id = NULL WHERE id = :cid"), {"cid": str(candidate_id)})
+    await db.execute(text("DELETE FROM master_config WHERE key = :k"), {"k": f"ai_recommend_{job_id}"})
     await db.commit()
     return {"status": "removed"}
 
@@ -549,8 +550,8 @@ async def ai_recommend_candidates(
         SELECT jc.final_score, jc.classification, jc.candidate_id, c.structured_data
         FROM job_candidates jc
         JOIN candidates c ON c.id = jc.candidate_id
-        WHERE jc.job_id = :jid AND jc.final_score IS NOT NULL
-        ORDER BY jc.final_score DESC LIMIT 10
+        WHERE jc.job_id = :jid AND jc.status != 'suggested'
+        ORDER BY COALESCE(jc.final_score, jc.combined_score * 100) DESC LIMIT 6
     """), {"jid": str(job_id)})
     candidates = rows.mappings().all()
 
@@ -594,7 +595,7 @@ Candidates (ranked by score):
 {chr(10).join(cand_details)}
 
 Provide:
-1. Top 3 ranking with specific reasons (why #1 is better than #2)
+1. Rank all candidates. Keep reasons brief (1 sentence each)
 2. Action for each: "invite_now" / "consider" / "pass" / "need_more_info"
 3. Overall summary (1-2 sentences)
 
@@ -602,12 +603,33 @@ Reply ONLY valid JSON:
 {{"summary": "...", "rankings": [{{"rank": 1, "name": "...", "action": "...", "reason": "...", "strengths": ["..."], "concerns": ["..."]}}]}}"""
 
     try:
-        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=800, feature="recommendation")
+        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=3000, feature="recommendation")
         cleaned = _re.sub(r'^```(?:json)?\s*', '', raw.strip())
         cleaned = _re.sub(r'\s*```$', '', cleaned)
         cleaned = _re.sub(r',\s*}', '}', cleaned)
         cleaned = _re.sub(r',\s*]', ']', cleaned)
-        data = json.loads(cleaned)
+        # Try parse, repair if truncated
+        try:
+            data = json.loads(cleaned)
+        except json.JSONDecodeError:
+            # Try to close truncated JSON
+            repaired = cleaned.rstrip().rstrip(',')
+            opens_b = repaired.count('[') - repaired.count(']')
+            opens_c = repaired.count('{') - repaired.count('}')
+            repaired += '"}' * 0  # close any open string
+            for _ in range(opens_b):
+                repaired += ']'
+            for _ in range(opens_c):
+                repaired += '}'
+            try:
+                data = json.loads(repaired)
+            except json.JSONDecodeError:
+                # Last resort: extract partial
+                match = _re.search(r'\{.*"rankings"\s*:\s*\[.*?\]', cleaned, _re.DOTALL)
+                if match:
+                    data = json.loads(match.group() + '}')
+                else:
+                    raise
         response = {"total_candidates": len(candidates), **data}
         # Cache result
         await db.execute(text("INSERT INTO master_config (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value = :v"),

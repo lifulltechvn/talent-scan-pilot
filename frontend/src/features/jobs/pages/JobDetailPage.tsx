@@ -129,13 +129,10 @@ export function JobDetailPage() {
 
   const handleAiRecommend = async () => {
     setShowAiRecommend(true);
-    const currentKey = candidates.map((c: any) => c.id).sort().join(',');
-    if (aiRecommend && currentKey === aiRecommendKey) return;
     setAiRecommendLoading(true);
     try {
       const { data } = await apiClient.get(`/jobs/${id}/ai-recommend`);
       setAiRecommend(data);
-      setAiRecommendKey(currentKey);
     } catch {}
     setAiRecommendLoading(false);
   };

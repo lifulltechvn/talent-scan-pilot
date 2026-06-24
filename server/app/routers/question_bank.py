@@ -28,19 +28,9 @@ async def get_questions_for_candidate(
     rows = cached.mappings().all()
 
     if not rows:
-        # Trigger generation (same logic as interview creation background task)
-        from app.routers.interviews import _pre_generate_question_bank
-        import asyncio
-        await _pre_generate_question_bank(candidate_id, job_id, round)
-        # Re-fetch
-        cached = await db.execute(text(
-            "SELECT id, category, skill, question_en, question_vi FROM question_cache WHERE candidate_id = :cid AND round = :round ORDER BY category, created_at"
-        ), {"cid": candidate_id, "round": round})
-        rows = cached.mappings().all()
-        if not rows:
-            candidate = await db.get(Candidate, candidate_id)
-            name = (candidate.structured_data or {}).get("name", "") if candidate else ""
-            return {"candidate_id": candidate_id, "candidate_name": name, "categories": {}}
+        candidate = await db.get(Candidate, candidate_id)
+        name = (candidate.structured_data or {}).get("name", "") if candidate else ""
+        return {"candidate_id": candidate_id, "candidate_name": name, "categories": {}, "status": "generating"}
 
     result = {}
     for r in rows:

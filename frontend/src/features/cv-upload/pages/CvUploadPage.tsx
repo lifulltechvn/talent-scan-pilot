@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Upload, CheckCircle, AlertTriangle, XCircle, Loader2, RefreshCw, UserPlus, SkipForward, ChevronDown, ChevronUp, ExternalLink, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/data/api/client';
@@ -48,6 +48,10 @@ export function CvUploadPage() {
   const [error, setError] = useState('');
   const [expandedSection, setExpandedSection] = useState<string | null>('duplicates');
   const [resolving, setResolving] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   // Restore active batch on mount — fetch latest from server
   useEffect(() => {
@@ -98,7 +102,7 @@ export function CvUploadPage() {
   };
 
   const pollBatch = (batchId: string) => {
-    // Fast polling first 20s (1s interval), then slow (3s)
+    if (pollRef.current) clearInterval(pollRef.current);
     let elapsed = 0;
     const interval = setInterval(async () => {
       elapsed += 1;
@@ -108,15 +112,16 @@ export function CvUploadPage() {
         const allDone = data.status === 'done' && data.items.every((i: BatchItem) => i.status !== 'pending');
         if (allDone) {
           clearInterval(interval);
+          pollRef.current = null;
           queryClient.invalidateQueries({ queryKey: ['candidates'] });
         }
-        // Switch to slow polling after 20s
         if (elapsed > 20 && !allDone) {
           clearInterval(interval);
-          pollBatch(batchId); // restart with slow interval handled by recursive call
+          pollBatch(batchId);
         }
       } catch { /* ignore */ }
     }, elapsed < 20 ? 1000 : 3000);
+    pollRef.current = interval;
     apiClient.get(`/cv/batch/${batchId}`).then(({ data }) => setBatch(data)).catch(() => {});
   };
 
