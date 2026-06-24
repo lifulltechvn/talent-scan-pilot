@@ -569,8 +569,8 @@ export function CandidateDetailPage() {
               <button onClick={() => setEmailModal(true)} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
                 <Sparkles size={14} /> AI Email
               </button>
-              {candidate.status !== 'approved' && candidate.status !== 'rejected' && candidate.status === 'new' && (
-                <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'reviewed' }); toast('success', t("markReviewed")); }} disabled={updateStatus.isPending} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-40">
+              {candidate.status === 'new' && !updateStatus.isSuccess && (
+                <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'reviewed' }, { onSuccess: () => toast('success', t("markReviewed")) }); }} disabled={updateStatus.isPending} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-40">
                   <CheckCircle size={14} /> {updateStatus.isPending ? t("updating") : t("markReviewed")}
                 </button>
               )}

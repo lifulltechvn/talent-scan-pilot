@@ -288,6 +288,7 @@ class AIEmailRequest(BaseModel):
     tone: str = "professional"  # professional | friendly | casual
     job_title: str | None = None
     extra_context: str | None = None  # HR can add custom notes
+    locale: str = "vi"  # en | vi
 
 
 class AIEmailResponse(BaseModel):
@@ -355,7 +356,7 @@ async def ai_generate_email(
         "offer": "Extend a job offer. Express excitement about them joining the team.",
     }
 
-    prompt = f"""Write a recruitment email in Vietnamese (or English if candidate name is English).
+    prompt = f"""Write a recruitment email in {"Vietnamese" if body.locale == "vi" else "English"}.
 
 Purpose: {purpose_descriptions.get(body.purpose, body.purpose)}
 Tone: {body.tone}

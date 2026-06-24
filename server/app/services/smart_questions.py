@@ -46,12 +46,11 @@ async def get_or_create_question_set(db: AsyncSession, job_id: str, job_skills: 
     if not questions_en:
         return None
 
-    # 3. Translate if needed
+    # 3. Always translate to VI (pre-cache both languages)
     translations = {}
-    if locale != "en":
-        translated = await _translate_questions(questions_en, locale)
-        if translated:
-            translations[locale] = translated
+    translated_vi = await _translate_questions(questions_en, "vi")
+    if translated_vi:
+        translations["vi"] = translated_vi
 
     # 4. Save
     result = await db.execute(text("""

@@ -21,19 +21,44 @@ interface Question {
   trap: string;
 }
 
-export function QuestionBankModal({ candidateId, candidateName, onClose }: { candidateId: string; candidateName: string; onClose: () => void }) {
-  const { t } = useI18n();
+export function QuestionBankModal({ candidateId, candidateName, round = 1, onClose }: { candidateId: string; candidateName: string; round?: number; onClose: () => void }) {
+  const { t, locale } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [expandedCat, setExpandedCat] = useState<string | null>('programming');
+  const cleanMd = (s: string) => s?.replace(/[*#`]/g, '').replace(/^\s*[-•]\s*/gm, '- ') || '';
   const [expandedQ, setExpandedQ] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, { answer: string; red_flag: string }>>({});
+  const [loadingAnswer, setLoadingAnswer] = useState<string | null>(null);
+
+  const handleExpandQ = (qKey: string, qId: string) => {
+    if (expandedQ === qKey) { setExpandedQ(null); return; }
+    setExpandedQ(qKey);
+    if (!answers[qId]) {
+      setLoadingAnswer(qId);
+      apiClient.get(`/question-bank/answer/${qId}?locale=${locale}`)
+        .then(({ data }) => setAnswers(prev => ({ ...prev, [qId]: { answer: data.answer || '', red_flag: data.red_flag || '' } })))
+        .catch(() => setAnswers(prev => ({ ...prev, [qId]: { answer: 'Failed to load', red_flag: '' } })))
+        .finally(() => setLoadingAnswer(null));
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
-    apiClient.get(`/question-bank/for-candidate/${candidateId}`)
-      .then(({ data }) => { if (!cancelled) setData(data); })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
+    const fetchQuestions = () => {
+      apiClient.get(`/question-bank/for-candidate/${candidateId}?locale=${locale}&round=${round}`)
+        .then(({ data }) => {
+          if (cancelled) return;
+          setData(data);
+          // Retry if still generating
+          if (!data.categories || Object.keys(data.categories).length === 0) {
+            setTimeout(fetchQuestions, 3000);
+          }
+        })
+        .catch(() => {})
+        .finally(() => { if (!cancelled) setLoading(false); });
+    };
+    fetchQuestions();
     return () => { cancelled = true; };
   }, [candidateId]);
 
@@ -47,7 +72,7 @@ export function QuestionBankModal({ candidateId, candidateName, onClose }: { can
               <BookOpen size={16} /> {t('questionBankTitle')}
             </h2>
             <p className="text-[12px] text-white/70 mt-0.5">
-              {candidateName} {data ? `· ${data.level} · ${data.skills.join(', ')}` : ''}
+              {candidateName} {data ? `· ${data.level || ''} · ${data.skills?.join(', ') || ''}` : ''}
             </p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
@@ -59,8 +84,12 @@ export function QuestionBankModal({ candidateId, candidateName, onClose }: { can
             <Loader2 size={24} className="text-accent animate-spin" />
             <span className="ml-2 text-[13px] text-text-muted">{t('generatingQuestions')}</span>
           </div>
-        ) : !data ? (
-          <div className="flex-1 flex items-center justify-center text-[13px] text-text-muted">{t('cannotLoadQuestions')}</div>
+        ) : !data || !data.categories || Object.keys(data.categories).length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <Loader2 className="animate-spin text-accent" size={24} />
+            <p className="text-[13px] text-text-muted">Đang tạo câu hỏi phỏng vấn...</p>
+            <p className="text-[11px] text-text-muted">Câu hỏi sẽ sẵn sàng trong vài giây</p>
+          </div>
         ) : (
           <div className="flex-1 flex overflow-hidden">
             {/* Left: Category tabs (vertical) */}
@@ -89,7 +118,7 @@ export function QuestionBankModal({ candidateId, candidateName, onClose }: { can
                     const isOpen = expandedQ === qKey;
                     return (
                       <div key={i} className="border border-border-subtle rounded-lg overflow-hidden">
-                        <button onClick={() => setExpandedQ(isOpen ? null : qKey)} className="w-full text-left px-4 py-3 hover:bg-bg-surface/30 transition-colors">
+                        <button onClick={() => handleExpandQ(qKey, q.id)} className="w-full text-left px-4 py-3 hover:bg-bg-surface/30 transition-colors">
                           <div className="flex items-start gap-3">
                             <span className="text-[11px] font-bold text-accent bg-accent/10 w-6 h-6 rounded-md flex items-center justify-center shrink-0">{i + 1}</span>
                             <div className="flex-1">
@@ -107,14 +136,14 @@ export function QuestionBankModal({ candidateId, candidateName, onClose }: { can
                                 <CheckCircle size={13} className="text-emerald-600" />
                                 <span className="text-[11px] font-semibold text-emerald-700 uppercase">{t('correctAnswer')}</span>
                               </div>
-                              <p className="text-[13px] text-emerald-800 bg-emerald-50 px-3 py-2.5 rounded-lg leading-relaxed">{q.answer}</p>
+                              <p className="text-[13px] text-emerald-800 bg-emerald-50 px-3 py-2.5 rounded-lg leading-relaxed whitespace-pre-wrap">{loadingAnswer === q.id ? '⏳ Đang tải...' : cleanMd(answers[q.id]?.answer)}</p>
                             </div>
                             <div>
                               <div className="flex items-center gap-1.5 mb-1.5">
                                 <AlertTriangle size={13} className="text-red-600" />
                                 <span className="text-[11px] font-semibold text-red-700 uppercase">Trap / Red flag</span>
                               </div>
-                              <p className="text-[13px] text-red-800 bg-red-50 px-3 py-2.5 rounded-lg leading-relaxed">{q.trap}</p>
+                              <p className="text-[13px] text-red-800 bg-red-50 px-3 py-2.5 rounded-lg leading-relaxed whitespace-pre-wrap">{loadingAnswer === q.id ? '⏳ Đang tải...' : cleanMd(answers[q.id]?.red_flag)}</p>
                             </div>
                           </div>
                         )}

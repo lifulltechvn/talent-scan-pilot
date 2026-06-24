@@ -266,14 +266,14 @@ export function InterviewerDashboard() {
 
       {/* Questions Modal */}
       {questionsModal && (
-        <QuestionBankModal key={questionsModal.candidate_id} candidateId={questionsModal.candidate_id} candidateName={questionsModal.candidate_name} onClose={() => setQuestionsModal(null)} />
+        <QuestionBankModal key={questionsModal.candidate_id + questionsModal.round} candidateId={questionsModal.candidate_id} candidateName={questionsModal.candidate_name} round={questionsModal.round || 1} onClose={() => setQuestionsModal(null)} />
       )}
     </div>
   );
 }
 
 function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose: () => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const p = interview.candidate_profile;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
@@ -388,7 +388,7 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
 }
 
 function FeedbackModal({ interview, onClose, onSaved }: { interview: MyInterview; onClose: () => void; onSaved: () => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [score, setScore] = useState(interview.feedback_score || 5);
   const [notes, setNotes] = useState(interview.feedback_notes || '');
   const [saving, setSaving] = useState(false);
@@ -441,7 +441,7 @@ interface QuestionCriteria { id: string; description: string; point: number }
 interface Question { id: number; category: string; skill: string; question: string; criteria: QuestionCriteria[]; max_score: number; red_flags: string; follow_up: string }
 
 function QuestionsModal({ interview, onClose }: { interview: MyInterview; onClose: () => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [scores, setScores] = useState<Record<number, boolean[]>>({});
@@ -449,7 +449,7 @@ function QuestionsModal({ interview, onClose }: { interview: MyInterview; onClos
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    apiClient.get(`/interviews/${interview.id}/questions?locale=vi`).then(({ data }) => {
+    apiClient.get(`/interviews/${interview.id}/questions?locale=${locale}`).then(({ data }) => {
       setQuestions(data.questions || []);
       // Load existing scores
       apiClient.get(`/interviews/${interview.id}/questions/score`).then(({ data: s }) => {
@@ -461,7 +461,7 @@ function QuestionsModal({ interview, onClose }: { interview: MyInterview; onClos
         }
       }).catch(() => {});
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [interview.id]);
+  }, [interview.id, locale]);
 
   const toggleCriteria = (qId: number, idx: number) => {
     setScores(prev => {

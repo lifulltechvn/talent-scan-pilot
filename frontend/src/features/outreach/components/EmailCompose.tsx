@@ -33,7 +33,7 @@ const TONES = [
 ];
 
 export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTitle, onClose, onSent }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [toEmail, setToEmail] = useState(candidateEmail || '');
   const [subject, setSubject] = useState('');
   const [minimized, setMinimized] = useState(false);
@@ -60,7 +60,7 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
     setGenerating(true); setError('');
     try {
       const { data } = await apiClient.post('/outreach/ai-generate', {
-        candidate_id: candidateId, purpose, tone, job_title: jobTitle,
+        candidate_id: candidateId, purpose, tone, job_title: jobTitle, locale,
       });
       setSubject(data.subject);
       const html = `<p>${data.greeting}</p><p>${data.body.replace(/\n/g, '</p><p>')}</p><p>${data.closing}</p>`;

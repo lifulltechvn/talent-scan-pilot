@@ -17,53 +17,152 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
 
-async def _pre_generate_question_bank(candidate_id: str):
-    """Background task: generate question bank for candidate skills."""
-    import re
+async def _pre_generate_question_bank(candidate_id: str, job_id: str | None = None, round_num: int = 1):
+    """Background: generate questions based on JD + G-level + round, then translate to VI."""
     import uuid as _uuid
-    from app.database import async_session_factory
-    from app.models import Candidate
-    from app.routers.question_bank import _determine_level, CATEGORIES
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+    from app.models import Candidate, Job
     from app.bedrock import invoke_claude
     from app.config import settings
+    from app.skill_maps import SKILL_MAPS
 
     try:
-        async with async_session_factory() as _db:
+        engine = create_async_engine(settings.DATABASE_URL, pool_size=2)
+        _sf = async_sessionmaker(engine, expire_on_commit=False)
+        async with _sf() as _db:
             candidate = await _db.get(Candidate, _uuid.UUID(candidate_id))
             if not candidate:
                 return
             d = candidate.structured_data or {}
-            skills = d.get("skills", [])[:6]
+            skills = d.get("skills", [])[:8]
             if not skills:
                 return
-            level = _determine_level(d.get("experience_years", 0))
-            for category in CATEGORIES:
-                cached = await _db.execute(text("SELECT COUNT(*) FROM question_cache WHERE skill = ANY(:skills) AND level = :level AND category = :cat"), {"skills": [s.lower().strip() for s in skills], "level": level, "cat": category})
-                if (cached.scalar() or 0) >= 5:
-                    continue
-                skills_str = ', '.join(skills[:5])
-                prompt = f"""Generate exactly 5 interview questions for a {level}-level developer.\nCategory: {category}\nSkills to cover (pick from these): {skills_str}\n\nFor each question provide:\n- skill: which skill this question tests\n- question: the interview question (1-2 sentences)\n- answer: the correct/expected answer (2-3 sentences, specific and technical)\n- trap: red flag if candidate doesn't know (1 sentence)\n\nReply ONLY a valid JSON array of exactly 5 objects:\n[{{"skill": "...", "question": "...", "answer": "...", "trap": "..."}}]"""
-                try:
-                    import asyncio
-                    loop = asyncio.get_event_loop()
-                    raw = await loop.run_in_executor(None, lambda: invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1200, feature="question_bank", candidate_id=candidate_id))
-                    cleaned = re.sub(r'^```(?:json)?\s*', '', raw.strip())
-                    cleaned = re.sub(r'\s*```$', '', cleaned)
-                    cleaned = re.sub(r',\s*]', ']', cleaned)
+            exp_years = d.get("experience_years", 0)
+            level = "junior" if exp_years < 2 else "mid" if exp_years < 5 else "senior"
+            g_level = d.get("skill_level", {}).get("level", "G2")
+            category = d.get("skill_level", {}).get("category", "application_engineer")
+
+            # Check if already generated for this candidate
+            existing = await _db.execute(text("SELECT count(*) FROM question_cache WHERE candidate_id = :cid AND round = :round"), {"cid": candidate_id, "round": round_num})
+            if (existing.scalar() or 0) > 0:
+                return
+
+            # --- Criteria 1: JD context ---
+            jd_context = ""
+            if job_id:
+                job = await _db.get(Job, _uuid.UUID(job_id))
+                if job:
+                    jd_desc = job.description or ""
+                    # Try parse bilingual
                     try:
-                        questions = json.loads(cleaned)
-                    except json.JSONDecodeError:
-                        match = re.search(r'\[.*\]', cleaned, re.DOTALL)
-                        questions = json.loads(match.group()) if match else []
-                    for q in questions:
-                        await _db.execute(text("INSERT INTO question_cache (skill, level, category, question, answer, trap) VALUES (:skill, :level, :cat, :q, :a, :t)"),
-                            {"skill": q.get("skill", "").lower().strip(), "level": level, "cat": category, "q": q["question"], "a": q["answer"], "t": q["trap"]})
+                        jd_parsed = json.loads(jd_desc)
+                        jd_desc = jd_parsed.get("en", jd_parsed.get("vi", jd_desc))
+                    except Exception:
+                        pass
+                    job_skills = job.required_skills or []
+                    jd_context = f"""
+JOB REQUIREMENTS:
+- Position: {job.title}
+- Required skills: {', '.join(job_skills[:10])}
+- Description: {jd_desc[:300]}
+Questions MUST test skills required by this job, not just candidate's existing skills."""
+
+            # --- Criteria 2: G-level target ---
+            g_context = f"""
+G-LEVEL ASSESSMENT:
+- Candidate current level: {g_level}
+- Category: {category}"""
+            sm = SKILL_MAPS.get(category, {})
+            if sm.get("g_criteria"):
+                g_context += f"\n- To reach next level, candidate needs: {sm['g_criteria'].get(g_level, '')[:150]}"
+            g_context += f"""
+- Questions should probe whether candidate truly matches {g_level} or could be higher/lower
+- Include questions that distinguish between {g_level} and next level"""
+
+            # --- Criteria 3: Round focus ---
+            round_focus = {
+                1: "ROUND 1 — Technical depth: test core knowledge, problem-solving, verify CV claims. Focus 70% technical, 30% experience validation.",
+                2: "ROUND 2 — Culture & leadership: test communication, teamwork, conflict resolution, growth mindset. Focus 70% soft skills, 30% advanced technical.",
+                3: "ROUND 3 — Senior/Final: system design, strategic thinking, decision-making, mentoring ability. Focus on leadership and architecture.",
+            }
+            round_ctx = round_focus.get(round_num, round_focus[1])
+
+            # --- Build prompt ---
+            skill_list = ", ".join(skills)
+            prompt = f"""Generate interview questions for a {level}-level candidate ({g_level}).
+Candidate skills: {skill_list}
+{jd_context}
+{g_context}
+
+ROUND FOCUS: {round_ctx}
+
+Generate 3 questions per category (24 total):
+- programming: core coding depth relevant to the job
+- system_design: architecture decisions at {g_level} level
+- tech_stack: proficiency with required technologies
+- testing: testing approach appropriate for {level} level
+- security: security awareness for this role
+- devops: deployment/infra knowledge
+- problem_solving: real debugging/optimization scenarios
+- soft_skills: {"leadership, mentoring, strategic communication" if round_num >= 2 else "teamwork, communication, collaboration"} (NOT technical)
+
+Rules:
+- Questions must match the JOB requirements, not just candidate skills
+- Difficulty should match {g_level} assessment level
+- Round {round_num} focus: {"soft skills + advanced tech" if round_num >= 2 else "technical depth + experience validation"}
+- Practical, 1-2 sentences each
+- Tag each with most relevant skill
+
+Return JSON: {{"programming":[{{"q":"...","skill":"..."}},...], ...}}
+No markdown."""
+
+            
+            
+            raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=2500, feature="question_bank", candidate_id=candidate_id)
+            clean = raw.strip()
+            if clean.startswith("```"): clean = clean.split("\n", 1)[1]
+            if clean.endswith("```"): clean = clean[:-3]
+            data = json.loads(clean[clean.find("{"):clean.rfind("}")+1])
+
+            CATS = ["programming", "system_design", "tech_stack", "testing", "security", "devops", "problem_solving", "soft_skills"]
+            for cat in CATS:
+                for q in (data.get(cat) or [])[:3]:
+                    q_text = q.get("q") or q.get("question", "")
+                    skill = q.get("skill", skills[0])
+                    if not q_text:
+                        continue
+                    await _db.execute(text("""
+                        INSERT INTO question_cache (candidate_id, category, skill, question_en, level, round)
+                        VALUES (:cid, :cat, :skill, :q, :level, :round)
+                    """), {"cid": candidate_id, "cat": cat, "skill": skill, "q": q_text, "level": level, "round": round_num})
+            await _db.commit()
+
+            # Translate to VI
+            rows = await _db.execute(text("SELECT id, question_en FROM question_cache WHERE candidate_id = :cid AND round = :round AND question_vi IS NULL"), {"cid": candidate_id, "round": round_num})
+            items = rows.mappings().all()
+            if items:
+                try:
+                    qs = [r["question_en"] for r in items]
+                    t_prompt = f"Translate to Vietnamese. Return JSON array of strings.\n{json.dumps(qs, ensure_ascii=False)}"
+                    t_raw = invoke_claude(t_prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=3000, feature="q_translate")
+                    t_clean = t_raw.strip()
+                    if t_clean.startswith("```"): t_clean = t_clean.split("\n", 1)[1]
+                    if t_clean.endswith("```"): t_clean = t_clean[:-3]
+                    translated = json.loads(t_clean[t_clean.find("["):t_clean.rfind("]")+1])
+                    for i, item in enumerate(items):
+                        if i < len(translated):
+                            await _db.execute(text("UPDATE question_cache SET question_vi = :vi WHERE id = :id"), {"vi": translated[i], "id": str(item["id"])})
                     await _db.commit()
                 except Exception:
                     pass
-        logger.info(f"Question bank pre-generated for candidate {candidate_id}")
+        logger.info(f"Question bank pre-generated for candidate {candidate_id} (job={job_id}, round={round_num})")
+        await engine.dispose()
     except Exception as e:
         logger.warning(f"Question bank pre-generation failed: {e}")
+        try:
+            await engine.dispose()
+        except Exception:
+            pass
 
 
 class InterviewCreate(BaseModel):
@@ -171,6 +270,10 @@ async def create_interview(
     user: User = Depends(get_current_user),
 ):
     """Create a new interview event. Email sent separately via /send-invitation."""
+    # Require at least one interviewer
+    if not body.interviewer_emails and not body.interviewer_ids:
+        raise HTTPException(status_code=400, detail="At least one interviewer is required")
+
     # Block scheduling if candidate was rejected for this specific job
     if body.job_id:
         rej_check = await db.execute(text("""
@@ -222,7 +325,7 @@ async def create_interview(
     if body.job_id:
         import threading
         def _gen_questions():
-            import asyncio
+            
             from app.services.smart_questions import get_or_create_question_set
             from app.database import async_session as _session
             async def _do():
@@ -249,8 +352,18 @@ async def create_interview(
                 loop.close()
         threading.Thread(target=_gen_questions, daemon=True).start()
 
-    # Pre-generate question bank (per candidate skills) in background
-    background_tasks.add_task(_pre_generate_question_bank, body.candidate_id)
+    # Pre-generate question bank in separate thread (BackgroundTasks unreliable with async)
+    import threading
+    def _gen_qbank():
+        
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(_pre_generate_question_bank(body.candidate_id, body.job_id, body.round))
+        except Exception:
+            pass
+        finally:
+            loop.close()
+    threading.Thread(target=_gen_qbank, daemon=True).start()
 
     return {"id": str(interview_id), "status": "scheduled", "round": body.round}
 

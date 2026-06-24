@@ -27,7 +27,7 @@ interface Props {
 }
 
 export function AIEmailComposer({ candidateId, candidateName, candidateEmail, jobTitle, onClose, onSent }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [purpose, setPurpose] = useState('outreach');
   const [tone, setTone] = useState('professional');
   const [extraContext, setExtraContext] = useState('');
@@ -51,7 +51,7 @@ export function AIEmailComposer({ candidateId, candidateName, candidateEmail, jo
         candidate_id: candidateId,
         purpose, tone,
         job_title: jobTitle,
-        extra_context: extraContext || null,
+        extra_context: extraContext || null, locale,
       });
       setSubject(data.subject);
       setGreeting(data.greeting);

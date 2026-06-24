@@ -70,15 +70,21 @@ def start_scheduler():
 def _retry_translations():
     """Retry failed CV translations every 10 minutes."""
     import asyncio
-    from app.database import async_session
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+    from app.config import settings
     from app.services.cv_translate import retry_failed_translations
 
     async def _run():
-        async with async_session() as db:
-            count = await retry_failed_translations(db)
-            if count:
-                import logging
-                logging.getLogger(__name__).info(f"Retrying {count} failed translations")
+        engine = create_async_engine(settings.DATABASE_URL, pool_size=2)
+        sf = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with sf() as db:
+                count = await retry_failed_translations(db)
+                if count:
+                    import logging
+                    logging.getLogger(__name__).info(f"Retrying {count} failed translations")
+        finally:
+            await engine.dispose()
 
     loop = asyncio.new_event_loop()
     try:
@@ -93,42 +99,47 @@ def _retry_skill_levels():
     """Assess skill level for candidates that don't have it yet."""
     import asyncio
     from sqlalchemy import text
-    from app.database import async_session
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+    from app.config import settings
     from app.skill_maps import assess_skill_level
 
     async def _run():
-        async with async_session() as db:
-            result = await db.execute(text("""
-                SELECT id, structured_data FROM candidates
-                WHERE structured_data->>'skill_level' IS NULL
-                  AND structured_data->'skill_level' IS NULL
-                  AND status != 'processing'
-                  AND structured_data->>'name' IS NOT NULL
-                  AND jsonb_array_length(COALESCE(structured_data->'skills', '[]'::jsonb)) > 0
-                LIMIT 5
-            """))
-            rows = result.mappings().all()
-            if not rows:
-                return
+        engine = create_async_engine(settings.DATABASE_URL, pool_size=2)
+        sf = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with sf() as db:
+                result = await db.execute(text("""
+                    SELECT id, structured_data FROM candidates
+                    WHERE structured_data->>'skill_level' IS NULL
+                      AND structured_data->'skill_level' IS NULL
+                      AND status != 'processing'
+                      AND structured_data->>'name' IS NOT NULL
+                      AND jsonb_array_length(COALESCE(structured_data->'skills', '[]'::jsonb)) > 0
+                    LIMIT 5
+                """))
+                rows = result.mappings().all()
+                if not rows:
+                    return
 
-            import logging
-            import json
-            logger = logging.getLogger(__name__)
-            logger.info(f"Assessing skill level for {len(rows)} candidates")
+                import logging, json
+                logger = logging.getLogger(__name__)
+                logger.info(f"Assessing skill level for {len(rows)} candidates")
 
-            for row in rows:
-                try:
-                    sd = row["structured_data"]
-                    level = assess_skill_level(sd, candidate_id=str(row["id"]))
-                    if level:
-                        sd_copy = dict(sd)
-                        sd_copy["skill_level"] = level
-                        await db.execute(text(
-                            "UPDATE candidates SET structured_data = :sd WHERE id = :id"
-                        ), {"sd": json.dumps(sd_copy, ensure_ascii=False), "id": str(row["id"])})
-                except Exception as e:
-                    logger.warning(f"Skill level assessment failed for {row['id']}: {e}")
-            await db.commit()
+                for row in rows:
+                    try:
+                        sd = row["structured_data"]
+                        level = assess_skill_level(sd, candidate_id=str(row["id"]))
+                        if level:
+                            sd_copy = dict(sd)
+                            sd_copy["skill_level"] = level
+                            await db.execute(text(
+                                "UPDATE candidates SET structured_data = :sd WHERE id = :id"
+                            ), {"sd": json.dumps(sd_copy, ensure_ascii=False), "id": str(row["id"])})
+                    except Exception as e:
+                        logger.warning(f"Skill level assessment failed for {row['id']}: {e}")
+                await db.commit()
+        finally:
+            await engine.dispose()
 
     loop = asyncio.new_event_loop()
     try:

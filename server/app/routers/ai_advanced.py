@@ -41,7 +41,32 @@ def _parse_json_response(text: str) -> dict:
             return json.loads(match.group())
         except json.JSONDecodeError:
             pass
+    # Try repair truncated JSON
+    repaired = _repair_truncated_json(cleaned)
+    if repaired:
+        return repaired
     raise ValueError(f"Cannot parse JSON from: {cleaned[:200]}")
+
+
+def _repair_truncated_json(text: str) -> dict | None:
+    """Try to repair truncated JSON by closing brackets."""
+    import re
+    # Count open/close brackets
+    opens = text.count('{') + text.count('[')
+    closes = text.count('}') + text.count(']')
+    if opens > closes:
+        # Add missing closings
+        repaired = text.rstrip().rstrip(',')
+        for _ in range(opens - closes):
+            if repaired.count('[') > repaired.count(']'):
+                repaired += '"]'
+            else:
+                repaired += '}'
+        try:
+            return json.loads(repaired)
+        except Exception:
+            pass
+    return None
 
 
 # ============ #1: AI Detect CV giả ============
@@ -129,7 +154,7 @@ Reply ONLY valid JSON (reasons, red_flags, green_flags in both Vietnamese and En
         if cached and not force:
             return {"candidate_id": candidate_id, "candidate_name": d.get("name", "Unknown"), **cached}
 
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1200, feature="cv_authenticity", candidate_id=candidate_id)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=2000, feature="cv_authenticity", candidate_id=candidate_id)
         logger.info(f"CV authenticity raw response: {result[:200]}")
         data = _parse_json_response(result)
         response = {
