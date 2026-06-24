@@ -53,11 +53,12 @@ async def create_user(
         hashed_password=hash_password(body.password),
         full_name=body.full_name,
         role=body.role,
+        is_active=True,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    return {"id": str(user.id), "email": user.email, "full_name": user.full_name, "role": user.role}
+    return {"id": str(user.id), "email": user.email, "full_name": user.full_name, "role": user.role, "is_active": user.is_active}
 
 
 @router.put("/{user_id}")

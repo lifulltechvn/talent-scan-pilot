@@ -174,68 +174,6 @@ Reply ONLY valid JSON (reasons, red_flags, green_flags in both Vietnamese and En
         return {"candidate_id": candidate_id, "score": 70, "verdict": "unknown", "reasons": [f"Analysis error: {str(e)[:100]}"], "red_flags": [], "green_flags": []}
 
 
-# ============ #2: AI Interview Coaching ============
-
-@router.post("/interview-coaching/{interview_id}")
-async def get_interview_coaching(
-    interview_id: str,
-    db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
-):
-    """Analyze interviewer feedback quality and provide coaching tips."""
-    # Get all feedback for this interview
-    rows = await db.execute(text("""
-        SELECT ii.score, ii.notes, u.full_name
-        FROM interview_interviewers ii
-        JOIN users u ON u.id = ii.user_id
-        WHERE ii.interview_id = :iid AND ii.score IS NOT NULL
-    """), {"iid": interview_id})
-    feedback_list = rows.mappings().all()
-
-    if not feedback_list:
-        raise HTTPException(400, "No feedback submitted yet")
-
-    # Get interview context
-    iv = await db.execute(text("""
-        SELECT i.title, i.round, c.structured_data->>'name' as candidate_name, j.title as job_title
-        FROM interviews i
-        LEFT JOIN candidates c ON c.id = i.candidate_id
-        LEFT JOIN jobs j ON j.id = i.job_id
-        WHERE i.id = :iid
-    """), {"iid": interview_id})
-    context = iv.mappings().first()
-
-    feedback_text = "\n".join([
-        f"- {fb['full_name']}: Score {fb['score']}/10, Notes: \"{fb['notes'] or 'No notes'}\""
-        for fb in feedback_list
-    ])
-
-    prompt = f"""Analyze these interview feedback submissions and provide coaching for the interviewers.
-
-Interview: {context['job_title'] or 'Unknown'} - Round {context['round']}
-Candidate: {context['candidate_name']}
-
-Feedback from interviewers:
-{feedback_text}
-
-Analyze and provide:
-1. Quality assessment of each feedback (is it detailed enough? actionable?)
-2. Bias detection (all same score? extreme scores without justification?)
-3. Consistency check (do scores align with notes?)
-4. Coaching tips for improvement
-
-Reply in JSON (provide text fields in both Vietnamese and English):
-{{"overall_quality": "<good|needs_improvement|poor>", "assessments": [{{"name": "...", "quality": "<good|fair|poor>", "issue": {{"vi": "...", "en": "..."}}, "tip": {{"vi": "...", "en": "..."}}}}], "bias_warning": null or {{"vi": "...", "en": "..."}}, "summary": {{"vi": "...", "en": "..."}}}}"""
-
-    try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="interview_coaching")
-        data = _parse_json_response(result)
-        return data
-    except Exception as e:
-        logger.warning(f"Interview coaching failed: {e}")
-        return {"overall_quality": "unknown", "assessments": [], "bias_warning": None, "summary": "Analysis unavailable"}
-
-
 # ============ #4: AI Culture Fit ============
 
 @router.post("/culture-fit/{candidate_id}")

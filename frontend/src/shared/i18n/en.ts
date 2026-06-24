@@ -320,17 +320,6 @@ export const en = {
   saveFeedback: 'Save Feedback',
   round: 'Round {round}',
 
-  // Interview Coaching
-  aiInterviewCoaching: 'AI Interview Coaching',
-  coachingDescription: 'AI analyzes interviewer feedback quality & detects bias',
-  analyzeFeedback: '🧠 Analyze Feedback',
-  analyzing: 'Analyzing...',
-  cannotAnalyze: 'Cannot analyze',
-  feedbackQualityGood: '✅ Good quality feedback',
-  feedbackNeedsImprovement: '⚠️ Needs improvement',
-  feedbackPoorQuality: '❌ Poor quality feedback',
-  biasWarning: '⚠️ Bias Warning',
-
   // Candidates Page
   candidates: 'Candidates',
   candidateCount: '{count} candidates',
@@ -523,7 +512,6 @@ export const en = {
   nextRoundResult: '🔄 Next Round',
   failedResult: '❌ Failed',
   waitingForEnd: 'Waiting for interview to end',
-  aiCoaching: '🧠 AI Coaching',
   deleteBtn: 'Delete',
   deleteInterviewTitle: 'Delete Interview',
   deleteInterviewDesc: 'Delete interview for {name}? This action cannot be undone.',

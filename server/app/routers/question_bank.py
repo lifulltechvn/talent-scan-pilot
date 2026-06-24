@@ -24,7 +24,7 @@ async def get_questions_for_candidate(
     """Return cached questions (generated at interview creation time)."""
     cached = await db.execute(text(
         "SELECT id, category, skill, question_en, question_vi FROM question_cache WHERE candidate_id = :cid AND round = :round ORDER BY category, created_at"
-    ), {"cid": candidate_id})
+    ), {"cid": candidate_id, "round": round})
     rows = cached.mappings().all()
 
     if not rows:
@@ -35,7 +35,7 @@ async def get_questions_for_candidate(
         # Re-fetch
         cached = await db.execute(text(
             "SELECT id, category, skill, question_en, question_vi FROM question_cache WHERE candidate_id = :cid AND round = :round ORDER BY category, created_at"
-        ), {"cid": candidate_id})
+        ), {"cid": candidate_id, "round": round})
         rows = cached.mappings().all()
         if not rows:
             candidate = await db.get(Candidate, candidate_id)

@@ -322,17 +322,6 @@ export const ja: Record<TranslationKey, string> = {
   saveFeedback: 'フィードバック保存',
   round: 'ラウンド{round}',
 
-  // Interview Coaching
-  aiInterviewCoaching: 'AI面接コーチング',
-  coachingDescription: 'AIが面接官のフィードバック品質を分析し、バイアスを検出します',
-  analyzeFeedback: '🧠 フィードバック分析',
-  analyzing: '分析中...',
-  cannotAnalyze: '分析できません',
-  feedbackQualityGood: '✅ フィードバック品質良好',
-  feedbackNeedsImprovement: '⚠️ 改善が必要',
-  feedbackPoorQuality: '❌ フィードバック品質不良',
-  biasWarning: '⚠️ バイアス警告',
-
   // Candidates Page
   candidates: '候補者',
   candidateCount: '{count}名の候補者',
@@ -649,7 +638,6 @@ export const ja: Record<TranslationKey, string> = {
   nextRoundResult: '🔄 次のラウンド',
   failedResult: '❌ 不合格',
   waitingForEnd: '面接終了を待っています',
-  aiCoaching: '🧠 AIコーチング',
   deleteBtn: '削除',
   deleteInterviewTitle: '面接を削除',
   deleteInterviewDesc: '{name}の面接を削除しますか？この操作は取り消せません。',

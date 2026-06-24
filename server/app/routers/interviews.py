@@ -96,7 +96,7 @@ Candidate skills: {skill_list}
 
 ROUND FOCUS: {round_ctx}
 
-Generate 3 questions per category (24 total):
+Generate 5 questions per category (40 total):
 - programming: core coding depth relevant to the job
 - system_design: architecture decisions at {g_level} level
 - tech_stack: proficiency with required technologies
@@ -118,7 +118,7 @@ No markdown."""
 
             
             
-            raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=2500, feature="question_bank", candidate_id=candidate_id)
+            raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=4000, feature="question_bank", candidate_id=candidate_id)
             clean = raw.strip()
             if clean.startswith("```"): clean = clean.split("\n", 1)[1]
             if clean.endswith("```"): clean = clean[:-3]
@@ -322,27 +322,29 @@ async def create_interview(
     await db.commit()
 
     # Pre-generate questions in background (non-blocking)
+    import threading, asyncio
     if body.job_id:
-        import threading
         def _gen_questions():
-            
             from app.services.smart_questions import get_or_create_question_set
-            from app.database import async_session as _session
+            from sqlalchemy.ext.asyncio import create_async_engine as _ce2, async_sessionmaker as _asm2
             async def _do():
-                async with _session() as _db:
-                    job_row = await _db.execute(text("SELECT title, required_skills, category FROM jobs WHERE id = :id"), {"id": body.job_id})
-                    job = job_row.mappings().first()
-                    if not job:
-                        return
-                    cand_row = await _db.execute(text("SELECT structured_data->>'experience_years' as ey FROM candidates WHERE id = :id"), {"id": body.candidate_id})
-                    cand = cand_row.mappings().first()
-                    exp = int(cand["ey"] or 0) if cand and cand["ey"] else 0
-                    locale_row = await _db.execute(text("SELECT value FROM master_config WHERE key = 'app_locale'"))
-                    locale = (locale_row.scalar() or "vi")
-                    result = await get_or_create_question_set(_db, body.job_id, job["required_skills"] or [], job["title"] or "", body.round, exp, locale, job["category"])
-                    if result:
-                        await _db.execute(text("UPDATE interviews SET question_set_id = :qid WHERE id = :id"), {"qid": result["id"], "id": str(interview_id)})
-                        await _db.commit()
+                eng = _ce2(settings.DATABASE_URL, pool_size=1)
+                sf = _asm2(eng, expire_on_commit=False)
+                try:
+                    async with sf() as _db:
+                        job_row = await _db.execute(text("SELECT title, required_skills, category FROM jobs WHERE id = :id"), {"id": body.job_id})
+                        job = job_row.mappings().first()
+                        if not job:
+                            return
+                        cand_row = await _db.execute(text("SELECT structured_data->>'experience_years' as ey FROM candidates WHERE id = :id"), {"id": body.candidate_id})
+                        cand = cand_row.mappings().first()
+                        exp = int(cand["ey"] or 0) if cand and cand["ey"] else 0
+                        result = await get_or_create_question_set(_db, body.job_id, job["required_skills"] or [], job["title"] or "", body.round, exp, "vi", job["category"])
+                        if result:
+                            await _db.execute(text("UPDATE interviews SET question_set_id = :qid WHERE id = :id"), {"qid": result["id"], "id": str(interview_id)})
+                            await _db.commit()
+                finally:
+                    await eng.dispose()
             loop = asyncio.new_event_loop()
             try:
                 loop.run_until_complete(_do())
@@ -352,15 +354,13 @@ async def create_interview(
                 loop.close()
         threading.Thread(target=_gen_questions, daemon=True).start()
 
-    # Pre-generate question bank in separate thread (BackgroundTasks unreliable with async)
-    import threading
+    # Pre-generate question bank in separate thread
     def _gen_qbank():
-        
         loop = asyncio.new_event_loop()
         try:
             loop.run_until_complete(_pre_generate_question_bank(body.candidate_id, body.job_id, body.round))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Question bank gen failed: {e}")
         finally:
             loop.close()
     threading.Thread(target=_gen_qbank, daemon=True).start()

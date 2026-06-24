@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, X, Star, MessageSquare, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
-import { InterviewCoachingModal } from '../components/InterviewCoachingModal';
 import { useI18n } from '@/shared/i18n';
 
 interface Interview {
@@ -415,7 +414,6 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
   const { t, locale } = useI18n();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [coachingId, setCoachingId] = useState<string | null>(null);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -520,11 +518,6 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
                   <MessageSquare size={13} /> {t('feedbackBtn')}
                 </button>
               )}
-              {(interview.interviewer_feedback || []).length > 0 && (
-                <button onClick={() => setCoachingId(interview.id)} className="flex-1 py-2 text-[13px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 flex items-center justify-center gap-1">
-                  {t('aiCoaching')}
-                </button>
-              )}
               {!interview.feedback_score && new Date(interview.end_time) >= new Date() && (
                 <span className="flex-1 py-2 text-[12px] text-text-muted text-center">{t('waitingForEnd')}</span>
               )}
@@ -538,7 +531,6 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
           </div>
         </div>
       </div>
-      {coachingId && <InterviewCoachingModal interviewId={coachingId} onClose={() => setCoachingId(null)} />}
     </div>
   );
 }

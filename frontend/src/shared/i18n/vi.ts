@@ -322,17 +322,6 @@ export const vi: Record<TranslationKey, string> = {
   saveFeedback: 'Lưu đánh giá',
   round: 'Vòng {round}',
 
-  // Interview Coaching
-  aiInterviewCoaching: 'AI Interview Coaching',
-  coachingDescription: 'AI phân tích chất lượng feedback của interviewer & phát hiện bias',
-  analyzeFeedback: '🧠 Phân tích Feedback',
-  analyzing: 'Đang phân tích...',
-  cannotAnalyze: 'Không thể phân tích',
-  feedbackQualityGood: '✅ Feedback chất lượng tốt',
-  feedbackNeedsImprovement: '⚠️ Cần cải thiện',
-  feedbackPoorQuality: '❌ Feedback kém chất lượng',
-  biasWarning: '⚠️ Cảnh báo Bias',
-
   // Candidates Page
   candidates: 'Ứng viên',
   candidateCount: '{count} ứng viên',
@@ -649,7 +638,6 @@ export const vi: Record<TranslationKey, string> = {
   nextRoundResult: '🔄 Next Round',
   failedResult: '❌ Failed',
   waitingForEnd: 'Chờ kết thúc phỏng vấn',
-  aiCoaching: '🧠 AI Coaching',
   deleteBtn: 'Xoá',
   deleteInterviewTitle: 'Xoá lịch phỏng vấn',
   deleteInterviewDesc: 'Xoá lịch phỏng vấn của {name}? Hành động này không thể hoàn tác.',
