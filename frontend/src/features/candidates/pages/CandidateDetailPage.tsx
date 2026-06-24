@@ -230,6 +230,7 @@ export function CandidateDetailPage() {
 
   // Helper to get localized text from i18n object or plain string
   const d = candidate?.structuredData ?? {} as any;
+  const clean = (v: any) => (!v || v === '<UNKNOWN>' || v === 'null' || v === 'N/A') ? '' : v;
 
   const loc = (val: any, viVal?: any) => {
     if (!val && !viVal) return '';
@@ -519,7 +520,9 @@ export function CandidateDetailPage() {
       </div>
 
       {/* Notes */}
-      <CandidateNotes candidateId={id!} />
+      <div className="mt-5">
+        <CandidateNotes candidateId={id!} />
+      </div>
 
         </div>{/* end left */}
 
@@ -694,6 +697,7 @@ function MatchedJobsSection({ candidateId, hasAssignedJob }: { candidateId: stri
   const { t } = useI18n();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
+  const qc = useQueryClient();
 
   useEffect(() => {
     apiClient.get(`/candidates/${candidateId}/matched-jobs`)
@@ -708,6 +712,8 @@ function MatchedJobsSection({ candidateId, hasAssignedJob }: { candidateId: stri
       await apiClient.post(`/jobs/${jobId}/assign/${candidateId}`);
       const { data } = await apiClient.get(`/candidates/${candidateId}/matched-jobs`);
       setJobs(data);
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      qc.invalidateQueries({ queryKey: ['candidates'] });
     } catch { /* ignore */ }
     setAssigning(null);
   };

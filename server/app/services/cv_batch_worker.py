@@ -145,6 +145,9 @@ async def _process_batch(batch_id: str):
                         ), {"sd": _json.dumps(sd, ensure_ascii=False), "emb": str(emb) if emb else None, "id": cid})
                         await _db.commit()
                     translate_candidate_background(cid, sd)
+                    # Match candidate to jobs (needs embedding)
+                    from app.services.smart_pool import background_match_candidate
+                    background_match_candidate(cid)
                 except Exception as e:
                     logger.warning(f"Enrichment failed {cid}: {e}")
                 finally:
@@ -267,9 +270,6 @@ def _process_item_sync(batch_id: str, row: dict, _post_items: list):
                 # Post-processing: enrich + embed + translate (all background)
                 # Store for batch-level post-processing (after ALL items done)
                 _post_items.append((str(candidate_id), masked_text, structured))
-
-                from app.services.smart_pool import background_match_candidate
-                background_match_candidate(str(candidate_id))
 
         except Exception as e:
             logger.error(f"_process_item_sync {item_id} failed: {e}")
