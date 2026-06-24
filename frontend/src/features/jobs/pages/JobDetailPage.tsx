@@ -138,8 +138,6 @@ export function JobDetailPage() {
       setAiRecommendKey(currentKey);
     } catch {}
     setAiRecommendLoading(false);
-    } catch {}
-    setAiRecommendLoading(false);
   };
 
   if (loadingJ || loadingC) return <LoadingSkeleton rows={3} />;

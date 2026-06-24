@@ -235,7 +235,7 @@ function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
           <p className="text-[11px] text-text-muted">
-            {c.structuredData.skill_level && <span className="inline-flex items-center px-1.5 py-0 bg-purple-100 text-purple-700 text-[10px] font-bold rounded mr-1.5">{c.structuredData.skill_level.level}</span>}
+            {c.structuredData.skill_level && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.vi}</span></span>}
             {c.structuredData.totalYearsExperience ? t('yearsExpShort', { years: c.structuredData.totalYearsExperience }) : ''}
           </p>
         </div>
@@ -266,7 +266,7 @@ function CandidateRowMobile({ candidate: c }: { candidate: Candidate }) {
           <div className="min-w-0">
             <p className="text-[14px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
             <p className="text-[12px] text-text-muted">
-              {c.structuredData.skill_level && <span className="inline-flex items-center px-1.5 py-0 bg-purple-100 text-purple-700 text-[10px] font-bold rounded mr-1.5">{c.structuredData.skill_level.level}</span>}
+              {c.structuredData.skill_level && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.vi}</span></span>}
               {c.structuredData.totalYearsExperience ? t('yearsExpShort', { years: c.structuredData.totalYearsExperience }) : ''}
             </p>
           </div>
