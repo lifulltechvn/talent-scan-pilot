@@ -9,7 +9,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.bedrock import get_bedrock_client, get_embedding, _log_usage
 from app.config import settings
@@ -270,7 +270,46 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             loop.close()
             logger.info(f"Background AI done for candidate {candidate_id[:8]}")
 
-            # Smart Pool: auto-match candidate to all jobs (separate thread + session)
+            # Phase 2: Enrichment (experience, education, insight)
+            try:
+                enriched = _parse_cv_enrichment(text, candidate_id)
+                if enriched.get("experience"): structured["experience"] = enriched["experience"]
+                if enriched.get("education"): structured["education"] = enriched["education"]
+                if enriched.get("certifications"): structured["certifications"] = enriched["certifications"]
+                if enriched.get("languages"): structured["languages"] = enriched["languages"]
+                structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
+                sl = enriched.get("skill_level")
+                if sl and isinstance(sl, dict) and sl.get("level") and sl.get("category"):
+                    from app.skill_maps import SKILL_MAPS
+                    cat_data = SKILL_MAPS.get(sl["category"], {})
+                    structured["skill_level"] = {
+                        "category": sl["category"], "level": sl["level"],
+                        "reason": {"en": sl.get("reason", ""), "vi": ""},
+                        "category_title": {"vi": cat_data.get("title_vi", sl["category"]), "en": sl["category"].replace("_", " ").title()},
+                        "domains": cat_data.get("domains", []),
+                    }
+                # Embed with enriched data
+                emb = get_embedding(" ".join(structured.get("skills", [])), candidate_id=candidate_id)
+                # Save enriched
+                async def _update2():
+                    engine2 = create_async_engine(settings.DATABASE_URL, pool_size=1)
+                    factory2 = async_sessionmaker(engine2, expire_on_commit=False)
+                    async with factory2() as db2:
+                        await db2.execute(text("UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"),
+                            {"sd": json.dumps(structured, ensure_ascii=False), "emb": str(emb) if emb else None, "id": candidate_id})
+                        await db2.commit()
+                    await engine2.dispose()
+                loop2 = asyncio.new_event_loop()
+                loop2.run_until_complete(_update2())
+                loop2.close()
+            except Exception as e2:
+                logger.warning(f"Enrichment failed for {candidate_id[:8]}: {e2}")
+
+            # Translate background
+            from app.services.cv_translate import translate_candidate_background
+            translate_candidate_background(candidate_id, structured)
+
+            # Smart Pool: auto-match candidate to all jobs
             if embedding:
                 from app.services.smart_pool import background_match_candidate
                 background_match_candidate(candidate_id)

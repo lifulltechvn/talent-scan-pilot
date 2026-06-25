@@ -14,7 +14,7 @@ from app.config import settings
 from app.extractor import extract
 from app.models import Candidate
 from app.pii_filter import filter_pii
-from app.services.cv_upload import CV_UPLOAD_DIR, _background_ai_task
+from app.services.cv_upload import CV_UPLOAD_DIR
 
 logger = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=15)
@@ -320,49 +320,38 @@ async def _update_batch_counts(db, batch_id: str):
 
 
 def process_single_item(item_id: str, file_path: str, file_name: str, file_hash: str, force: bool = False, update_id: str | None = None):
-    """Re-process a single item (for duplicate resolution)."""
+    """Re-process a single item (for duplicate resolution). Reuses same flow as batch."""
     import asyncio
 
     async def _run():
         from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
         from app.config import settings
-        engine = create_async_engine(settings.DATABASE_URL, pool_size=1)
+        engine = create_async_engine(settings.DATABASE_URL, pool_size=2, max_overflow=3)
         sf = async_sessionmaker(engine, expire_on_commit=False)
         async with sf() as db:
             try:
                 with open(file_path, "rb") as f:
                     file_bytes = f.read()
             except Exception as e:
-                logger.error(f"process_single_item: cannot read file {file_path}: {e}")
-                async with sf() as db2:
-                    await db2.execute(text("UPDATE cv_batch_items SET status = 'error', error = :err WHERE id = :id"), {"err": str(e)[:200], "id": item_id})
-                    await db2.commit()
+                await db.execute(text("UPDATE cv_batch_items SET status = 'error', error = :err WHERE id = :id"), {"err": str(e)[:200], "id": item_id})
+                await db.commit()
+                await engine.dispose()
                 return
 
             result = extract(file_bytes, file_name)
             masked_text, pii_data = filter_pii(result.text)
 
             if update_id:
-                # Update existing candidate
                 candidate_id = uuid.UUID(update_id)
-                ext = os.path.splitext(file_name)[1].lower()
-                stored_filename = f"{candidate_id}{ext}"
+                stored_filename = f"{candidate_id}{os.path.splitext(file_name)[1].lower()}"
                 dest = os.path.join(CV_UPLOAD_DIR, stored_filename)
                 with open(dest, "wb") as f2:
                     f2.write(file_bytes)
-                await db.execute(text("""
-                    UPDATE candidates SET cv_file_path = :fp, cv_hash = :h, status = 'processing',
-                        structured_data = jsonb_set(structured_data, '{status}', '"processing"')
-                    WHERE id = :cid
-                """), {"fp": stored_filename, "h": file_hash, "cid": str(candidate_id)})
-                await db.execute(text(
-                    "UPDATE cv_batch_items SET status = 'done', candidate_id = :cid WHERE id = :id"
-                ), {"cid": str(candidate_id), "id": item_id})
+                await db.execute(text("UPDATE candidates SET cv_file_path = :fp, cv_hash = :h, status = 'processing' WHERE id = :cid"),
+                    {"fp": stored_filename, "h": file_hash, "cid": str(candidate_id)})
             else:
-                # Create new
                 candidate_id = uuid.uuid4()
-                ext = os.path.splitext(file_name)[1].lower()
-                stored_filename = f"{candidate_id}{ext}"
+                stored_filename = f"{candidate_id}{os.path.splitext(file_name)[1].lower()}"
                 dest = os.path.join(CV_UPLOAD_DIR, stored_filename)
                 with open(dest, "wb") as f2:
                     f2.write(file_bytes)
@@ -374,12 +363,51 @@ def process_single_item(item_id: str, file_path: str, file_name: str, file_hash:
                 )
                 db.add(candidate)
                 await db.flush()
-                await db.execute(text(
-                    "UPDATE cv_batch_items SET status = 'done', candidate_id = :cid WHERE id = :id"
-                ), {"cid": str(candidate_id), "id": item_id})
 
+            # Phase 1: Parse (name, skills, G-level)
+            from app.services.cv_upload import _process_ai_sync, _parse_cv_enrichment, get_embedding
+            structured, _ = _process_ai_sync(masked_text, str(candidate_id))
+            if pii_data:
+                if pii_data.get("email"): structured["email"] = pii_data["email"][0]
+                if pii_data.get("phone"): structured["phone"] = pii_data["phone"][0]
+
+            # Save Phase 1 + mark done
+            from sqlalchemy import update as sql_update
+            await db.execute(sql_update(Candidate).where(Candidate.id == candidate_id).values(structured_data=structured, status="new"))
+            await db.execute(text("UPDATE cv_batch_items SET status = 'done', candidate_id = :cid WHERE id = :id"), {"cid": str(candidate_id), "id": item_id})
             await db.commit()
-            _background_ai_task(str(candidate_id), masked_text, result.is_scanned, file_bytes if result.is_scanned else None)
+
+            # Phase 2: Enrichment (background, same DB session pattern)
+            try:
+                enriched = _parse_cv_enrichment(masked_text, str(candidate_id))
+                if enriched.get("experience"): structured["experience"] = enriched["experience"]
+                if enriched.get("education"): structured["education"] = enriched["education"]
+                if enriched.get("certifications"): structured["certifications"] = enriched["certifications"]
+                if enriched.get("languages"): structured["languages"] = enriched["languages"]
+                structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
+                sl = enriched.get("skill_level")
+                if sl and isinstance(sl, dict) and sl.get("level") and sl.get("category"):
+                    from app.skill_maps import SKILL_MAPS
+                    cat_data = SKILL_MAPS.get(sl["category"], {})
+                    structured["skill_level"] = {
+                        "category": sl["category"], "level": sl["level"],
+                        "reason": {"en": sl.get("reason", ""), "vi": ""},
+                        "category_title": {"vi": cat_data.get("title_vi", sl["category"]), "en": sl["category"].replace("_", " ").title()},
+                        "domains": cat_data.get("domains", []),
+                    }
+                emb = get_embedding(" ".join(structured.get("skills", [])), candidate_id=str(candidate_id))
+                await db.execute(text("UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"),
+                    {"sd": json.dumps(structured, ensure_ascii=False), "emb": str(emb) if emb else None, "id": str(candidate_id)})
+                await db.commit()
+            except Exception as e2:
+                logger.warning(f"Enrichment failed for {candidate_id}: {e2}")
+
+            # Translate + Match
+            from app.services.cv_translate import translate_candidate_background
+            translate_candidate_background(str(candidate_id), structured)
+            from app.services.smart_pool import background_match_candidate
+            background_match_candidate(str(candidate_id))
+
         await engine.dispose()
 
     def _thread():
@@ -387,7 +415,7 @@ def process_single_item(item_id: str, file_path: str, file_name: str, file_hash:
         try:
             loop.run_until_complete(_run())
         except Exception as e:
-            logger.error(f"process_single_item thread failed for {item_id}: {e}")
+            logger.error(f"process_single_item failed for {item_id}: {e}")
         finally:
             loop.close()
 

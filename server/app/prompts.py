@@ -8,7 +8,7 @@ All prompts used with Bedrock LLMs are defined here for maintainability.
 CV_PARSE_SYSTEM = (
     "You are a CV parser. Extract structured data from the CV text below. "
     "Only extract information explicitly stated in the CV — do not infer or fabricate data. "
-    "If a field is not mentioned, leave it null or empty. "
+    "If a field is not mentioned, leave it null or empty. NEVER use '<UNKNOWN>' or 'N/A' — use null instead. "
     "Be concise in insight fields (1-2 sentences each)."
 )
 

@@ -204,9 +204,9 @@ export function CandidateDetailPage() {
       const d = query.state.data;
       if (!d) return 5000;
       const sd = d.structuredData || d.structured_data;
-      // Auto-refetch until Phase 2 enrichment complete (experience + insight + reason)
-      if (!sd?.experience?.length || !sd?.insight?.strengths || !sd?.skill_level?.reason?.en || !sd?.skill_level?.reason?.vi) return 3000;
-      return false;
+      // Stop polling once enrichment arrives (experience + insight)
+      if (sd?.experience?.length && sd?.insight?.strengths) return false;
+      return 5000;
     },
   });
   const { data: allCandidates } = useCandidates();
@@ -231,6 +231,7 @@ export function CandidateDetailPage() {
 
   // Helper to get localized text from i18n object or plain string
   const d = candidate?.structuredData ?? {} as any;
+  const c = (v: any) => (!v || v === '<UNKNOWN>' || v === 'null' || v === 'N/A') ? '' : v;
   const clean = (v: any) => (!v || v === '<UNKNOWN>' || v === 'null' || v === 'N/A') ? '' : v;
 
   const isJa = (s: string) => /[\u3040-\u30ff\u4e00-\u9fff]/.test(s);
@@ -322,19 +323,12 @@ export function CandidateDetailPage() {
           )}
 
           {/* AI Reason */}
-          {d.skill_level.reason && ((locale === 'vi' && d.skill_level.reason.vi) || (locale !== 'vi' && d.skill_level.reason.en)) ? (
+          {d.skill_level.reason && ((locale === 'vi' && d.skill_level.reason.vi) || (locale !== 'vi' && d.skill_level.reason.en)) && (
             <div className="mb-3 p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">{t("aiReason")}</span>
               </div>
               <p className="text-[12px] text-text-secondary leading-relaxed">{loc(d.skill_level.reason)}</p>
-            </div>
-          ) : (
-            <div className="mb-3 p-3 bg-bg-secondary/40 rounded-lg border border-border-subtle/30">
-              <div className="flex items-center gap-2">
-                <Loader2 size={12} className="animate-spin text-purple-400" />
-                <span className="text-[11px] text-text-muted">{t('analyzingReason')}</span>
-              </div>
             </div>
           )}
 
@@ -437,7 +431,7 @@ export function CandidateDetailPage() {
                 {d.experience.map((exp: any, i: number) => (
                   <div key={i} className="ml-5 py-1.5 border-l-2 border-border-subtle pl-3 mb-1">
                     <div className="text-[13px] font-medium text-text-primary">{loc(exp.role, exp.role_vi)}</div>
-                    <div className="text-[12px] text-text-tertiary">{exp.company}{exp.years ? ` · ${exp.years}y` : exp.duration ? ` · ${exp.duration}` : ''}</div>
+                    <div className="text-[12px] text-text-tertiary">{c(exp.company)}{exp.years ? ` · ${exp.years}y` : c(exp.duration) ? ` · ${c(exp.duration)}` : ''}</div>
                     {(exp.description || exp.description_vi) && <div className="text-[11px] text-text-secondary mt-0.5">{loc(exp.description, exp.description_vi)}</div>}
                   </div>
                 ))}
@@ -451,8 +445,8 @@ export function CandidateDetailPage() {
                 </div>
                 {d.education.map((edu, i) => (
                   <div key={i} className="ml-5 py-1">
-                    <div className="text-[13px] text-text-primary">{loc(edu.degree, edu.degree_vi)}{edu.major ? ` in ${loc(edu.major, edu.major_vi)}` : ''}</div>
-                    <div className="text-[12px] text-text-tertiary">{edu.school}{edu.year ? ` · ${edu.year}` : ''}</div>
+                    <div className="text-[13px] text-text-primary">{c(loc(edu.degree, edu.degree_vi))}{c(edu.major) ? ` in ${c(loc(edu.major, edu.major_vi))}` : ''}</div>
+                    <div className="text-[12px] text-text-tertiary">{c(edu.school)}{c(edu.year) ? ` · ${c(edu.year)}` : ''}</div>
                   </div>
                 ))}
               </div>
@@ -466,7 +460,7 @@ export function CandidateDetailPage() {
                 {d.certifications.map((cert: any, i: number) => (
                   <div key={i} className="ml-5 py-1">
                     <div className="text-[13px] text-text-primary">{cert.name}</div>
-                    <div className="text-[12px] text-text-tertiary">{cert.issuer}{cert.year && cert.year !== '<UNKNOWN>' ? ` · ${cert.year}` : ''}</div>
+                    <div className="text-[12px] text-text-tertiary">{cert.issuer && cert.issuer !== '<UNKNOWN>' ? cert.issuer : ''}{cert.year && cert.year !== '<UNKNOWN>' ? ` · ${cert.year}` : ''}</div>
                   </div>
                 ))}
               </div>
