@@ -18,147 +18,170 @@ router = APIRouter(prefix="/interviews", tags=["interviews"])
 
 
 async def _pre_generate_question_bank(candidate_id: str, job_id: str | None = None, round_num: int = 1):
-    """Background: generate questions based on JD + G-level + round, then translate to VI."""
-    import uuid as _uuid
+    """Generate 3 categories of questions per job, cached by key. No answers."""
+    import uuid as _uuid, hashlib
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     from app.models import Candidate, Job
     from app.bedrock import invoke_claude
     from app.config import settings
     from app.skill_maps import SKILL_MAPS
 
+    if not job_id:
+        return
+
     try:
         engine = create_async_engine(settings.DATABASE_URL, pool_size=2)
         _sf = async_sessionmaker(engine, expire_on_commit=False)
         async with _sf() as _db:
             candidate = await _db.get(Candidate, _uuid.UUID(candidate_id))
-            if not candidate:
+            job = await _db.get(Job, _uuid.UUID(job_id))
+            if not candidate or not job:
+                await engine.dispose()
                 return
+
             d = candidate.structured_data or {}
-            skills = d.get("skills", [])[:8]
-            if not skills:
-                return
             exp_years = d.get("experience_years", 0)
-            level = "junior" if exp_years < 2 else "mid" if exp_years < 5 else "senior"
+            level = "fresher" if exp_years < 1 else "junior" if exp_years < 3 else "senior" if exp_years < 7 else "master"
             g_level = d.get("skill_level", {}).get("level", "G2")
-            category = d.get("skill_level", {}).get("category", "application_engineer")
+            job_category = job.category or d.get("skill_level", {}).get("category", "application_engineer")
 
-            # Check if already generated for this candidate
-            existing = await _db.execute(text("SELECT count(*) FROM question_cache WHERE candidate_id = :cid AND round = :round"), {"cid": candidate_id, "round": round_num})
-            if (existing.scalar() or 0) > 0:
-                return
+            # Parse JD
+            jd_desc = job.description or ""
+            try:
+                jd_parsed = json.loads(jd_desc)
+                jd_desc = jd_parsed.get("en", jd_parsed.get("vi", jd_desc))
+            except Exception:
+                pass
+            jd_h = hashlib.md5((jd_desc or "")[:500].encode()).hexdigest()[:16]
 
-            # --- Criteria 1: JD context ---
-            jd_context = ""
-            if job_id:
-                job = await _db.get(Job, _uuid.UUID(job_id))
-                if job:
-                    jd_desc = job.description or ""
-                    # Try parse bilingual
-                    try:
-                        jd_parsed = json.loads(jd_desc)
-                        jd_desc = jd_parsed.get("en", jd_parsed.get("vi", jd_desc))
-                    except Exception:
-                        pass
-                    job_skills = job.required_skills or []
-                    jd_context = f"""
-JOB REQUIREMENTS:
-- Position: {job.title}
-- Required skills: {', '.join(job_skills[:10])}
-- Description: {jd_desc[:300]}
-Questions MUST test skills required by this job, not just candidate's existing skills."""
+            # G-level criteria from skill maps
+            sm = SKILL_MAPS.get(job_category, {})
+            g_criteria = sm.get("g_criteria", {}).get(g_level, "")
+            g_criteria_en = sm.get("g_criteria_en", {}).get(g_level, g_criteria)
+            domains = sm.get("domains", [])
 
-            # --- Criteria 2: G-level target ---
-            g_context = f"""
-G-LEVEL ASSESSMENT:
-- Candidate current level: {g_level}
-- Category: {category}"""
-            sm = SKILL_MAPS.get(category, {})
-            if sm.get("g_criteria"):
-                g_context += f"\n- To reach next level, candidate needs: {sm['g_criteria'].get(g_level, '')[:150]}"
-            g_context += f"""
-- Questions should probe whether candidate truly matches {g_level} or could be higher/lower
-- Include questions that distinguish between {g_level} and next level"""
+            # === 3 Categories with cache keys ===
+            categories_to_gen = {
+                "problem_solving": {
+                    "key": f"ps_{job_category}_{level}",
+                    "prompt": f"""Generate 10 soft-skill problem-solving interview questions for a {level}-level {job_category.replace('_',' ')} candidate.
+Job: {job.title}
 
-            # --- Criteria 3: Round focus ---
-            round_focus = {
-                1: "ROUND 1 — Technical depth: test core knowledge, problem-solving, verify CV claims. Focus 70% technical, 30% experience validation.",
-                2: "ROUND 2 — Culture & leadership: test communication, teamwork, conflict resolution, growth mindset. Focus 70% soft skills, 30% advanced technical.",
-                3: "ROUND 3 — Senior/Final: system design, strategic thinking, decision-making, mentoring ability. Focus on leadership and architecture.",
-            }
-            round_ctx = round_focus.get(round_num, round_focus[1])
-
-            # --- Build prompt ---
-            skill_list = ", ".join(skills)
-            prompt = f"""Generate interview questions for a {level}-level candidate ({g_level}).
-Candidate skills: {skill_list}
-{jd_context}
-{g_context}
-
-ROUND FOCUS: {round_ctx}
-
-Generate 5 questions per category (40 total):
-- programming: core coding depth relevant to the job
-- system_design: architecture decisions at {g_level} level
-- tech_stack: proficiency with required technologies
-- testing: testing approach appropriate for {level} level
-- security: security awareness for this role
-- devops: deployment/infra knowledge
-- problem_solving: real debugging/optimization scenarios
-- soft_skills: {"leadership, mentoring, strategic communication" if round_num >= 2 else "teamwork, communication, collaboration"} (NOT technical)
+Focus areas (NOT technical):
+- Conflict resolution with team members or stakeholders
+- Prioritization under pressure and tight deadlines
+- Communication of complex ideas to non-technical people
+- Handling failure, mistakes, and giving/receiving feedback
+- Cross-team collaboration and negotiation
+- Time management and workload balancing
+- Leadership in ambiguous situations
+- Adapting to sudden requirement changes
 
 Rules:
-- Questions must match the JOB requirements, not just candidate skills
-- Difficulty should match {g_level} assessment level
-- Round {round_num} focus: {"soft skills + advanced tech" if round_num >= 2 else "technical depth + experience validation"}
+- Questions ordered from EASY to HARD (1=easiest, 10=hardest)
+- Must be behavioral/situational (e.g. "Tell me about a time when...")
+- Focus on soft skills, communication, teamwork — NOT coding or technical problems
+- Relevant to {level} level expectations in {job_category.replace('_',' ')} role
+- 1-2 sentences per question
+
+Return JSON array of 10 strings (questions only). No markdown."""
+                },
+                "ai_skills": {
+                    "key": f"ai_{job_category}",
+                    "prompt": f"""Generate 10 interview questions assessing AI tool usage skills for a {job_category.replace('_',' ')} role.
+Job: {job.title}
+JD: {jd_desc[:300]}
+
+Focus areas:
+- Prompt engineering & optimization techniques
+- Using AI assistants (ChatGPT, Copilot, Claude) effectively in daily work
+- AI-powered workflows, hooks, agents
+- Evaluating AI output quality & hallucination detection
+- Integrating AI tools into {job_category.replace('_',' ')} workflow
+
+Rules:
+- Questions ordered EASY to HARD
+- Practical, specific to {job_category.replace('_',' ')} work
+- 1-2 sentences per question
+
+Return JSON array of 10 strings (questions only). No markdown."""
+                },
+                "g_assessment": {
+                    "key": f"g_{job_category}_{g_level}",
+                    "prompt": f"""Generate 10 interview questions to assess if a candidate truly matches {g_level} level for {job_category.replace('_',' ')}.
+
+{g_level} criteria: {g_criteria_en[:300]}
+Domains to probe: {', '.join(domains[:8])}
+JD: {jd_desc[:200]}
+
+Rules:
+- Questions must directly test {g_level} competencies listed above
+- Ordered EASY to HARD within {g_level} scope
+- Early questions (1-4): confirm basic {g_level} skills
+- Middle questions (5-7): test depth at {g_level}
+- Hard questions (8-10): probe if candidate could be {g_level[0]}{int(g_level[1])+1} level
 - Practical, 1-2 sentences each
-- Tag each with most relevant skill
 
-Return JSON: {{"programming":[{{"q":"...","skill":"..."}},...], ...}}
-No markdown."""
+Return JSON array of 10 strings (questions only). No markdown."""
+                },
+            }
 
-            
-            
-            raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=4000, feature="question_bank", candidate_id=candidate_id)
-            clean = raw.strip()
-            if clean.startswith("```"): clean = clean.split("\n", 1)[1]
-            if clean.endswith("```"): clean = clean[:-3]
-            data = json.loads(clean[clean.find("{"):clean.rfind("}")+1])
-
-            CATS = ["programming", "system_design", "tech_stack", "testing", "security", "devops", "problem_solving", "soft_skills"]
-            for cat in CATS:
-                for q in (data.get(cat) or [])[:5]:
-                    q_text = q.get("q") or q.get("question", "")
-                    skill = q.get("skill", skills[0])
-                    if not q_text:
+            generated_any = False
+            for cat, info in categories_to_gen.items():
+                cache_key = info["key"]
+                # Check if exists (and JD hasn't changed for ai_skills/g_assessment)
+                existing = await _db.execute(text(
+                    "SELECT id, jd_hash FROM question_cache WHERE job_id = :jid AND cache_key = :key"
+                ), {"jid": job_id, "key": cache_key})
+                row = existing.mappings().first()
+                if row:
+                    # Check JD invalidation for categories that depend on JD
+                    if cat in ("ai_skills", "g_assessment") and row["jd_hash"] != jd_h:
+                        await _db.execute(text("DELETE FROM question_cache WHERE id = :id"), {"id": str(row["id"])})
+                    else:
                         continue
-                    await _db.execute(text("""
-                        INSERT INTO question_cache (candidate_id, category, skill, question_en, level, round)
-                        VALUES (:cid, :cat, :skill, :q, :level, :round)
-                    """), {"cid": candidate_id, "cat": cat, "skill": skill, "q": q_text, "level": level, "round": round_num})
-            await _db.commit()
 
-            # Translate to VI
-            rows = await _db.execute(text("SELECT id, question_en FROM question_cache WHERE candidate_id = :cid AND round = :round AND question_vi IS NULL"), {"cid": candidate_id, "round": round_num})
-            items = rows.mappings().all()
-            if items:
+                # Generate
+                raw = invoke_claude(info["prompt"], model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1500, feature="question_bank")
+                clean = raw.strip()
+                if clean.startswith("```"): clean = clean.split("\n", 1)[1]
+                if clean.endswith("```"): clean = clean[:-3]
+                questions = json.loads(clean[clean.find("["):clean.rfind("]")+1])
+                questions = [q for q in questions[:10] if isinstance(q, str) and len(q) > 10]
+
+                await _db.execute(text("""
+                    INSERT INTO question_cache (job_id, category, cache_key, questions_en, jd_hash)
+                    VALUES (:jid, :cat, :key, :qs, :hash)
+                    ON CONFLICT (job_id, cache_key) DO UPDATE SET questions_en = :qs, jd_hash = :hash, questions_vi = NULL
+                """), {"jid": job_id, "cat": cat, "key": cache_key, "qs": json.dumps(questions, ensure_ascii=False), "hash": jd_h})
+                generated_any = True
+
+            if generated_any:
+                await _db.commit()
+
+            # Translate to VI (all that don't have VI yet)
+            to_translate = await _db.execute(text(
+                "SELECT id, questions_en FROM question_cache WHERE job_id = :jid AND questions_vi IS NULL"
+            ), {"jid": job_id})
+            for row in to_translate.mappings().all():
                 try:
-                    qs = [r["question_en"] for r in items]
+                    qs = row["questions_en"] if isinstance(row["questions_en"], list) else json.loads(row["questions_en"])
                     t_prompt = f"Translate to Vietnamese. Return JSON array of strings.\n{json.dumps(qs, ensure_ascii=False)}"
-                    t_raw = invoke_claude(t_prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=3000, feature="q_translate")
+                    t_raw = invoke_claude(t_prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=2000, feature="q_translate")
                     t_clean = t_raw.strip()
                     if t_clean.startswith("```"): t_clean = t_clean.split("\n", 1)[1]
                     if t_clean.endswith("```"): t_clean = t_clean[:-3]
                     translated = json.loads(t_clean[t_clean.find("["):t_clean.rfind("]")+1])
-                    for i, item in enumerate(items):
-                        if i < len(translated):
-                            await _db.execute(text("UPDATE question_cache SET question_vi = :vi WHERE id = :id"), {"vi": translated[i], "id": str(item["id"])})
-                    await _db.commit()
+                    await _db.execute(text("UPDATE question_cache SET questions_vi = :vi WHERE id = :id"),
+                        {"vi": json.dumps(translated, ensure_ascii=False), "id": str(row["id"])})
                 except Exception:
                     pass
-        logger.info(f"Question bank pre-generated for candidate {candidate_id} (job={job_id}, round={round_num})")
+            await _db.commit()
+
+        logger.info(f"Question bank v2 generated for job={job_id}, candidate={candidate_id}")
         await engine.dispose()
     except Exception as e:
-        logger.warning(f"Question bank pre-generation failed: {e}")
+        logger.warning(f"Question bank gen failed: {e}")
         try:
             await engine.dispose()
         except Exception:

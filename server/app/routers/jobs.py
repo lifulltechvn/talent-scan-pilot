@@ -172,6 +172,10 @@ async def update_job(
     for k, v in data.model_dump(exclude_unset=True).items():
         setattr(job, k, v)
 
+    # Invalidate question cache if description changed
+    if data.description is not None:
+        await db.execute(text("DELETE FROM question_cache WHERE job_id = :jid AND category IN ('ai_skills', 'g_assessment')"), {"jid": str(job_id)})
+
     # Re-generate embedding on update (skip on failure)
     try:
         from app.services.matching import get_embedding

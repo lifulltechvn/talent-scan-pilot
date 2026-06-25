@@ -266,7 +266,7 @@ export function InterviewerDashboard() {
 
       {/* Questions Modal */}
       {questionsModal && (
-        <QuestionBankModal key={questionsModal.candidate_id + questionsModal.round} candidateId={questionsModal.candidate_id} candidateName={questionsModal.candidate_name} round={questionsModal.round || 1} onClose={() => setQuestionsModal(null)} />
+        <QuestionBankModal key={questionsModal.candidate_id} candidateId={questionsModal.candidate_id} candidateName={questionsModal.candidate_name} jobId={questionsModal.job_id} onClose={() => setQuestionsModal(null)} />
       )}
     </div>
   );

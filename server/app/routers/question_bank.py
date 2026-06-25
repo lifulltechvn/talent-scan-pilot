@@ -1,115 +1,74 @@
-"""Question Bank — read cached questions, load answers on demand."""
-import json
+"""Question Bank v2 — 3 categories per job, cached by key."""
+import json, hashlib
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import Candidate, User
+from app.models import Candidate, User, Job
 
 router = APIRouter(prefix="/question-bank", tags=["question-bank"])
 
-CATEGORIES = ["programming", "system_design", "tech_stack", "testing", "security", "devops", "problem_solving", "soft_skills"]
+CATEGORIES = {
+    "problem_solving": "Giải quyết vấn đề",
+    "ai_skills": "Kỹ năng sử dụng AI",
+    "g_assessment": "Đánh giá G-level",
+}
+
+
+def _get_level(exp_years: int) -> str:
+    if exp_years < 1: return "fresher"
+    if exp_years < 3: return "junior"
+    if exp_years < 7: return "senior"
+    return "master"
+
+
+def _jd_hash(description: str) -> str:
+    return hashlib.md5((description or "")[:500].encode()).hexdigest()[:16]
 
 
 @router.get("/for-candidate/{candidate_id}")
 async def get_questions_for_candidate(
     candidate_id: str,
-    locale: str = "en",
     job_id: str | None = None,
-    round: int = 1,
+    locale: str = "en",
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
-    """Return cached questions (generated at interview creation time)."""
-    cached = await db.execute(text(
-        "SELECT id, category, skill, question_en, question_vi FROM question_cache WHERE candidate_id = :cid AND round = :round ORDER BY category, created_at"
-    ), {"cid": candidate_id, "round": round})
-    rows = cached.mappings().all()
+    """Return cached questions for this candidate's job context."""
+    # Find job from candidate or param
+    if not job_id:
+        row = await db.execute(text("SELECT job_id FROM interviews WHERE candidate_id = :cid ORDER BY created_at DESC LIMIT 1"), {"cid": candidate_id})
+        job_id = row.scalar()
+    if not job_id:
+        return {"candidate_id": candidate_id, "categories": {}, "status": "no_job"}
 
-    if not rows:
-        candidate = await db.get(Candidate, candidate_id)
-        name = (candidate.structured_data or {}).get("name", "") if candidate else ""
-        return {"candidate_id": candidate_id, "candidate_name": name, "categories": {}, "status": "generating"}
+    # Get all cached questions for this job
+    cached = await db.execute(text(
+        "SELECT category, cache_key, questions_en, questions_vi FROM question_cache WHERE job_id = :jid"
+    ), {"jid": str(job_id)})
+    rows = cached.mappings().all()
 
     result = {}
     for r in rows:
         cat = r["category"]
-        if cat not in result:
-            result[cat] = []
-        q_text = r["question_vi"] if (locale == "vi" and r["question_vi"]) else r["question_en"]
-        result[cat].append({"id": str(r["id"]), "question": q_text, "skill": r["skill"]})
+        qs = r["questions_vi"] if (locale == "vi" and r["questions_vi"]) else r["questions_en"]
+        if isinstance(qs, str):
+            qs = json.loads(qs)
+        result[cat] = {"label": CATEGORIES.get(cat, cat), "questions": qs, "cache_key": r["cache_key"]}
 
     candidate = await db.get(Candidate, candidate_id)
     name = (candidate.structured_data or {}).get("name", "") if candidate else ""
-    return {"candidate_id": candidate_id, "candidate_name": name, "categories": result}
+    return {"candidate_id": candidate_id, "candidate_name": name, "job_id": job_id, "categories": result}
 
 
-@router.get("/answer/{question_id}")
-async def get_answer(
-    question_id: str,
-    locale: str = "en",
+@router.delete("/invalidate/{job_id}")
+async def invalidate_job_questions(
+    job_id: str,
     db: AsyncSession = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
-    """Load answer for a question on demand. Generates + caches if not exists."""
-    row = await db.execute(text(
-        "SELECT id, question_en, skill, level, answer_en, answer_vi, red_flag_en, red_flag_vi FROM question_cache WHERE id = :id"
-    ), {"id": question_id})
-    q = row.mappings().first()
-    if not q:
-        raise HTTPException(404, "Question not found")
-
-    # Return cached
-    if locale == "vi" and q["answer_vi"]:
-        return {"answer": q["answer_vi"], "red_flag": q["red_flag_vi"] or ""}
-    if q["answer_en"]:
-        if locale == "vi":
-            from app.bedrock import invoke_claude
-            from app.config import settings
-            try:
-                vi = invoke_claude(f"Translate to Vietnamese:\nANSWER: {q['answer_en']}\nRED_FLAG: {q['red_flag_en'] or ''}", model=settings.BEDROCK_MODEL_HAIKU, max_tokens=800, feature="a_translate")
-                parts = vi.split("RED_FLAG")
-                ans_vi = parts[0].replace("ANSWER:", "").replace("CÂU TRẢ LỜI:", "").strip().lstrip(":").strip()
-                rf_vi = parts[1].strip().lstrip(":").strip() if len(parts) > 1 else ""
-                await db.execute(text("UPDATE question_cache SET answer_vi = :a, red_flag_vi = :r WHERE id = :id"), {"a": ans_vi, "r": rf_vi, "id": question_id})
-                await db.commit()
-                return {"answer": ans_vi, "red_flag": rf_vi}
-            except Exception:
-                return {"answer": q["answer_en"], "red_flag": q["red_flag_en"] or ""}
-        return {"answer": q["answer_en"], "red_flag": q["red_flag_en"] or ""}
-
-    # Generate answer
-    from app.bedrock import invoke_claude
-    from app.config import settings
-
-    prompt = f"""You are interviewing a {q['level']}-level candidate for skill: {q['skill']}.
-Question: {q['question_en']}
-
-Provide:
-ANSWER: 3-4 bullet points (use "- " prefix), concise key points only, no bold/italic/markdown
-RED_FLAG: 1-2 bullet points of weak answer signs (use "- " prefix)"""
-
-    try:
-        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="answer_gen")
-        # Parse ANSWER and RED_FLAG
-        parts = raw.split("RED_FLAG")
-        answer_en = parts[0].replace("ANSWER:", "").strip().lstrip(":").strip()
-        red_flag_en = parts[1].strip().lstrip(":").strip() if len(parts) > 1 else ""
-        # Clean markdown artifacts
-        answer_en = answer_en.replace("**", "").replace("*", "").replace("##", "").replace("#", "").strip()
-        red_flag_en = red_flag_en.replace("**", "").replace("*", "").replace("##", "").replace("#", "").strip()
-        await db.execute(text("UPDATE question_cache SET answer_en = :a, red_flag_en = :r WHERE id = :id"), {"a": answer_en, "r": red_flag_en, "id": question_id})
-        await db.commit()
-
-        if locale == "vi":
-            vi = invoke_claude(f"Translate to Vietnamese (keep format):\nANSWER: {answer_en}\nRED_FLAG: {red_flag_en}", model=settings.BEDROCK_MODEL_HAIKU, max_tokens=800, feature="a_translate")
-            vp = vi.split("RED_FLAG")
-            ans_vi = vp[0].replace("ANSWER:", "").replace("CÂU TRẢ LỜI:", "").strip().lstrip(":").strip()
-            rf_vi = vp[1].strip().lstrip(":").strip() if len(vp) > 1 else ""
-            await db.execute(text("UPDATE question_cache SET answer_vi = :a, red_flag_vi = :r WHERE id = :id"), {"a": ans_vi, "r": rf_vi, "id": question_id})
-            await db.commit()
-            return {"answer": ans_vi, "red_flag": rf_vi}
-        return {"answer": answer_en, "red_flag": red_flag_en}
-    except Exception as e:
-        raise HTTPException(500, f"Failed: {e}")
+    """Manually invalidate cached questions for a job."""
+    await db.execute(text("DELETE FROM question_cache WHERE job_id = :jid"), {"jid": job_id})
+    await db.commit()
+    return {"status": "invalidated"}
