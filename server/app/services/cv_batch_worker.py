@@ -1,6 +1,7 @@
 """Background worker for batch CV processing."""
 import asyncio
 import hashlib
+import json
 import logging
 import os
 import uuid
@@ -196,9 +197,10 @@ def _process_item_sync(batch_id: str, row: dict, _post_items: list):
 
                 if dup:
                     reason = 'blacklisted' if dup["status"] == 'blacklisted' else 'hash_match'
+                    details = json.dumps({"existing_name": dup.get("name", ""), "existing_status": dup["status"]})
                     await db.execute(text("""
-                        UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id, duplicate_reason = :reason WHERE id = :id
-                    """), {"dup_id": str(dup["id"]), "reason": reason, "id": item_id})
+                        UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = :dup_id, duplicate_reason = :reason, duplicate_details = CAST(:details AS jsonb) WHERE id = :id
+                    """), {"dup_id": str(dup["id"]), "reason": reason, "details": details, "id": item_id})
                     await db.commit()
                     print(f"[TIMING] {file_name}: {reason} {time.time()-t0:.1f}s", flush=True)
                     return
@@ -371,6 +373,7 @@ def process_single_item(item_id: str, file_path: str, file_name: str, file_hash:
                     source_app_version="web", status="processing",
                 )
                 db.add(candidate)
+                await db.flush()
                 await db.execute(text(
                     "UPDATE cv_batch_items SET status = 'done', candidate_id = :cid WHERE id = :id"
                 ), {"cid": str(candidate_id), "id": item_id})
