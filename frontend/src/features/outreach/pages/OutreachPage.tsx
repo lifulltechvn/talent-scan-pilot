@@ -27,7 +27,7 @@ const typeConfig: Record<string, { label: string; icon: typeof Send; color: stri
 type Filter = 'all' | 'outreach' | 'rejection' | 'reminder';
 
 export function OutreachPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [logs, setLogs] = useState<OutreachLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
@@ -133,7 +133,7 @@ export function OutreachPage() {
                     <p className="text-[12px] text-text-tertiary truncate mt-0.5">{log.subject || t('noSubject')}</p>
                   </div>
                   <div className="text-[11px] text-text-muted shrink-0">
-                    {new Date(log.sent_at).toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(log.sent_at).toLocaleDateString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </button>
 

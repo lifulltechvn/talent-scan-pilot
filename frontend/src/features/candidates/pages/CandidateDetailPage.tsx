@@ -199,12 +199,13 @@ export function CandidateDetailPage() {
   const { data: candidate, isLoading } = useQuery({
     queryKey: ['candidates', id],
     queryFn: () => candidateApiRepo.getById(id!),
+    staleTime: 0,
     refetchInterval: (query) => {
       const d = query.state.data;
       if (!d) return 5000;
       const sd = d.structuredData || d.structured_data;
       // Auto-refetch until Phase 2 enrichment complete (experience + insight + reason)
-      if (!sd?.experience?.length || !sd?.insight?.strengths || !sd?.skill_level?.reason?.en) return 5000;
+      if (!sd?.experience?.length || !sd?.insight?.strengths || !sd?.skill_level?.reason?.en || !sd?.skill_level?.reason?.vi) return 3000;
       return false;
     },
   });
@@ -232,15 +233,20 @@ export function CandidateDetailPage() {
   const d = candidate?.structuredData ?? {} as any;
   const clean = (v: any) => (!v || v === '<UNKNOWN>' || v === 'null' || v === 'N/A') ? '' : v;
 
+  const isJa = (s: string) => /[\u3040-\u30ff\u4e00-\u9fff]/.test(s);
   const loc = (val: any, viVal?: any) => {
     if (!val && !viVal) return '';
     // If explicit VI value provided and locale is VI, use it
     if (viVal && locale === 'vi') return viVal;
     // If val is object with locale keys
     if (typeof val === 'object' && !Array.isArray(val)) {
-      const target = locale === 'ja' ? 'en' : locale;
-      return val[target] || val['en'] || val['vi'] || '';
+      const target = locale === 'vi' ? 'vi' : 'en';
+      const result = val[target] || val['en'] || val['vi'] || '';
+      if (typeof result === 'string' && isJa(result) && locale !== 'ja') return val['vi'] || val['en'] || result;
+      return result;
     }
+    // Plain string: if Japanese and locale != ja, use viVal
+    if (typeof val === 'string' && isJa(val) && locale !== 'ja') return viVal || val;
     return val || '';
   };
 
@@ -283,7 +289,7 @@ export function CandidateDetailPage() {
               <span className="text-[15px]">📊</span>
               <h2 className="text-sm font-medium text-text-primary">{t("skillLevelAssessment")}</h2>
             </div>
-            <span className="text-[11px] text-text-muted capitalize bg-bg-secondary px-2 py-0.5 rounded">{CATEGORY_TITLES[d.skill_level.category]?.[locale === 'ja' ? 'ja' : locale] || d.skill_level.category?.replace('_', ' ')}</span>
+            <span className="text-[11px] text-text-muted capitalize bg-bg-secondary px-2 py-0.5 rounded">{CATEGORY_TITLES[d.skill_level.category]?.[locale] || d.skill_level.category?.replace('_', ' ')}</span>
           </div>
 
           {/* G Level Badge + Progress */}
@@ -316,7 +322,7 @@ export function CandidateDetailPage() {
           )}
 
           {/* AI Reason */}
-          {d.skill_level.reason && (d.skill_level.reason.en || d.skill_level.reason.vi) ? (
+          {d.skill_level.reason && ((locale === 'vi' && d.skill_level.reason.vi) || (locale !== 'vi' && d.skill_level.reason.en)) ? (
             <div className="mb-3 p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">{t("aiReason")}</span>
@@ -327,7 +333,7 @@ export function CandidateDetailPage() {
             <div className="mb-3 p-3 bg-bg-secondary/40 rounded-lg border border-border-subtle/30">
               <div className="flex items-center gap-2">
                 <Loader2 size={12} className="animate-spin text-purple-400" />
-                <span className="text-[11px] text-text-muted">Đang phân tích lý do đánh giá...</span>
+                <span className="text-[11px] text-text-muted">{t('analyzingReason')}</span>
               </div>
             </div>
           )}
@@ -353,7 +359,7 @@ export function CandidateDetailPage() {
               <div className="h-2 bg-gray-100 rounded w-2/3 animate-pulse" />
             </div>
           </div>
-          <p className="text-[10px] text-text-muted mt-3">⏳ Đang phân tích skill level... Sẽ tự cập nhật trong vài giây.</p>
+          <p className="text-[10px] text-text-muted mt-3">{t('analyzingSkillLevel')}</p>
         </div>
         )}
 
@@ -408,7 +414,7 @@ export function CandidateDetailPage() {
             <div className="h-3 bg-gray-100 rounded w-3/4 animate-pulse" />
             <div className="h-3 bg-gray-100 rounded w-1/2 animate-pulse" />
           </div>
-          <p className="text-[10px] text-text-muted mt-3">⏳ Đang phân tích chi tiết... tự cập nhật trong vài giây</p>
+          <p className="text-[10px] text-text-muted mt-3">{t('analyzingDetails')}</p>
         </div>
         )}
 
@@ -612,12 +618,12 @@ export function CandidateDetailPage() {
                 <div className="space-y-1.5">
                   <div className="text-center text-[11px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">🚫 Blacklisted</div>
                   <button onClick={async () => {
-                    const ok = await confirm({ title: 'Gỡ Blacklist', message: `Gỡ blacklist cho ${d.name}?`, confirmLabel: 'Gỡ blacklist', variant: 'danger' });
+                    const ok = await confirm({ title: t('removeBlacklistTitle'), message: t('removeBlacklistConfirm', { name: d.name }), confirmLabel: t('removeBlacklist'), variant: 'danger' });
                     if (!ok) return;
                     await apiClient.post(`/candidates/${candidate.id}/unblacklist`);
-                    toast('success', 'Đã gỡ blacklist');
+                    toast('success', t('removeBlacklist'));
                     window.location.reload();
-                  }} className="w-full text-[11px] text-text-muted hover:text-accent text-center">Gỡ blacklist</button>
+                  }} className="w-full text-[11px] text-text-muted hover:text-accent text-center">{t('removeBlacklist')}</button>
                 </div>
               )}
 
@@ -639,7 +645,7 @@ export function CandidateDetailPage() {
       )}
 
       {/* Blacklist Modal */}
-      {blacklistModal && <BlacklistModal candidateId={candidate.id} candidateName={d.name} onClose={() => setBlacklistModal(false)} onDone={() => { toast('success', 'Đã blacklist ứng viên'); window.location.reload(); }} />}
+      {blacklistModal && <BlacklistModal candidateId={candidate.id} candidateName={d.name} onClose={() => setBlacklistModal(false)} onDone={() => { toast('success', t('blacklisted')); window.location.reload(); }} />}
 
       {/* CV Preview Modal */}
       {cvBlobUrl && (
@@ -665,7 +671,7 @@ function AiSummaryInline({ summary }: { summary: string }) {
     const parsed = JSON.parse(summary);
     // New format: {en: {summary, strengths, concerns}, vi: {...}}
     if (parsed.en || parsed.vi) {
-      const target = locale === 'ja' ? 'en' : locale;
+      const target = locale === 'vi' ? 'vi' : 'en';
       const data = parsed[target] || parsed['en'] || parsed['vi'] || {};
       return (
         <div className="mt-1 space-y-1">
@@ -899,6 +905,7 @@ function MissingInfoPanel({ data }: { data: any }) {
 }
 
 function BlacklistModal({ candidateId, candidateName, onClose, onDone }: { candidateId: string; candidateName: string; onClose: () => void; onDone: () => void }) {
+  const { t } = useI18n();
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -915,15 +922,15 @@ function BlacklistModal({ candidateId, candidateName, onClose, onDone }: { candi
   return ReactDOM.createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-96 p-5" onClick={e => e.stopPropagation()}>
-        <h3 className="text-[15px] font-semibold text-text-primary mb-1">🚫 Blacklist ứng viên</h3>
-        <p className="text-[12px] text-text-muted mb-4">Ứng viên <strong>{candidateName}</strong> sẽ bị chặn vĩnh viễn khỏi suggest, matching.</p>
-        <label className="text-[11px] font-medium text-text-muted uppercase">Lý do *</label>
-        <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} autoFocus className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder="VD: Fake CV, thái độ xấu, vi phạm NDA..." />
+        <h3 className="text-[15px] font-semibold text-text-primary mb-1">{t('blacklistCandidate')}</h3>
+        <p className="text-[12px] text-text-muted mb-4" dangerouslySetInnerHTML={{ __html: t('blacklistCandidateDesc', { name: candidateName }) }} />
+        <label className="text-[11px] font-medium text-text-muted uppercase">{t('blacklistReasonLabel')}</label>
+        <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} autoFocus className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] resize-y" placeholder={t('blacklistReasonPlaceholder')} />
         <div className="flex gap-2 mt-4">
           <button onClick={handleSubmit} disabled={saving || !reason.trim()} className="flex-1 py-2.5 bg-red-600 text-white text-[13px] font-medium rounded-lg hover:bg-red-700 disabled:opacity-40">
-            {saving ? 'Đang xử lý...' : 'Xác nhận Blacklist'}
+            {saving ? t('processing') : t('confirmBlacklist')}
           </button>
-          <button onClick={onClose} className="px-4 py-2.5 text-[13px] text-text-muted border border-border-subtle rounded-lg hover:bg-bg-surface">Huỷ</button>
+          <button onClick={onClose} className="px-4 py-2.5 text-[13px] text-text-muted border border-border-subtle rounded-lg hover:bg-bg-surface">{t('cancel')}</button>
         </div>
       </div>
     </div>,

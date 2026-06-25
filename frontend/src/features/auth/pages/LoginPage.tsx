@@ -18,8 +18,8 @@ export function LoginPage() {
   if (authLoading) return <LoadingPage />;
   if (isAuthenticated) return <Navigate to={user?.role === 'interviewer' ? '/interviewer' : '/'} replace />;
 
-  const validateEmail = (v: string) => !v ? 'Email không được để trống' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Email không hợp lệ' : null;
-  const validatePassword = (v: string) => !v ? 'Mật khẩu không được để trống' : v.length < 6 ? 'Mật khẩu phải có ít nhất 6 ký tự' : null;
+  const validateEmail = (v: string) => !v ? t('emailRequired') : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? t('emailInvalid') : null;
+  const validatePassword = (v: string) => !v ? t('passwordRequired') : v.length < 6 ? t('passwordMinLength') : null;
 
   const handleBlur = (field: 'email' | 'password') => {
     setTouched(prev => ({ ...prev, [field]: true }));

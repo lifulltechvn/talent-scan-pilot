@@ -659,6 +659,7 @@ function EmailSignatureEditor() {
 }
 
 function BlacklistTab() {
+  const { t } = useI18n();
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [unblacklistTarget, setUnblacklistTarget] = useState<any>(null);
@@ -679,14 +680,14 @@ function BlacklistTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-text-primary">{candidates.length} ứng viên bị blacklist</h3>
+        <h3 className="text-sm font-medium text-text-primary">{t('blacklistSettingsCount', { count: candidates.length })}</h3>
       </div>
       {candidates.length === 0 ? (
-        <div className="text-center py-8 text-[13px] text-text-muted">Chưa có ứng viên nào bị blacklist</div>
+        <div className="text-center py-8 text-[13px] text-text-muted">{t('noBlacklistedCandidates')}</div>
       ) : (
         <div className="bg-bg-panel border border-border-subtle rounded-xl overflow-hidden">
           <div className="grid grid-cols-[1fr_1fr_1.5fr_120px_60px] gap-3 px-4 py-2.5 border-b border-border-subtle text-[11px] font-medium text-text-muted uppercase">
-            <span>Ứng viên</span><span>Email</span><span>Lý do</span><span>Ngày</span><span></span>
+            <span>{t('candidate')}</span><span>{t('email')}</span><span>{t('reason')}</span><span>{t('date')}</span><span></span>
           </div>
           <div className="divide-y divide-border-subtle">
             {candidates.map(c => (
@@ -695,7 +696,7 @@ function BlacklistTab() {
                 <span className="text-[12px] text-text-secondary truncate">{c.email || '—'}</span>
                 <span className="text-[12px] text-red-600 truncate">{c.blacklist_reason}</span>
                 <span className="text-[11px] text-text-muted">{c.blacklisted_at ? new Date(c.blacklisted_at).toLocaleDateString('vi') : '—'}</span>
-                <button onClick={() => setUnblacklistTarget(c)} className="text-[11px] text-amber-700 hover:underline">Gỡ</button>
+                <button onClick={() => setUnblacklistTarget(c)} className="text-[11px] text-amber-700 hover:underline">{t('unblacklist')}</button>
               </div>
             ))}
           </div>
@@ -704,11 +705,11 @@ function BlacklistTab() {
       {unblacklistTarget && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={() => setUnblacklistTarget(null)}>
           <div className="bg-white rounded-xl shadow-2xl w-80 p-5" onClick={e => e.stopPropagation()}>
-            <h3 className="text-[14px] font-semibold text-text-primary mb-2">Gỡ Blacklist</h3>
-            <p className="text-[12px] text-text-secondary mb-4">Gỡ blacklist cho <strong>{unblacklistTarget.name}</strong>?</p>
+            <h3 className="text-[14px] font-semibold text-text-primary mb-2">{t('unblacklistTitle')}</h3>
+            <p className="text-[12px] text-text-secondary mb-4" dangerouslySetInnerHTML={{ __html: t('removeBlacklistConfirm', { name: unblacklistTarget.name }) }} />
             <div className="flex gap-2">
-              <button onClick={confirmUnblacklist} className="flex-1 py-2 bg-amber-500 text-white text-[13px] font-medium rounded-lg hover:bg-amber-600">Xác nhận</button>
-              <button onClick={() => setUnblacklistTarget(null)} className="px-4 py-2 text-[13px] text-text-muted border border-border-subtle rounded-lg">Huỷ</button>
+              <button onClick={confirmUnblacklist} className="flex-1 py-2 bg-amber-500 text-white text-[13px] font-medium rounded-lg hover:bg-amber-600">{t('confirm')}</button>
+              <button onClick={() => setUnblacklistTarget(null)} className="px-4 py-2 text-[13px] text-text-muted border border-border-subtle rounded-lg">{t('cancel')}</button>
             </div>
           </div>
         </div>

@@ -264,7 +264,7 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
     if (day === 0 || day === 6) { setValidationError(t('cannotScheduleWeekend')); return; }
     if (start < new Date()) { setValidationError(t('cannotSchedulePast')); return; }
     if (end <= start) { setValidationError(t('endAfterStart')); return; }
-    if (interviewerEmails.length === 0 && selectedInterviewers.length === 0) { setValidationError('Vui lòng chọn ít nhất 1 người phỏng vấn'); return; }
+    if (interviewerEmails.length === 0 && selectedInterviewers.length === 0) { setValidationError(t('selectInterviewerRequired')); return; }
     setValidationError('');
     setSaving(true);
     try {

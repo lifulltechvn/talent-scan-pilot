@@ -19,7 +19,12 @@ const statusConfig: Record<TalentPoolEntry['status'], { icon: typeof Clock; colo
 type Filter = 'all' | TalentPoolEntry['status'];
 
 export function TalentPoolPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const loc = (val: any): string => {
+    if (!val) return '';
+    if (typeof val === 'object' && !Array.isArray(val) && (val.en || val.vi)) return val[locale] || val['en'] || val['vi'];
+    return String(val);
+  };
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
 
@@ -125,7 +130,7 @@ export function TalentPoolPage() {
               </div>
 
               {/* Reason */}
-              <p className="text-[12px] text-text-secondary bg-bg-surface rounded-md px-2.5 py-1.5 mb-3">{tp.reason}</p>
+              <p className="text-[12px] text-text-secondary bg-bg-surface rounded-md px-2.5 py-1.5 mb-3">{loc(tp.reason)}</p>
 
               {/* Footer */}
               <div className="flex items-center justify-between">

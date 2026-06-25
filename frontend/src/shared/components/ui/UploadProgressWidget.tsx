@@ -2,16 +2,18 @@ import { useEffect } from 'react';
 import { useUploadStore, clearCompleted } from '@/shared/upload-store';
 import { useBatchStore, clearBatch } from '@/shared/batch-store';
 import { CheckCircle, AlertCircle, Loader2, Clock, X, FileText } from 'lucide-react';
+import { useI18n } from '@/shared/i18n';
 
 export function UploadProgressWidget() {
+  const { t } = useI18n();
   const items = useUploadStore();
   const batch = useBatchStore();
 
   // Auto-dismiss after 5s when done
   useEffect(() => {
     if (batch?.status === 'done') {
-      const t = setTimeout(clearBatch, 5000);
-      return () => clearTimeout(t);
+      const timer = setTimeout(clearBatch, 5000);
+      return () => clearTimeout(timer);
     }
   }, [batch?.status]);
 
@@ -29,7 +31,7 @@ export function UploadProgressWidget() {
             <div className="flex items-center gap-1.5">
               <FileText size={13} className="text-accent" />
               <span className="text-xs font-medium text-text-primary">
-                {batch.status === 'done' ? (batch.duplicates > 0 ? `${batch.duplicates} CV trùng — nhấn để xử lý` : 'Xử lý xong') : 'Đang xử lý CV...'}
+                {batch.status === 'done' ? (batch.duplicates > 0 ? t('cvDuplicatesAction', { count: batch.duplicates }) : t('processingDone')) : t('processingCvs')}
               </span>
             </div>
             {batch.status === 'done' && (
@@ -47,8 +49,8 @@ export function UploadProgressWidget() {
           <div className="flex items-center justify-between mt-1">
             <span className="text-[10px] text-text-muted">{batch.processed}/{batch.totalFiles} file</span>
             <div className="flex gap-2 text-[10px]">
-              {batch.duplicates > 0 && <span className="text-amber-600">{batch.duplicates} trùng</span>}
-              {batch.errors > 0 && <span className="text-red-600">{batch.errors} lỗi</span>}
+              {batch.duplicates > 0 && <span className="text-amber-600">{batch.duplicates} {t('duplicateCount')}</span>}
+              {batch.errors > 0 && <span className="text-red-600">{batch.errors} {t('errorCount')}</span>}
             </div>
           </div>
         </div>

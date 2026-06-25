@@ -4,7 +4,13 @@ import { apiClient } from '@/data/api/client';
 import { useI18n } from '@/shared/i18n';
 
 export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  // Helper: extract locale-specific value from i18n object or fallback
+  const loc = (val: any): any => {
+    if (!val) return val;
+    if (typeof val === 'object' && !Array.isArray(val) && (val.en || val.vi)) return val[locale] || val['en'] || val['vi'];
+    return val;
+  };
   const [activeTab, setActiveTab] = useState<'authenticity' | 'culture'>('authenticity');
   const [authResult, setAuthResult] = useState<any>(null);
   const [cultureResult, setCultureResult] = useState<any>(null);
@@ -74,11 +80,11 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
               </div>
 
               {/* Reasons */}
-              {authResult.reasons?.length > 0 && (
+              {authResult.reasons && (Array.isArray(loc(authResult.reasons)) ? loc(authResult.reasons) : []).length > 0 && (
                 <div>
                   <span className="text-[11px] font-medium text-text-muted uppercase">{t('analysisReasonsLabel')}</span>
                   <ul className="mt-1.5 space-y-1">
-                    {authResult.reasons.map((r: string, i: number) => (
+                    {(loc(authResult.reasons) as string[]).map((r: string, i: number) => (
                       <li key={i} className="text-[12px] text-text-secondary flex items-start gap-1.5">
                         <span className="mt-0.5 shrink-0">•</span> {r}
                       </li>
@@ -89,18 +95,18 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
 
               {/* Red/Green flags */}
               <div className="grid grid-cols-2 gap-2">
-                {authResult.red_flags?.length > 0 && (
+                {(loc(authResult.red_flags) as string[] || []).length > 0 && (
                   <div className="p-2 bg-red-50 rounded-lg">
                     <span className="text-[10px] font-medium text-red-700 uppercase">🚩 Red flags</span>
-                    {authResult.red_flags.map((f: string, i: number) => (
+                    {(loc(authResult.red_flags) as string[]).map((f: string, i: number) => (
                       <p key={i} className="text-[11px] text-red-600 mt-0.5">{f}</p>
                     ))}
                   </div>
                 )}
-                {authResult.green_flags?.length > 0 && (
+                {(loc(authResult.green_flags) as string[] || []).length > 0 && (
                   <div className="p-2 bg-emerald-50 rounded-lg">
                     <span className="text-[10px] font-medium text-emerald-700 uppercase">✅ Good signs</span>
-                    {authResult.green_flags.map((f: string, i: number) => (
+                    {(loc(authResult.green_flags) as string[]).map((f: string, i: number) => (
                       <p key={i} className="text-[11px] text-emerald-600 mt-0.5">{f}</p>
                     ))}
                   </div>
@@ -153,20 +159,20 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
               )}
 
               {/* Strengths */}
-              {cultureResult.strengths?.length > 0 && (
+              {(loc(cultureResult.strengths) as string[] || []).length > 0 && (
                 <div className="p-2.5 bg-emerald-50 rounded-lg">
                   <span className="text-[10px] font-medium text-emerald-700 uppercase">{t('strengthsCultureLabel')}</span>
-                  {cultureResult.strengths.map((r: string, i: number) => (
+                  {(loc(cultureResult.strengths) as string[]).map((r: string, i: number) => (
                     <p key={i} className="text-[11px] text-emerald-700 mt-0.5">✓ {r}</p>
                   ))}
                 </div>
               )}
 
               {/* Risk factors */}
-              {cultureResult.risk_factors?.length > 0 && (
+              {(loc(cultureResult.risk_factors) as string[] || []).length > 0 && (
                 <div className="p-2.5 bg-amber-50 rounded-lg">
                   <span className="text-[10px] font-medium text-amber-700 uppercase">{t('riskFactorsLabel')}</span>
-                  {cultureResult.risk_factors.map((r: string, i: number) => (
+                  {(loc(cultureResult.risk_factors) as string[]).map((r: string, i: number) => (
                     <p key={i} className="text-[11px] text-amber-700 mt-0.5">⚠ {r}</p>
                   ))}
                 </div>
@@ -176,7 +182,7 @@ export function AIAnalysisPanel({ candidateId }: { candidateId: string }) {
               {cultureResult.recommendation && (
                 <div className="p-2.5 bg-bg-surface rounded-lg border border-border-subtle">
                   <span className="text-[10px] font-medium text-text-muted uppercase">{t('recommendationCultureLabel')}</span>
-                  <p className="text-[12px] text-text-primary mt-0.5 font-medium">{cultureResult.recommendation}</p>
+                  <p className="text-[12px] text-text-primary mt-0.5 font-medium">{loc(cultureResult.recommendation)}</p>
                 </div>
               )}
 

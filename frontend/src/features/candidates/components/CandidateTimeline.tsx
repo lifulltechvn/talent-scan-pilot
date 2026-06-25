@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FileText, Star, ClipboardCheck, CalendarCheck, Mail, MessageSquare } from 'lucide-react';
 import { apiClient } from '@/data/api/client';
+import { useI18n } from '@/shared/i18n';
 
 interface TimelineEvent {
   type: string;
@@ -18,6 +19,7 @@ const iconMap: Record<string, { icon: typeof FileText; color: string; bg: string
 };
 
 export function CandidateTimeline({ candidateId }: { candidateId: string }) {
+  const { locale } = useI18n();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +48,7 @@ export function CandidateTimeline({ candidateId }: { candidateId: string }) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[13px] font-medium text-text-primary">{ev.title}</span>
-                <span className="text-[11px] text-text-muted shrink-0">{date.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
+                <span className="text-[11px] text-text-muted shrink-0">{date.toLocaleDateString(locale, { month: 'short', day: 'numeric' })}</span>
               </div>
               {ev.detail && <p className="text-[12px] text-text-tertiary mt-0.5">{ev.detail}</p>}
             </div>

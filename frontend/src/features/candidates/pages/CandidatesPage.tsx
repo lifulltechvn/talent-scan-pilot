@@ -40,7 +40,7 @@ function getCandidateBadge(c: Candidate) {
 type SortKey = 'name' | 'score' | 'date';
 
 export function CandidatesPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { data: candidates, isLoading } = useCandidates();
   const [enrichWait, setEnrichWait] = useState(true);
 
@@ -221,7 +221,7 @@ export function CandidatesPage() {
 
 /* Desktop row */
 function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const badge = getCandidateBadge(c);
   const navigate = useNavigate();
   const updateStatus = useUpdateCandidateStatus();
@@ -235,7 +235,7 @@ function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
           <p className="text-[11px] text-text-muted">
-            {c.structuredData.skill_level && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.vi}</span></span>}
+            {c.structuredData.skill_level && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.[locale] || c.structuredData.skill_level.category_title?.en}</span></span>}
             {c.structuredData.totalYearsExperience ? t('yearsExpShort', { years: c.structuredData.totalYearsExperience }) : ''}
           </p>
         </div>
@@ -251,7 +251,7 @@ function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
 
 /* Mobile card */
 function CandidateRowMobile({ candidate: c }: { candidate: Candidate }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const badge = getCandidateBadge(c);
   const navigate = useNavigate();
   const updateStatus = useUpdateCandidateStatus();
@@ -266,7 +266,7 @@ function CandidateRowMobile({ candidate: c }: { candidate: Candidate }) {
           <div className="min-w-0">
             <p className="text-[14px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
             <p className="text-[12px] text-text-muted">
-              {c.structuredData.skill_level && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.vi}</span></span>}
+              {c.structuredData.skill_level && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.[locale] || c.structuredData.skill_level.category_title?.en}</span></span>}
               {c.structuredData.totalYearsExperience ? t('yearsExpShort', { years: c.structuredData.totalYearsExperience }) : ''}
             </p>
           </div>
@@ -296,7 +296,7 @@ function StatusAction({ status, candidateId, navigate, updateStatus }: {
   navigate: (path: string) => void;
   updateStatus: ReturnType<typeof useUpdateCandidateStatus>;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const base = 'flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors';
 
   switch (status) {

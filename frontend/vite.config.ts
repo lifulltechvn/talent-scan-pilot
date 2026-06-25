@@ -13,7 +13,13 @@ export default defineConfig({
     allowedHosts: true,
     watch: {
       usePolling: true,
-      interval: 500,
+      interval: 300,
+    },
+    hmr: {
+      overlay: true,
+    },
+    headers: {
+      'Cache-Control': 'no-store',
     },
     proxy: {
       '/api': {

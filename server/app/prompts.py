@@ -39,7 +39,6 @@ Reply in exactly this format (each on its own line):
 SCORE: <number 0-100>
 SUMMARY_EN: <one sentence summary in English>
 SUMMARY_VI: <one sentence summary in Vietnamese>
-SUMMARY_JA: <one sentence summary in Japanese>
 STRENGTHS_EN: <comma-separated strengths in English, max 5>
 STRENGTHS_VI: <comma-separated strengths in Vietnamese, max 5>
 CONCERNS_EN: <comma-separated concerns in English, max 5>

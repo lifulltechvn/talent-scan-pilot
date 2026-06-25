@@ -19,7 +19,7 @@ export function RichTextEditor({ content, onChange, placeholder }: Props) {
       Link.configure({ openOnClick: false }),
       Image,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Placeholder.configure({ placeholder: placeholder || 'Nhập nội dung...' }),
+      Placeholder.configure({ placeholder: placeholder || t('editorPlaceholder') }),
     ],
     content,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),

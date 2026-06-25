@@ -151,8 +151,8 @@ def _parse_cv_enrichment(text: str, candidate_id: str | None = None) -> dict:
                 "education": {"type": "array", "items": {"type": "object", "properties": {"school": {"type": "string"}, "degree": {"type": "string"}, "major": {"type": "string"}}}, "maxItems": 2},
                 "certifications": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "issuer": {"type": "string"}}}},
                 "languages": {"type": "array", "items": {"type": "object", "properties": {"language": {"type": "string"}, "level": {"type": "string"}}}},
-                "strengths": {"type": "string", "description": "1-2 sentences"},
-                "weaknesses": {"type": "string", "description": "1 sentence"},
+                "strengths": {"type": "string", "description": "1-2 sentences in English ONLY"},
+                "weaknesses": {"type": "string", "description": "1 sentence in English ONLY"},
                 "skill_level": {"type": "object", "description": "G0=no skills, G1=junior, G2=mid(4+domains), G3=senior(7+domains). Most are G1-G2.", "properties": {
                     "category": {"type": "string", "enum": ["application_engineer", "bridge_se", "qa_engineer", "admin", "hr"]},
                     "level": {"type": "string", "enum": ["G0", "G1", "G2", "G3"]},

@@ -64,6 +64,7 @@ def start_scheduler():
     scheduler.add_job(send_30min_reminders, "interval", minutes=5, id="30min_reminders", replace_existing=True)
     scheduler.add_job(_retry_translations, "interval", minutes=10, id="retry_translations", replace_existing=True)
     scheduler.add_job(_retry_skill_levels, "interval", minutes=5, id="retry_skill_levels", replace_existing=True)
+    scheduler.add_job(_backfill_reason_vi, "interval", minutes=3, id="backfill_reason_vi", replace_existing=True)
     scheduler.start()
 
 
@@ -137,6 +138,60 @@ def _retry_skill_levels():
                             ), {"sd": json.dumps(sd_copy, ensure_ascii=False), "id": str(row["id"])})
                     except Exception as e:
                         logger.warning(f"Skill level assessment failed for {row['id']}: {e}")
+                await db.commit()
+        finally:
+            await engine.dispose()
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(_run())
+    except Exception:
+        pass
+    finally:
+        loop.close()
+
+
+def _backfill_reason_vi():
+    """Fill missing reason.vi for candidates that have reason.en."""
+    import asyncio, json, logging
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+    from app.config import settings
+    from app.bedrock import invoke_claude
+
+    logger = logging.getLogger(__name__)
+
+    async def _run():
+        engine = create_async_engine(settings.DATABASE_URL, pool_size=2)
+        sf = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with sf() as db:
+                result = await db.execute(text("""
+                    SELECT id, structured_data FROM candidates
+                    WHERE structured_data->'skill_level'->'reason'->>'en' IS NOT NULL
+                      AND length(structured_data->'skill_level'->'reason'->>'en') > 0
+                      AND (structured_data->'skill_level'->'reason'->>'vi' IS NULL
+                           OR length(structured_data->'skill_level'->'reason'->>'vi') < 5)
+                    LIMIT 5
+                """))
+                rows = result.mappings().all()
+                if not rows:
+                    return
+                logger.info(f"Backfilling reason.vi for {len(rows)} candidates")
+                for row in rows:
+                    try:
+                        sd = dict(row["structured_data"])
+                        en = sd["skill_level"]["reason"]["en"]
+                        vi = invoke_claude(
+                            f"Translate to Vietnamese. Output ONLY the translation, nothing else:\n{en}",
+                            model=settings.BEDROCK_MODEL_HAIKU, max_tokens=200, feature="skill_level", candidate_id=str(row["id"])
+                        )
+                        sd["skill_level"]["reason"]["vi"] = vi.strip().split("\n\n")[0].strip()
+                        await db.execute(text(
+                            "UPDATE candidates SET structured_data = :sd WHERE id = :id"
+                        ), {"sd": json.dumps(sd, ensure_ascii=False), "id": str(row["id"])})
+                    except Exception as e:
+                        logger.warning(f"Backfill reason.vi failed for {row['id']}: {e}")
                 await db.commit()
         finally:
             await engine.dispose()

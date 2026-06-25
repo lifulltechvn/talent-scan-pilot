@@ -58,7 +58,7 @@ export function ScoreExplanation({ candidateId }: { candidateId: string }) {
   if (isLoading) return <div className="animate-pulse h-40 bg-gray-100 rounded-lg" />;
   if (error || !data) return (
     <div className="text-center py-4">
-      <span className="text-[12px] text-text-muted">Chưa có điểm — Assign vào job để chấm điểm</span>
+      <span className="text-[12px] text-text-muted">{t('noScoreYet')}</span>
     </div>
   );
 

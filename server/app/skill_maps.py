@@ -162,11 +162,11 @@ Candidate:
 - Roles: {roles}
 - Education: {education}
 
-Respond EXACTLY (4 lines):
+Respond EXACTLY in this format (4 lines, ALL MANDATORY):
 CATEGORY: <application_engineer|bridge_se|qa_engineer|admin|hr>
 LEVEL: <G0|G1|G2|G3|G4|G5|G6>
-REASON_VI: <2-3 câu tiếng Việt đầy đủ, chuyên nghiệp>
-REASON_EN: <2-3 complete sentences in English>"""
+REASON_EN: <5-7 sentences in English. Explain: which domains the candidate demonstrates, specific evidence from their experience, and why this level (not higher/lower)>
+REASON_VI: <Dịch REASON_EN sang tiếng Việt, 5-7 câu đầy đủ>"""
 
 
 def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, job_category: str | None = None) -> dict | None:
@@ -220,7 +220,7 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
     )
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="skill_level", candidate_id=candidate_id)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1500, feature="skill_level", candidate_id=candidate_id)
         category = ""
         level = ""
         reason_vi = ""
@@ -230,12 +230,30 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                 category = line.replace("CATEGORY:", "").strip()
             elif line.startswith("LEVEL:"):
                 level = line.replace("LEVEL:", "").strip()
-            elif line.startswith("REASON_VI:"):
-                reason_vi = line.replace("REASON_VI:", "").strip()
             elif line.startswith("REASON_EN:"):
                 reason_en = line.replace("REASON_EN:", "").strip()
+            elif line.startswith("REASON_VI:"):
+                reason_vi = line.replace("REASON_VI:", "").strip()
             elif line.startswith("REASON:"):
-                reason_vi = line.replace("REASON:", "").strip()
+                reason_en = line.replace("REASON:", "").strip()
+        # Always ensure VI exists - translate from EN if missing/short
+        if reason_en and len(reason_vi.strip()) < 20:
+            import time
+            for attempt in range(3):
+                try:
+                    vi_r = invoke_claude(
+                        f"Translate to Vietnamese. Output ONLY the translation, nothing else:\n{reason_en}",
+                        model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="skill_level", candidate_id=candidate_id
+                    )
+                    reason_vi = vi_r.strip().split("\n\n")[0].strip()
+                    if len(reason_vi) >= 20:
+                        break
+                except Exception:
+                    if attempt < 2:
+                        time.sleep(2 * (attempt + 1))
+                    else:
+                        reason_vi = reason_en
+
         if level and category:
             # Enrich with description
             cat_data = SKILL_MAPS.get(category, {})

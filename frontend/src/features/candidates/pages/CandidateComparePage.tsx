@@ -20,7 +20,7 @@ export function CandidateComparePage() {
   const [searchParams] = useSearchParams();
   const ids = searchParams.get('ids')?.split(',').filter(Boolean) ?? [];
   const { data: allCandidates, isLoading } = useCandidates();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   if (isLoading) return <LoadingSkeleton rows={8} />;
 
@@ -193,7 +193,7 @@ export function CandidateComparePage() {
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
               <div key={c.id} className="px-4 py-3 border-r border-border-subtle last:border-0">
-                <p className="text-[11px] text-emerald-700 leading-relaxed">{c.structuredData.insight.strengths || '—'}</p>
+                <p className="text-[11px] text-emerald-700 leading-relaxed">{(locale === 'vi' && c.structuredData.insight.strengths_vi) || c.structuredData.insight.strengths || '—'}</p>
               </div>
             ))}
           </div>
@@ -208,7 +208,7 @@ export function CandidateComparePage() {
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
               <div key={c.id} className="px-4 py-3 border-r border-border-subtle last:border-0">
-                <p className="text-[11px] text-red-600 leading-relaxed">{c.structuredData.insight.weaknesses || '—'}</p>
+                <p className="text-[11px] text-red-600 leading-relaxed">{(locale === 'vi' && c.structuredData.insight.weaknesses_vi) || c.structuredData.insight.weaknesses || '—'}</p>
               </div>
             ))}
           </div>
@@ -223,7 +223,7 @@ export function CandidateComparePage() {
           <div className="grid" style={colStyle}>
             {candidates.map(c => (
               <div key={c.id} className="px-4 py-3 border-r border-border-subtle last:border-0">
-                <p className="text-[11px] text-text-primary leading-relaxed">{c.structuredData.insight.recommendation || '—'}</p>
+                <p className="text-[11px] text-text-primary leading-relaxed">{(locale === 'vi' && c.structuredData.insight.recommendation_vi) || c.structuredData.insight.recommendation || '—'}</p>
               </div>
             ))}
           </div>

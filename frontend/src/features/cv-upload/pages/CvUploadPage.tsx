@@ -237,10 +237,10 @@ export function CvUploadPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-text-primary">
-                      {batch.processed === 0 ? '🧠 AI đang phân tích CV...' : `⚡ ${batch.processed}/${batch.total_files} hoàn tất`}
+                      {batch.processed === 0 ? t('aiAnalyzingCv') : t('cvProcessingProgress', { processed: batch.processed, total: batch.total_files })}
                     </p>
                     <p className="text-[11px] text-text-muted">
-                      {batch.processed === 0 ? `Đang trích xuất thông tin từ ${batch.total_files} file` : 'Đang xử lý các file còn lại...'}
+                      {batch.processed === 0 ? t('extractingInfo', { count: batch.total_files }) : t('processingRemaining')}
                     </p>
                   </div>
                 </div>
@@ -255,9 +255,9 @@ export function CvUploadPage() {
                 {/* Step indicators */}
                 {batch.processed === 0 && (
                   <div className="flex items-center gap-4 mt-3 text-[10px] text-text-muted">
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Đọc file</span>
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" /> Phân tích AI</span>
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-gray-300" /> Đánh giá G-level</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> {t('stepReadFile')}</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" /> {t('stepAiAnalysis')}</span>
+                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-gray-300" /> {t('stepGLevel')}</span>
                   </div>
                 )}
               </>
@@ -276,7 +276,7 @@ export function CvUploadPage() {
             </div>
             <div className="bg-bg-panel border border-red-200 rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-red-600">{blacklisted.length}</div>
-              <div className="text-[10px] text-red-600">Blacklisted</div>
+              <div className="text-[10px] text-red-600">{t('blacklisted')}</div>
             </div>
             <div className="bg-bg-panel border border-border-subtle rounded-lg p-3 text-center">
               <div className="text-lg font-bold text-red-600">{errors.length}</div>
@@ -324,7 +324,7 @@ export function CvUploadPage() {
                   <div key={item.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-red-100">
                     <div>
                       <div className="text-[12px] font-medium text-text-primary">{item.file_name}</div>
-                      <div className="text-[10px] text-red-600">Ứng viên <strong>{item.duplicate_name}</strong> đã bị blacklist</div>
+                      <div className="text-[10px] text-red-600" dangerouslySetInnerHTML={{ __html: t('candidateBlacklisted', { name: item.duplicate_name }) }} />
                     </div>
                   </div>
                 ))}
@@ -363,7 +363,7 @@ export function CvUploadPage() {
                         <div className="min-w-0 flex-1">
                           <div className="text-[12px] font-medium text-text-primary truncate">{item.file_name}</div>
                           <div className="text-[10px] text-text-muted">
-                            {item.duplicate_reason === 'blacklisted' && <span className="text-red-600 font-medium">🚫 Ứng viên đã bị Blacklist: </span>}
+                            {item.duplicate_reason === 'blacklisted' && t('candidateIsBlacklisted')}
                             {item.duplicate_reason === 'hash_match' && t('hashMatch')}
                             {item.duplicate_reason === 'email_match' && t('emailMatch')}
                             {item.duplicate_reason === 'phone_match' && t('phoneMatch')}
@@ -390,10 +390,10 @@ export function CvUploadPage() {
                                   <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">{t('previouslyRejected')}</span>
                                 )}
                                 {(item.duplicate_details.existing_status === 'assigned' || item.duplicate_details.existing_status === 'pending') && (
-                                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">⚠️ Đang phỏng vấn</span>
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{t('statusInterviewing')}</span>
                                 )}
                                 {item.duplicate_details.existing_status === 'approved' && (
-                                  <span className="text-[9px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">✅ Đã approved</span>
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">{t('statusApproved')}</span>
                                 )}
                               </div>
                               {item.duplicate_details.recommendation_reason && (
@@ -407,17 +407,17 @@ export function CvUploadPage() {
                         <div className="flex gap-1 shrink-0 ml-2">
                           {item.duplicate_details?.existing_status === 'assigned' || item.duplicate_details?.existing_status === 'pending' ? (
                             <>
-                              {item.duplicate_of && <Link to={`/candidates/${item.duplicate_of}`} className="p-1.5 text-accent hover:bg-accent/10 rounded-md" title="Xem hồ sơ"><Eye size={13} /></Link>}
-                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md disabled:opacity-40" title="Bỏ qua"><SkipForward size={13} /></button>
+                              {item.duplicate_of && <Link to={`/candidates/${item.duplicate_of}`} className="p-1.5 text-accent hover:bg-accent/10 rounded-md" title={t('viewProfile')}><Eye size={13} /></Link>}
+                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md disabled:opacity-40" title={t('skipAction')}><SkipForward size={13} /></button>
                             </>
                           ) : item.duplicate_details?.existing_status === 'approved' ? (
                             <>
-                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md disabled:opacity-40" title="Tạo hồ sơ mới (vị trí khác)"><UserPlus size={13} /></button>
-                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md disabled:opacity-40" title="Bỏ qua"><SkipForward size={13} /></button>
+                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md disabled:opacity-40" title={t('createNewProfile')}><UserPlus size={13} /></button>
+                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md disabled:opacity-40" title={t('skipAction')}><SkipForward size={13} /></button>
                             </>
                           ) : (
                             <>
-                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'update')} className="p-1.5 text-accent hover:bg-accent/10 rounded-md disabled:opacity-40" title={item.duplicate_details?.existing_status === 'rejected' ? 'Mở lại + cập nhật CV' : t('updateCvTooltip')}><RefreshCw size={13} /></button>
+                              <button disabled={resolving} onClick={() => handleResolve(item.id, 'update')} className="p-1.5 text-accent hover:bg-accent/10 rounded-md disabled:opacity-40" title={item.duplicate_details?.existing_status === 'rejected' ? t('reopenAndUpdate') : t('updateCvTooltip')}><RefreshCw size={13} /></button>
                               <button disabled={resolving} onClick={() => handleResolve(item.id, 'create_new')} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md disabled:opacity-40" title={t('createNewTooltip')}><UserPlus size={13} /></button>
                               <button disabled={resolving} onClick={() => handleResolve(item.id, 'skip')} className="p-1.5 text-text-muted hover:bg-gray-100 rounded-md disabled:opacity-40" title={t('skipTooltip')}><SkipForward size={13} /></button>
                             </>

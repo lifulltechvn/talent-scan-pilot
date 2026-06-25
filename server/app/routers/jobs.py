@@ -2,7 +2,7 @@ import json
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -54,6 +54,17 @@ async def import_jd_file(
         start = raw.find("{")
         end = raw.rfind("}") + 1
         parsed = json.loads(raw[start:end])
+
+        # Ensure bilingual description
+        desc = parsed.get("description", "")
+        if desc and not isinstance(desc, dict):
+            try:
+                translate_prompt = f'Translate this job description to Vietnamese. Return ONLY the translated text, no JSON.\n\n{desc}'
+                desc_vi = invoke_claude(translate_prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=300, temperature=0.1, feature="jd_import_translate")
+                parsed["description"] = json.dumps({"en": desc, "vi": desc_vi.strip()})
+            except Exception:
+                parsed["description"] = json.dumps({"en": desc, "vi": desc})
+
         return parsed
     except Exception as e:
         raise HTTPException(500, f"AI parsing failed: {e}")
@@ -603,8 +614,10 @@ Provide:
 2. Action for each: "invite_now" / "consider" / "pass" / "need_more_info"
 3. Overall summary (1-2 sentences)
 
+IMPORTANT: All text fields (summary, reason, strengths, concerns) MUST be in BOTH English and Vietnamese.
+
 Reply ONLY valid JSON:
-{{"summary": "...", "rankings": [{{"rank": 1, "name": "...", "action": "...", "reason": "...", "strengths": ["..."], "concerns": ["..."]}}]}}"""
+{{"summary": {{"en": "...", "vi": "..."}}, "rankings": [{{"rank": 1, "name": "...", "action": "...", "reason": {{"en": "...", "vi": "..."}}, "strengths": {{"en": ["..."], "vi": ["..."]}}, "concerns": {{"en": ["..."], "vi": ["..."]}}}}]}}"""
 
     try:
         raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=3000, feature="recommendation")

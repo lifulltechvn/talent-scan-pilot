@@ -65,7 +65,7 @@ export function InterviewerDashboard() {
   const needFeedback = interviews.filter(i => (i.status === 'scheduled' && new Date(i.end_time) < now && !i.feedback_score) || (i.status === 'completed' && !i.feedback_score));
   const completed = interviews.filter(i => i.feedback_score != null);
 
-  if (loading) return <div className="text-center py-8 text-text-muted">Loading...</div>;
+  if (loading) return <div className="text-center py-8 text-text-muted">{t('loading')}</div>;
 
   return (
     <div>
@@ -102,10 +102,10 @@ export function InterviewerDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[13px] font-medium text-text-primary">{i.candidate_name}</div>
-                    <div className="text-[11px] text-text-muted">{i.job_title} · Round {i.round}</div>
+                    <div className="text-[11px] text-text-muted">{i.job_title} · {t('round', { round: i.round })}</div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setProfileModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">Profile</button>
+                    <button onClick={() => setProfileModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">{t('profileBtn')}</button>
                     <button onClick={() => setQuestionsModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100">{t('questionsBtn')}</button>
                     <button onClick={() => setFeedbackModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">{t('feedbackBtnShort')}</button>
                   </div>
@@ -133,17 +133,17 @@ export function InterviewerDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[13px] font-medium text-text-primary">{i.candidate_name}</div>
-                    <div className="text-[11px] text-text-muted">{i.job_title} · Round {i.round} · {new Date(i.start_time).toLocaleDateString(locale)}</div>
+                    <div className="text-[11px] text-text-muted">{i.job_title} · {t('round', { round: i.round })} · {new Date(i.start_time).toLocaleDateString(locale)}</div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setProfileModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">Profile</button>
+                    <button onClick={() => setProfileModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">{t('profileBtn')}</button>
                     <button onClick={() => setQuestionsModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100">{t('questionsBtn')}</button>
                     <button onClick={() => setFeedbackModal(i)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">{t('feedbackBtnShort')}</button>
                   </div>
                 </div>
                 {i.question_score && (
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="text-[11px] text-text-muted">📊 Smart Score:</span>
+                    <span className="text-[11px] text-text-muted">📊 {t('smartScore')}:</span>
                     {i.question_score.g_level && <span className="text-[12px] font-bold text-accent">{i.question_score.g_level}</span>}
                     <span className={`text-[12px] font-semibold ${i.question_score.percentage >= 70 ? 'text-emerald-600' : i.question_score.percentage >= 40 ? 'text-amber-600' : 'text-red-500'}`}>{Math.round(i.question_score.percentage)}%</span>
                     <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[120px]">
@@ -177,7 +177,7 @@ export function InterviewerDashboard() {
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <div className="text-[14px] font-medium text-text-primary">{i.candidate_name}</div>
-                    <div className="text-[12px] text-text-muted">{i.job_title} · Round {i.round} · {i.interview_type}</div>
+                    <div className="text-[12px] text-text-muted">{i.job_title} · {t('round', { round: i.round })} · {i.interview_type}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-[13px] font-medium text-text-primary">{new Date(i.start_time).toLocaleDateString(locale)}</div>
@@ -225,10 +225,10 @@ export function InterviewerDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[13px] font-medium text-text-primary">{i.candidate_name}</div>
-                    <div className="text-[11px] text-text-muted">{i.job_title} · Round {i.round} · {new Date(i.start_time).toLocaleDateString(locale)}</div>
+                    <div className="text-[11px] text-text-muted">{i.job_title} · {t('round', { round: i.round })} · {new Date(i.start_time).toLocaleDateString(locale)}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setProfileModal(i)} className="text-[11px] text-purple-600 hover:underline">Profile</button>
+                    <button onClick={() => setProfileModal(i)} className="text-[11px] text-purple-600 hover:underline">{t('profileBtn')}</button>
                     <button onClick={() => setFeedbackModal(i)} className="text-[11px] text-accent hover:underline">{t('editBtnShort')}</button>
                     <div className="flex items-center gap-1">
                       <Star size={12} className="text-amber-500" />
@@ -242,7 +242,7 @@ export function InterviewerDashboard() {
                 {i.feedback_notes && <p className="text-[11px] text-text-secondary mt-1 bg-bg-surface px-3 py-1.5 rounded">{i.feedback_notes}</p>}
                 {i.question_score && (
                   <div className="mt-1.5 flex items-center gap-2">
-                    <span className="text-[10px] text-text-muted">📊 Smart Score:</span>
+                    <span className="text-[10px] text-text-muted">📊 {t('smartScore')}:</span>
                     {i.question_score.g_level && <span className="text-[11px] font-bold text-accent">{i.question_score.g_level}</span>}
                     <span className={`text-[11px] font-semibold ${i.question_score.percentage >= 70 ? 'text-emerald-600' : i.question_score.percentage >= 40 ? 'text-amber-600' : 'text-red-500'}`}>{Math.round(i.question_score.percentage)}%</span>
                     <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden max-w-[100px]">
@@ -281,7 +281,7 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
           <div>
             <h2 className="text-[15px] font-semibold text-white">{interview.candidate_name}</h2>
-            <p className="text-[12px] text-white/70">{interview.job_title} · Round {interview.round}</p>
+            <p className="text-[12px] text-white/70">{interview.job_title} · {t('round', { round: interview.round })}</p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
@@ -294,7 +294,7 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
 
           {/* Skills */}
           <div>
-            <span className="text-[11px] font-medium text-text-muted uppercase">Skills</span>
+            <span className="text-[11px] font-medium text-text-muted uppercase">{t('skills')}</span>
             <div className="flex flex-wrap gap-1.5 mt-1.5">
               {p.skills.map(s => (
                 <span key={s} className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${interview.job_skills.map(j => j.toLowerCase()).includes(s.toLowerCase()) ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{s}</span>
@@ -310,9 +310,9 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
               <div className="mt-2 space-y-2">
                 {p.experience.map((exp, i) => (
                   <div key={i} className="border-l-2 border-border-subtle pl-3">
-                    <div className="text-[13px] font-medium text-text-primary">{exp.role}</div>
+                    <div className="text-[13px] font-medium text-text-primary">{(locale === 'vi' && exp.role_vi) || exp.role}</div>
                     <div className="text-[12px] text-text-muted">{exp.company}{exp.years ? ` · ${exp.years}y` : ''}</div>
-                    {exp.description && <div className="text-[11px] text-text-secondary mt-0.5">{exp.description}</div>}
+                    {(exp.description || exp.description_vi) && <div className="text-[11px] text-text-secondary mt-0.5">{(locale === 'vi' && exp.description_vi) || exp.description}</div>}
                   </div>
                 ))}
               </div>
@@ -346,20 +346,20 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
           )}
 
           {/* AI Insight */}
-          {p.insight && (p.insight.strengths || p.insight.weaknesses) && (
+          {p.insight && (p.insight.strengths || p.insight.strengths_vi || p.insight.weaknesses || p.insight.weaknesses_vi) && (
             <div className="border-t border-border-subtle pt-4">
               <span className="text-[11px] font-medium text-text-muted uppercase flex items-center gap-1">✨ {t('aiInsightProfileSection')}</span>
               <div className="mt-2 space-y-2">
-                {p.insight.strengths && (
+                {(p.insight.strengths || p.insight.strengths_vi) && (
                   <div className="p-2.5 bg-emerald-50 rounded-lg">
                     <span className="text-[10px] font-medium text-emerald-700 uppercase">{t('strengthsProfileSection')}</span>
-                    <p className="text-[12px] text-emerald-800 mt-0.5">{p.insight.strengths}</p>
+                    <p className="text-[12px] text-emerald-800 mt-0.5">{(locale === 'vi' && p.insight.strengths_vi) || p.insight.strengths}</p>
                   </div>
                 )}
-                {p.insight.weaknesses && (
+                {(p.insight.weaknesses || p.insight.weaknesses_vi) && (
                   <div className="p-2.5 bg-amber-50 rounded-lg">
                     <span className="text-[10px] font-medium text-amber-700 uppercase">{t('attentionProfileSection')}</span>
-                    <p className="text-[12px] text-amber-800 mt-0.5">{p.insight.weaknesses}</p>
+                    <p className="text-[12px] text-amber-800 mt-0.5">{(locale === 'vi' && p.insight.weaknesses_vi) || p.insight.weaknesses}</p>
                   </div>
                 )}
               </div>
@@ -408,7 +408,7 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: MyInterview
         <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
           <div>
             <h2 className="text-[15px] font-semibold text-white">{t('assessCandidate')}</h2>
-            <p className="text-[12px] text-white/70">{interview.candidate_name} · Round {interview.round}</p>
+            <p className="text-[12px] text-white/70">{interview.candidate_name} · {t('round', { round: interview.round })}</p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
@@ -495,7 +495,7 @@ function QuestionsModal({ interview, onClose }: { interview: MyInterview; onClos
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle shrink-0">
           <div>
             <h2 className="text-[15px] font-semibold text-text-primary">📋 Smart Interview Questions</h2>
-            <p className="text-[11px] text-text-muted mt-0.5">{interview.candidate_name} · {interview.job_title} · Round {interview.round}</p>
+            <p className="text-[11px] text-text-muted mt-0.5">{interview.candidate_name} · {interview.job_title} · {t('round', { round: interview.round })}</p>
           </div>
           <div className="flex items-center gap-3">
             {questions.length > 0 && <span className="text-[12px] font-medium text-accent">{totalScore}/{maxScore} ({maxScore > 0 ? Math.round(totalScore/maxScore*100) : 0}%)</span>}

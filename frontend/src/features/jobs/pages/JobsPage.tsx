@@ -110,8 +110,9 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
               <option value="hr">HR</option>
             </select>
           </div>
-          <textarea value={form.description} onChange={e => { setForm(p => ({ ...p, description: e.target.value })); setFormErrors(p => ({ ...p, description: '' })); }} placeholder={t('jobDescPlaceholder')} rows={3} className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.description ? 'border-red-400' : 'border-border-subtle'}`} />
+          <textarea value={form.description} onChange={e => { setForm(p => ({ ...p, description: e.target.value })); setDescRaw(''); setFormErrors(p => ({ ...p, description: '' })); }} placeholder={t('jobDescPlaceholder')} rows={3} className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.description ? 'border-red-400' : 'border-border-subtle'}`} />
           {formErrors.description && <p className="text-[11px] text-red-500 -mt-2">{formErrors.description}</p>}
+          {!formErrors.description && <p className="text-[10px] text-text-muted -mt-1">{locale === 'vi' ? 'Lưu sẽ tự động dịch sang tiếng Anh' : 'Saving will auto-translate to Vietnamese'}</p>}
           <div>
             <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t('skillsLabel')}</label>
             <TagInput value={form.skills} onChange={v => { setForm(p => ({ ...p, skills: v })); setFormErrors(p => ({ ...p, skills: '' })); }} suggestions={masterData?.skills || []} placeholder={t('typeSkillName')} />
