@@ -211,7 +211,7 @@ export function DashboardPage() {
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <div className="text-[13px] font-medium text-text-primary">{j.candidate_count}</div>
-                      <div className="text-[10px] text-text-muted">{t('candidateCount')}</div>
+                      <div className="text-[10px] text-text-muted">{t('candidates')}</div>
                     </div>
                     {j.gold > 0 && (
                       <div className="text-right">
