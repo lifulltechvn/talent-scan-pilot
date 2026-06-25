@@ -85,7 +85,7 @@ export function AIEmailComposer({ candidateId, candidateName, candidateEmail, jo
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-white" />
             <h2 className="text-[15px] font-semibold text-white">{t('aiEmailWriter')}</h2>

@@ -278,7 +278,7 @@ function ProfileModal({ interview, onClose }: { interview: MyInterview; onClose:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
           <div>
             <h2 className="text-[15px] font-semibold text-white">{interview.candidate_name}</h2>
             <p className="text-[12px] text-white/70">{interview.job_title} · {t('round', { round: interview.round })}</p>
@@ -405,7 +405,7 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: MyInterview
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm m-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
           <div>
             <h2 className="text-[15px] font-semibold text-white">{t('assessCandidate')}</h2>
             <p className="text-[12px] text-white/70">{interview.candidate_name} · {t('round', { round: interview.round })}</p>

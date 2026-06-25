@@ -17,16 +17,21 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
   const createJob = useCreateJob();
   const { data: masterData } = useMasterData();
   const [generating, setGenerating] = useState(false);
+  const _initDesc = (() => {
+    const raw = initialData?.description || '';
+    try { const d = JSON.parse(raw); if (d.en || d.vi) return { display: (locale === 'vi' ? d.vi : d.en) || d.en || d.vi || '', raw }; } catch {}
+    return { display: raw, raw: '' };
+  })();
   const [form, setForm] = useState({
     title: initialData?.title || '',
-    description: initialData?.description || '',
+    description: _initDesc.display,
     skills: (initialData?.required_skills || []) as string[],
     salaryRange: initialData?.salary_range || '',
     location: initialData?.location || '',
     category: initialData?.category || '',
     deadline: initialData?.deadline || '',
   });
-  const [descRaw, setDescRaw] = useState(initialData?.description || '');
+  const [descRaw, setDescRaw] = useState(_initDesc.raw);
 
   const handleAIGenerate = async () => {
     if (!form.title) return;
@@ -86,12 +91,12 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <form onSubmit={handleSubmit} className="bg-bg-panel rounded-xl p-6 w-full max-w-lg shadow-xl border border-border-subtle max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">{t('createNewJob')}</h2>
-          <button type="button" onClick={onClose} className="text-text-muted hover:text-text-primary"><X size={18} /></button>
+      <form onSubmit={handleSubmit} className="bg-bg-panel rounded-2xl w-full max-w-lg shadow-xl border border-border-subtle max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+          <h2 className="text-[15px] font-semibold text-white">{t('createNewJob')}</h2>
+          <button type="button" onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
-        <div className="space-y-3">
+        <div className="p-6 space-y-3">
           <div className="flex gap-2">
             <input value={form.title} onChange={e => { setForm(p => ({ ...p, title: e.target.value })); setFormErrors(p => ({ ...p, title: '' })); }} placeholder={t('jobTitlePlaceholder')} className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.title ? 'border-red-400' : 'border-border-subtle'}`} />
             <button type="button" onClick={handleAIGenerate} disabled={!form.title || generating} className="px-3 py-2 bg-purple-50 text-purple-700 text-xs font-medium rounded-lg hover:bg-purple-100 disabled:opacity-50 shrink-0 flex items-center gap-1">
@@ -135,12 +140,12 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
             </div>
           </div>
           <DatePicker value={form.deadline} onChange={v => setForm(p => ({ ...p, deadline: v }))} placeholder="Deadline" />
-        </div>
-        <div className="flex justify-end gap-2 mt-5">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('cancel')}</button>
-          <button type="submit" disabled={createJob.isPending || submitting} className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover disabled:opacity-50">
-            {(createJob.isPending || submitting) ? t('creating') : t('createJob')}
-          </button>
+          <div className="flex justify-center gap-2 pt-3">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('cancel')}</button>
+            <button type="submit" disabled={createJob.isPending || submitting} className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover disabled:opacity-50">
+              {(createJob.isPending || submitting) ? t('creating') : t('createJob')}
+            </button>
+          </div>
         </div>
       </form>
     </div>

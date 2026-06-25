@@ -302,7 +302,7 @@ function CreateModal({ candidates, jobs, defaultDate, defaultTime, onClose, onCr
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={emailPreview ? onCreated : onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
           <h2 className="text-[15px] font-semibold text-white">{emailPreview ? t('sendInvitationTitle') : t('createInterviewTitle')}</h2>
           <button onClick={emailPreview ? onCreated : onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
@@ -585,7 +585,7 @@ function FeedbackModal({ interview, onClose, onSaved }: { interview: Interview; 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm m-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
           <h2 className="text-[15px] font-semibold text-white">{emailStep ? t('sendNotificationEmail') : t('feedbackModalTitle', { name: interview.candidate_name })}</h2>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>

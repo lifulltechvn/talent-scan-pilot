@@ -308,7 +308,7 @@ export function JobDetailPage() {
       {showAiRecommend && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAiRecommend(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
               <div className="flex items-center gap-2">
                 <Brain size={16} className="text-white" />
                 <h2 className="text-[15px] font-semibold text-white">{t('aiRecommendation')}</h2>
@@ -355,7 +355,7 @@ export function JobDetailPage() {
       {compareData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setCompareData(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
               <div className="flex items-center gap-2">
                 <Users size={16} className="text-white" />
                 <h2 className="text-[15px] font-semibold text-white">{t('compareTopCandidates', { count: compareData.candidates.length })}</h2>
@@ -506,7 +506,7 @@ export function JobDetailPage() {
       {(scoreDetail || scoreDetailLoading) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setScoreDetail(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+            <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-white" />
                 <h2 className="text-[15px] font-semibold text-white">{t('scoreCol')} — {scoreDetail?.job_title ?? '...'}</h2>
@@ -768,7 +768,7 @@ function BookInterviewModal({ candidateId, candidateName, jobId, jobTitle, onClo
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
           <h2 className="text-[15px] font-semibold text-white">{t('scheduleInterviewTitle')}</h2>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
@@ -928,7 +928,7 @@ function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
           <h2 className="text-[15px] font-semibold text-white">{t('editJob')}</h2>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg"><X size={18} className="text-white/80" /></button>
         </div>
@@ -1111,7 +1111,7 @@ function EmailComposeModal({ candidateId, templateType, jobTitle, action, onClos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Mail size={16} className="text-white" />
             <h2 className="text-[15px] font-semibold text-white">{isApprove ? 'Reminder Email' : 'Rejection Email'}</h2>
@@ -1212,7 +1212,7 @@ function OutreachModal({ jobTitle, onClose }: { jobTitle: string; onClose: () =>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 bg-accent rounded-t-2xl">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-700 rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Mail size={16} className="text-white" />
             <h2 className="text-[15px] font-semibold text-white">Outreach Email</h2>
