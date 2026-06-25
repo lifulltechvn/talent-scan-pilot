@@ -27,3 +27,15 @@ def upgrade():
 
 def downgrade():
     op.execute("DROP TABLE IF EXISTS question_cache")
+
+    # Timeline events
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS timeline_events (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            candidate_id UUID NOT NULL,
+            event_type VARCHAR(50) NOT NULL,
+            description TEXT,
+            created_at TIMESTAMPTZ DEFAULT now()
+        )
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS idx_timeline_candidate ON timeline_events(candidate_id)")

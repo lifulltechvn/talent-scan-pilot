@@ -201,6 +201,12 @@ async def resolve_all_duplicates(
         if action == "skip_all":
             await db.execute(text("UPDATE cv_batch_items SET status = 'skipped' WHERE id = :id"), {"id": str(row["id"])})
         elif action == "update_all":
+            # Reset rejected candidates
+            if row["duplicate_of"]:
+                cand = await db.execute(text("SELECT status FROM candidates WHERE id = :id"), {"id": str(row["duplicate_of"])})
+                cand_row = cand.mappings().first()
+                if cand_row and cand_row["status"] == "rejected":
+                    await db.execute(text("UPDATE candidates SET status = 'reviewed' WHERE id = :id"), {"id": str(row["duplicate_of"])})
             process_single_item(str(row["id"]), row["file_path"], row["file_name"], row["file_hash"], force=True, update_id=str(row["duplicate_of"]))
         elif action == "create_all":
             process_single_item(str(row["id"]), row["file_path"], row["file_name"], row["file_hash"], force=True, update_id=None)
