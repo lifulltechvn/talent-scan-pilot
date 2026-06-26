@@ -9,6 +9,8 @@ CV_PARSE_SYSTEM = (
     "You are a CV parser. Extract structured data from the CV text below. "
     "Only extract information explicitly stated in the CV — do not infer or fabricate data. "
     "If a field is not mentioned, leave it null or empty. NEVER use '<UNKNOWN>' or 'N/A' — use null instead. "
+    "IMPORTANT: If the text is NOT a CV/resume (e.g. it's a job description, article, or other document), "
+    "return name as null and skills as empty array. A CV must have a person's name and their personal skills/experience. "
     "Be concise in insight fields (1-2 sentences each)."
 )
 
@@ -19,6 +21,9 @@ CV_PARSE_USER = "Parse this CV:\n\n{text}"
 SCORING_PROMPT = """Evaluate this candidate for the position "{job_title}".
 
 Required skills: {job_skills}
+Job requirements: {job_description}
+
+IMPORTANT: If job says "ONE OF (X/Y/Z)" or "at least one of", candidate only needs ONE skill from that group to score full marks for it.
 
 <CANDIDATE_DATA>
 - Skills: {skills}
@@ -28,8 +33,8 @@ Required skills: {job_skills}
 </CANDIDATE_DATA>
 
 Scoring rubric:
-- 80-100: Skill match ≥80%, experience meets/exceeds requirement, strong career progression
-- 60-79: Partial skill match (50-79%), relevant experience, minor gaps
+- 80-100: Meets job requirements (including "one of" conditions), experience meets/exceeds, strong fit
+- 60-79: Partial match, relevant experience, minor gaps
 - 40-59: Some relevant skills, limited experience in this domain
 - 0-39: Few matching skills, insufficient experience, major concerns
 
@@ -50,13 +55,27 @@ SUGGESTION_VI: <one actionable recommendation in Vietnamese>"""
 
 JD_IMPORT_PROMPT = """Parse this job description and extract structured data.
 Only extract information explicitly stated. If a field is not mentioned, use null.
-Limit required_skills to a maximum of 10 items.
+
+IMPORTANT for required_skills:
+- Extract ONLY concrete technologies, tools, languages, frameworks
+- If JD says "one of X, Y, Z" or "X or Y", combine them as ONE item with "/" separator: "X/Y/Z"
+- Example: "proficient in Go, Java, or Python" → "Go/Java/Python" (one item)
+- Example: "PostgreSQL or MySQL" → "PostgreSQL/MySQL" (one item)
+- Non-alternative skills stay as individual items: "Docker", "Redis", "Kafka"
+- Do NOT include abstract concepts like "backend development", "API design"
+- Maximum 10 items
+
+IMPORTANT for description: Write a concise summary BUT preserve skill conditions:
+- Mark "ONE OF (X/Y/Z)" for alternative skills (candidate needs only 1)
+- Mark "REQUIRED:" for mandatory skills
+- Mark "PREFERRED:" for nice-to-have skills
+- Keep years requirement and any language requirement
 
 Reply in JSON only:
 {{
   "title": "job title",
-  "description": "2-3 sentence summary",
-  "required_skills": ["skill1", "skill2", ...max 10],
+  "description": "Concise summary preserving conditions. Example: 'Backend role. REQUIRED: 4+ yrs, ONE OF (Go/Java/Python). MUST: PostgreSQL, Docker. PREFERRED: AWS, K8s, Japanese N3+'",
+  "required_skills": ["Go/Java/Python/Ruby", "PostgreSQL/MySQL", "Redis", "Docker", "Kafka", ...max 10],
   "location": "city or remote",
   "salary_range": "range if mentioned or null",
   "required_years": number or null,

@@ -101,14 +101,12 @@ body{background:var(--bg);color:var(--body);font-family:var(--sans);-webkit-font
 <!-- Branch: Classification diamond -->
 <g class="fnode ai" data-step="6b" style="cursor:default">
   <polygon points="700,270 740,245 780,270 740,295" fill="var(--surface)" stroke="var(--clay)" stroke-width="1.5"/>
-  <text class="t" x="740" y="275" text-anchor="middle" style="font-size:10px">Class?</text>
+  <text class="t" x="740" y="275" text-anchor="middle" style="font-size:10px">Classification</text>
 </g>
 
-<!-- Gold path: fast track -->
-<g class="fnode hr" data-step="7"><rect x="820" y="95" width="130" height="50"/><text class="n" x="835" y="115">7</text><text class="t" x="885" y="130" text-anchor="middle">Approve + Book</text></g>
+<!-- Classification path -->
+<g class="fnode hr" data-step="7"><rect x="820" y="95" width="130" height="50"/><text class="n" x="835" y="115">7</text><text class="t" x="885" y="130" text-anchor="middle">HR Review + Book</text></g>
 
-<!-- Silver path: hold review -->
-<g class="fnode hr" data-step="7b"><rect x="820" y="175" width="130" height="50"/><text class="n" x="835" y="195">7b</text><text class="t" x="885" y="210" text-anchor="middle">Hold — Review</text></g>
 
 <!-- Bronze path: re-match -->
 <g class="fnode ai" data-step="7c"><rect x="820" y="310" width="140" height="50"/><text class="n" x="835" y="330">↺</text><text class="t" x="890" y="345" text-anchor="middle">Re-match later</text></g>
@@ -132,19 +130,15 @@ body{background:var(--bg);color:var(--body);font-family:var(--sans);-webkit-font
 
 <!-- Branch edges from diamond -->
 <path class="fedge" style="stroke:var(--clay)" d="M740,245 L740,130 L820,120"/>
-<text class="blbl" x="750" y="185" style="font-family:var(--mono);font-size:9px;fill:var(--clay)">Gold ≥80</text>
-<path class="fedge" style="stroke:var(--olive)" d="M780,270 L810,200 L820,200"/>
-<text class="blbl" x="785" y="235" style="font-family:var(--mono);font-size:9px;fill:var(--olive)">Silver 50–79</text>
+<text class="blbl" x="750" y="185" style="font-family:var(--mono);font-size:9px;fill:var(--clay)">Gold ≥80 · Silver 50–79</text>
 <path class="fedge" style="stroke:var(--muted);stroke-dasharray:4 3" d="M740,295 L740,335 L820,335"/>
 <text class="blbl" x="750" y="320" style="font-family:var(--mono);font-size:9px;fill:var(--muted)">Bronze &lt;50</text>
 
 <!-- Bronze re-match loop back to step 4 -->
 <path class="fedge" style="stroke:var(--muted);stroke-dasharray:4 3" d="M890,360 L890,375 L405,375 L405,295"/>
 
-<!-- Gold → Interview -->
+<!-- HR Review → Interview -->
 <path class="fedge" d="M950,120 L1060,400"/>
-<!-- Silver → can also go to Interview after review -->
-<path class="fedge" style="stroke:var(--olive);stroke-dasharray:4 3" d="M950,200 L1060,400"/>
 <!-- Interview → Feedback -->
 <path class="fedge" d="M1060,450 L1060,545"/>
 <!-- Feedback → Decision -->
@@ -167,11 +161,10 @@ const steps={
   2:{title:'Upload CV',actor:'hr',desc:'Upload từng file hoặc batch 200 PDF/DOCX. MD5 hash dedup. WebSocket progress cho batch.', api:'POST /api/cv-upload · /api/cv-batch'},
   3:{title:'AI Parse & Embed',actor:'ai',desc:'Extract text → PII filter → Injection guard → Claude Haiku parse → Titan embed 1024-dim. ~3s/CV, background.', api:'automatic after upload'},
   4:{title:'Auto-match Smart Pool',actor:'ai',desc:'pgvector cosine + skill overlap. Match candidate vs all jobs. Combined = cosine 30% + skill 70%.', api:'automatic after embed'},
-  5:{title:'HR Review Matches',actor:'hr',desc:'Xem danh sách suggested candidates. Approve (assign) hoặc reject. Filter by combined score.', api:'PUT /api/jobs/{id}/assign'},
-  6:{title:'Full Scoring',actor:'ai',desc:'Rule engine (skills+cosine+exp+edu+lang) ×70% + Claude LLM 30%. Phân loại Gold/Silver/Bronze.', api:'automatic after assign'},
-  '6b':{title:'Classification Branch',actor:'ai',desc:'Gold (≥80) → fast-track phỏng vấn. Silver (50-79) → HR review thêm. Bronze (<50) → lưu lại, auto re-match khi có job mới phù hợp.', api:'automatic'},
-  7:{title:'Gold → Approve + Book',actor:'hr',desc:'Ứng viên Gold: approve ngay → tạo interview slot + gửi email invitation.', api:'POST /api/interviews'},
-  '7b':{title:'Silver → Hold Review',actor:'hr',desc:'Ứng viên Silver: HR xem xét kỹ hơn. Có thể approve hoặc reject sau khi đọc chi tiết.', api:'manual review'},
+  5:{title:'HR Assign to Job',actor:'hr',desc:'HR xem suggested candidates → chọn assign vào job. Chỉ khi assign mới bắt đầu tính điểm chi tiết.', api:'PUT /api/jobs/{id}/assign'},
+  6:{title:'Auto Scoring (after assign)',actor:'ai',desc:'Tự động sau assign: Rule engine (skills+cosine+exp+edu+lang) ×70% + Claude LLM 30%. Phân loại Gold/Silver/Bronze.', api:'automatic after assign'},
+  '6b':{title:'Classification Branch',actor:'ai',desc:'Gold (≥80), Silver (50-79), Bronze (<50) — phân loại để HR tham khảo. Tất cả đều cần HR review thủ công trước khi approve.', api:'automatic'},
+  7:{title:'HR Review + Schedule',actor:'hr',desc:'HR xem xét ứng viên (bất kể classification) → approve/reject → tạo lịch phỏng vấn nếu approve.', api:'POST /api/interviews'},
   '7c':{title:'Bronze → Re-match Loop',actor:'ai',desc:'Ứng viên Bronze: lưu vào pool. Khi có job mới → tự động re-match lại (quay về step 4).', api:'automatic on new job'},
   8:{title:'Phỏng vấn',actor:'intv',desc:'Interviewer thực hiện phỏng vấn. AI generate câu hỏi theo skill + grade level. Multi-round supported.', api:'GET /api/interviews/{id}/questions'},
   9:{title:'Feedback',actor:'intv',desc:'Interviewer submit rating 1-5★ + decision (pass/fail/next_round). Ghi strengths, weaknesses, notes.', api:'POST /api/interviews/{id}/feedback'},

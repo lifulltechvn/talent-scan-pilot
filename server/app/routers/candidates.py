@@ -46,7 +46,7 @@ async def create_candidate(
                 score_result = compute_rule_score(
                     job_skills=job.required_skills,
                     candidate_data=candidate.structured_data,
-                    job_title=job.title,
+                    job_title=job.title, job_description=job.description or "",
                 )
 
                 candidate.match_score = match_result["combined_score"]
@@ -505,7 +505,9 @@ async def delete_candidate(
         raise HTTPException(400, "Only candidates with status 'new' can be deleted")
     # Clean up related data
     from sqlalchemy import text
+    await db.execute(text("DELETE FROM scores WHERE candidate_id = :id"), {"id": str(candidate_id)})
     await db.execute(text("DELETE FROM job_candidates WHERE candidate_id = :id"), {"id": str(candidate_id)})
+    await db.execute(text("UPDATE cv_batch_items SET duplicate_of = NULL WHERE duplicate_of = :id"), {"id": str(candidate_id)})
     await db.execute(text("DELETE FROM cv_batch_items WHERE candidate_id = :id"), {"id": str(candidate_id)})
     await db.execute(text("DELETE FROM timeline_events WHERE candidate_id = :id"), {"id": str(candidate_id)})
     await db.delete(candidate)

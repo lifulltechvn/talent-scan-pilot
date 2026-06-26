@@ -132,7 +132,7 @@ async def _process_batch(batch_id: str):
                     sd["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
                     # Keep Phase 1 skill_level category/level, but update reason from Phase 2
                     sl = enriched.get("skill_level")
-                    if sl and isinstance(sl, dict) and sl.get("reason") and sd.get("skill_level"):
+                    if sl and isinstance(sl, dict) and (sl.get("reason_en") or sl.get("reason")) and sd.get("skill_level"):
                         sd["skill_level"]["reason"] = {"en": sl.get("reason_en", sl.get("reason", "")), "vi": sl.get("reason_vi", "")}
                     emb = get_embedding(" ".join(sd.get("skills", [])), candidate_id=cid)
                     async with _sf() as _db:
@@ -236,6 +236,14 @@ def _process_item_sync(batch_id: str, row: dict, _post_items: list):
                 structured, embedding = _process_ai_sync(masked_text, str(candidate_id))
                 print(f"[TIMING] {file_name}: AI {time.time()-t2:.1f}s TOTAL={time.time()-t0:.1f}s", flush=True)
 
+                # Validate: reject if not a CV (no name or no skills extracted)
+                if not structured.get("name") or not structured.get("skills"):
+                    await db.execute(text("UPDATE cv_batch_items SET status = 'error', error = :err WHERE id = :id"),
+                        {"err": "File không phải CV hoặc không thể trích xuất thông tin", "id": item_id})
+                    await db.execute(text("UPDATE cv_batch_items SET candidate_id = NULL WHERE candidate_id = :id"), {"id": str(candidate_id)}); await db.execute(text("DELETE FROM candidates WHERE id = :id"), {"id": str(candidate_id)})
+                    await db.commit()
+                    return
+
                 # Inject PII back
                 if pii_data:
                     if pii_data.get("email"):
@@ -338,11 +346,21 @@ def process_single_item(item_id: str, file_path: str, file_name: str, file_hash:
 
             if update_id:
                 candidate_id = uuid.UUID(update_id)
+                # Block blacklisted candidates
+                cand_check = await db.execute(text("SELECT status FROM candidates WHERE id = :id"), {"id": str(candidate_id)})
+                cand_row = cand_check.mappings().first()
+                if cand_row and cand_row["status"] == "blacklisted":
+                    await db.execute(text("UPDATE cv_batch_items SET status = 'error', error = :err WHERE id = :id"), {"err": "Candidate is blacklisted", "id": item_id})
+                    await db.commit()
+                    await engine.dispose()
+                    return
+                # Remember current status to preserve it
+                _prev_status = cand_row["status"] if cand_row else "new"
                 stored_filename = f"{candidate_id}{os.path.splitext(file_name)[1].lower()}"
                 dest = os.path.join(CV_UPLOAD_DIR, stored_filename)
                 with open(dest, "wb") as f2:
                     f2.write(file_bytes)
-                await db.execute(text("UPDATE candidates SET cv_file_path = :fp, cv_hash = :h, status = 'processing' WHERE id = :cid"),
+                await db.execute(text("UPDATE candidates SET cv_file_path = :fp, cv_hash = :h WHERE id = :cid"),
                     {"fp": stored_filename, "h": file_hash, "cid": str(candidate_id)})
             else:
                 candidate_id = uuid.uuid4()
@@ -362,13 +380,31 @@ def process_single_item(item_id: str, file_path: str, file_name: str, file_hash:
             # Phase 1: Parse (name, skills, G-level)
             from app.services.cv_upload import _process_ai_sync, _parse_cv_enrichment, get_embedding
             structured, _ = _process_ai_sync(masked_text, str(candidate_id))
+
+            # Validate: reject if not a CV
+            if not structured.get("name") or not structured.get("skills"):
+                await db.execute(text("UPDATE cv_batch_items SET status = 'error', error = :err WHERE id = :id"),
+                    {"err": "File không phải CV hoặc không thể trích xuất thông tin", "id": item_id})
+                if not update_id:
+                    await db.execute(text("UPDATE cv_batch_items SET candidate_id = NULL WHERE candidate_id = :id"), {"id": str(candidate_id)}); await db.execute(text("DELETE FROM candidates WHERE id = :id"), {"id": str(candidate_id)})
+                await db.commit()
+                await engine.dispose()
+                return
+
             if pii_data:
                 if pii_data.get("email"): structured["email"] = pii_data["email"][0]
                 if pii_data.get("phone"): structured["phone"] = pii_data["phone"][0]
 
             # Save Phase 1 + mark done
             from sqlalchemy import update as sql_update
-            await db.execute(sql_update(Candidate).where(Candidate.id == candidate_id).values(structured_data=structured, status="new"))
+            if update_id:
+                # Preserve existing status (don't reset to 'new')
+                restore_status = _prev_status if _prev_status != 'rejected' else 'reviewed'
+                await db.execute(sql_update(Candidate).where(Candidate.id == candidate_id).values(structured_data=structured, status=restore_status))
+                # Invalidate old scores (CV changed → scores outdated)
+                await db.execute(text("UPDATE job_candidates SET final_score = NULL, classification = NULL WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+            else:
+                await db.execute(sql_update(Candidate).where(Candidate.id == candidate_id).values(structured_data=structured, status="new"))
             await db.execute(text("UPDATE cv_batch_items SET status = 'done', candidate_id = :cid WHERE id = :id"), {"cid": str(candidate_id), "id": item_id})
             await db.commit()
 
@@ -382,7 +418,7 @@ def process_single_item(item_id: str, file_path: str, file_name: str, file_hash:
                 structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
                 # Keep Phase 1 skill_level category/level, but update reason from Phase 2
                 sl = enriched.get("skill_level")
-                if sl and isinstance(sl, dict) and sl.get("reason") and structured.get("skill_level"):
+                if sl and isinstance(sl, dict) and (sl.get("reason_en") or sl.get("reason")) and structured.get("skill_level"):
                     structured["skill_level"]["reason"] = {"en": sl.get("reason_en", sl.get("reason", "")), "vi": sl.get("reason_vi", "")}
                 emb = get_embedding(" ".join(structured.get("skills", [])), candidate_id=str(candidate_id))
                 await db.execute(text("UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"),

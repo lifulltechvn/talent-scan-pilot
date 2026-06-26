@@ -49,7 +49,7 @@ async def import_jd_file(
     prompt = JD_IMPORT_PROMPT.format(text=clean_text)
 
     try:
-        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="jd_import")
+        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=800, feature="jd_import")
         # Extract JSON from response
         start = raw.find("{")
         end = raw.rfind("}") + 1
@@ -426,7 +426,7 @@ async def assign_candidate_to_job(
             candidate_data=candidate.structured_data,
             required_years=job.required_years,
             required_education=job.required_education,
-            job_title=job.title,
+            job_title=job.title, job_description=job.description or "",
         )
 
         candidate.match_score = match_result["combined_score"]
