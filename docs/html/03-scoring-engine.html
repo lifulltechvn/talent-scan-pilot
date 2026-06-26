@@ -1,0 +1,233 @@
+<!-- TalentScan — Scoring Engine -->
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TalentScan — Scoring Engine</title>
+<script>(function(){const s=localStorage.getItem('theme');const d=s?s==='dark':matchMedia('(prefers-color-scheme:dark)').matches;if(d)document.documentElement.classList.add('dark')})();</script>
+<style>
+:root{--bg:#FAF9F5;--surface:#FFF;--surface2:#F0EEE6;--ink:#141413;--body:#3D3D3A;--muted:#87867F;--line:#D1CFC5;--line-soft:#E6E3DA;--clay:#D97757;--clay-soft:rgba(217,119,87,.08);--olive:#788C5D;--olive-soft:rgba(120,140,93,.1);--blue:#5B7E96;--serif:ui-serif,Georgia,serif;--sans:system-ui,-apple-system,sans-serif;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+html.dark{--bg:#141413;--surface:#1F1F1D;--surface2:#2A2A28;--ink:#FAF9F5;--body:#D1CFC5;--muted:#87867F;--line:#3D3D3A;--line-soft:#2A2A28;--clay:#E48A6E;--clay-soft:rgba(228,138,110,.12);--olive:#9DB07C;--olive-soft:rgba(157,176,124,.14);--blue:#7FA3BC}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--body);line-height:1.6;padding:56px 32px 96px;-webkit-font-smoothing:antialiased}
+.page{max-width:860px;margin:0 auto}
+header{margin-bottom:40px}
+.header-top{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px}
+h1{font-family:var(--serif);font-weight:500;font-size:36px;letter-spacing:-.01em;color:var(--ink);margin-bottom:12px}
+.lead{font-size:16px;color:var(--muted);max-width:600px}
+#themeT{font-family:var(--mono);font-size:10.5px;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.nav-back{font-family:var(--mono);font-size:11px;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+h2{font-family:var(--serif);font-weight:500;font-size:22px;color:var(--ink);margin:40px 0 16px}
+
+/* Formula */
+.formula{background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:20px;text-align:center;margin:24px 0}
+.formula .expr{font-family:var(--mono);font-size:18px;color:var(--ink);font-weight:600}
+.formula .note{font-size:13px;color:var(--muted);margin-top:8px}
+
+/* Interactive scorer */
+.scorer{background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:24px;margin:16px 0}
+.scorer-top{display:flex;gap:24px;align-items:start}
+.sliders{flex:1}
+.scorer-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.scorer-row:last-child{margin-bottom:0}
+.scorer-row .lbl{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:80px;text-align:right}
+.scorer-row input[type=range]{flex:1;accent-color:var(--clay);height:6px}
+.scorer-row .val{font-family:var(--mono);font-size:13px;font-weight:700;min-width:40px;color:var(--ink)}
+.scorer-row .w{font-family:var(--mono);font-size:10px;color:var(--muted);min-width:32px}
+.gauge-area{display:flex;flex-direction:column;align-items:center;gap:12px;min-width:200px}
+@media(max-width:700px){.scorer-top{flex-direction:column}.gauge-area{flex-direction:row;min-width:auto}}
+
+/* Presets */
+.presets{display:flex;gap:8px;margin:16px 0 0;flex-wrap:wrap}
+.preset{font-family:var(--mono);font-size:11px;padding:6px 14px;border:1.5px solid var(--line);border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.preset:hover{border-color:var(--clay);color:var(--clay)}
+
+/* Result display */
+.result{display:flex;align-items:center;gap:24px;margin-top:20px;padding:16px 20px;border-radius:10px;border:1.5px solid var(--line);transition:border-color .3s}
+.result.gold{border-color:var(--clay);background:var(--clay-soft)}
+.result.silver{border-color:var(--olive);background:var(--olive-soft)}
+.result.bronze{border-color:var(--blue);background:rgba(91,126,150,.08)}
+.result .score{font-family:var(--serif);font-size:48px;font-weight:500;line-height:1}
+.result.gold .score{color:var(--clay)}
+.result.silver .score{color:var(--olive)}
+.result.bronze .score{color:var(--blue)}
+.result .class-name{font-size:18px;font-weight:600;color:var(--ink)}
+.result .class-desc{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* Class cards */
+.class-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0}
+.class-card{border:1.5px solid var(--line);border-radius:12px;padding:20px;text-align:center;transition:transform .2s}
+.class-card:hover{transform:translateY(-3px)}
+.class-card .grade{font-family:var(--serif);font-size:40px;font-weight:500;line-height:1;margin-bottom:6px}
+.class-card .name{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.class-card .desc{font-size:11px;color:var(--muted)}
+.class-card.gold{border-color:var(--clay)}.class-card.gold .grade{color:var(--clay)}
+.class-card.silver{border-color:var(--olive)}.class-card.silver .grade{color:var(--olive)}
+.class-card.bronze{border-color:var(--blue)}.class-card.bronze .grade{color:var(--blue)}
+@media(max-width:600px){.class-grid{grid-template-columns:1fr}}
+
+/* Table */
+.tbl{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+.tbl th{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--line)}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--line-soft)}
+.tbl code{font-family:var(--mono);font-size:11px;color:var(--clay)}
+
+/* LLM card */
+.llm-card{background:var(--clay-soft);border:1.5px solid var(--clay);border-radius:12px;padding:20px;margin:24px 0}
+.llm-card h3{font-family:var(--serif);font-size:18px;font-weight:500;color:var(--ink);margin-bottom:8px}
+.llm-card p{font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="header-top">
+    <div><div class="eyebrow">03 · Thuật toán</div><h1>Scoring Engine</h1></div>
+    <div style="display:flex;gap:8px"><a href="index.html" class="nav-back">← Docs</a><button id="themeT">◑</button></div>
+  </div>
+  <p class="lead">Hybrid scoring: deterministic rules làm nền tảng, AI bổ sung đánh giá toàn cảnh. Kéo slider để thử.</p>
+</header>
+
+<div class="formula">
+  <div class="expr">Final Score = Rule × 70% + LLM × 30%</div>
+  <div class="note">Rule score đảm bảo tính nhất quán — LLM bổ sung judgment con người không lập trình được</div>
+</div>
+
+<h2>Interactive Scorer</h2>
+<div class="presets">
+  <button class="preset" data-p="gold">🏆 Gold candidate</button>
+  <button class="preset" data-p="silver">🥈 Average</button>
+  <button class="preset" data-p="bronze">📦 Weak match</button>
+</div>
+<div class="scorer">
+  <div class="scorer-top">
+    <div class="sliders">
+      <div class="scorer-row"><span class="lbl">Skills</span><input type="range" id="s-skill" min="0" max="100" value="70"><span class="val" id="v-skill">70</span><span class="w">×30%</span></div>
+      <div class="scorer-row"><span class="lbl">Cosine</span><input type="range" id="s-cosine" min="0" max="100" value="60"><span class="val" id="v-cosine">60</span><span class="w">×25%</span></div>
+      <div class="scorer-row"><span class="lbl">Experience</span><input type="range" id="s-exp" min="0" max="100" value="80"><span class="val" id="v-exp">80</span><span class="w">×20%</span></div>
+      <div class="scorer-row"><span class="lbl">Education</span><input type="range" id="s-edu" min="0" max="100" value="75"><span class="val" id="v-edu">75</span><span class="w">×15%</span></div>
+      <div class="scorer-row"><span class="lbl">Language</span><input type="range" id="s-lang" min="0" max="100" value="80"><span class="val" id="v-lang">80</span><span class="w">×10%</span></div>
+      <div class="scorer-row"><span class="lbl">LLM Score</span><input type="range" id="s-llm" min="0" max="100" value="65"><span class="val" id="v-llm">65</span><span class="w">×30%</span></div>
+    </div>
+    <div class="gauge-area">
+      <svg id="gauge" viewBox="0 0 200 130" width="200" height="130">
+        <path d="M20,120 A80,80 0 0,1 180,120" fill="none" stroke="var(--surface2)" stroke-width="14" stroke-linecap="round"/>
+        <path id="gauge-fill" d="M20,120 A80,80 0 0,1 180,120" fill="none" stroke="var(--clay)" stroke-width="14" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="70"/>
+        <text id="gauge-val" x="100" y="105" text-anchor="middle" font-family="var(--serif)" font-size="36" font-weight="500" fill="var(--ink)">72</text>
+        <text id="gauge-label" x="100" y="125" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">GOLD</text>
+      </svg>
+      <svg id="pie" viewBox="0 0 120 120" width="120" height="120">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface2)" stroke-width="20"/>
+        <circle id="pie-skill" cx="60" cy="60" r="50" fill="none" stroke="var(--clay)" stroke-width="20" stroke-dasharray="0 314" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+        <circle id="pie-cosine" cx="60" cy="60" r="50" fill="none" stroke="var(--olive)" stroke-width="20" stroke-dasharray="0 314" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+        <circle id="pie-exp" cx="60" cy="60" r="50" fill="none" stroke="#C9A45C" stroke-width="20" stroke-dasharray="0 314" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+        <circle id="pie-edu" cx="60" cy="60" r="50" fill="none" stroke="var(--blue)" stroke-width="20" stroke-dasharray="0 314" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+        <circle id="pie-lang" cx="60" cy="60" r="50" fill="none" stroke="var(--muted)" stroke-width="20" stroke-dasharray="0 314" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+        <text x="60" y="58" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="var(--muted)">RULE</text>
+        <text id="pie-pct" x="60" y="72" text-anchor="middle" font-family="var(--serif)" font-size="16" font-weight="500" fill="var(--ink)">70%</text>
+      </svg>
+    </div>
+  </div>
+  <div class="result silver" id="result">
+    <div><div class="score" id="r-score">69</div></div>
+    <div><div class="class-name" id="r-class">Silver</div><div class="class-desc" id="r-desc">Đáng xem xét</div></div>
+  </div>
+</div>
+
+<h2>Classification</h2>
+<div class="class-grid">
+  <div class="class-card gold"><div class="grade">80–100</div><div class="name">Gold</div><div class="desc">Ưu tiên phỏng vấn</div></div>
+  <div class="class-card silver"><div class="grade">50–79</div><div class="name">Silver</div><div class="desc">Đáng xem xét</div></div>
+  <div class="class-card bronze"><div class="grade">0–49</div><div class="name">Bronze</div><div class="desc">Lưu — re-match sau</div></div>
+</div>
+
+<h2>Rule Score Components</h2>
+<table class="tbl"><thead><tr><th>Component</th><th>Weight</th><th>Method</th></tr></thead><tbody>
+<tr><td>Skills Match</td><td>30%</td><td><code>fuzzy match + expand skills → matched/total</code></td></tr>
+<tr><td>Cosine Similarity</td><td>25%</td><td><code>1 - (embedding &lt;=&gt; job_embedding)</code></td></tr>
+<tr><td>Experience</td><td>20%</td><td><code>min(actual_years/required, 1.0) × 100</code></td></tr>
+<tr><td>Education</td><td>15%</td><td><code>level mapping: bachelor=3, master=4, phd=5</code></td></tr>
+<tr><td>Language</td><td>10%</td><td><code>has_languages ? 80 : 50</code></td></tr>
+</tbody></table>
+
+<div class="llm-card">
+  <h3>LLM Score (30% of Final)</h3>
+  <p>Claude Haiku nhận job requirements + candidate structured_data (ẩn PII) → score 0–100 + reasoning.
+  AI đánh giá: career trajectory, domain relevance, soft indicators.
+  Cost ~$0.002/call. Retry 3× nếu throttled.</p>
+</div>
+
+</div>
+<script>
+(function(){
+  const ids=['skill','cosine','exp','edu','lang','llm'];
+  const weights=[.30,.25,.20,.15,.10];
+  const C = 314; // circumference of pie circle (2*PI*50)
+  const gaugeLen = 251; // arc length of gauge path
+
+  const presets = {
+    gold: [90,85,95,100,80,88],
+    silver: [60,55,65,75,80,58],
+    bronze: [30,25,40,50,50,35]
+  };
+
+  function calc(){
+    const vals=ids.map(id=>+document.getElementById('s-'+id).value);
+    ids.forEach((id,i)=>{document.getElementById('v-'+id).textContent=vals[i]});
+
+    const ruleRaw = vals[0]*weights[0]+vals[1]*weights[1]+vals[2]*weights[2]+vals[3]*weights[3]+vals[4]*weights[4];
+    const rule = Math.min(100, ruleRaw);
+    const final=Math.round(rule*0.7+vals[5]*0.3);
+
+    // Result display
+    const el=document.getElementById('result');
+    document.getElementById('r-score').textContent=final;
+    el.className='result '+(final>=80?'gold':final>=50?'silver':'bronze');
+    document.getElementById('r-class').textContent=final>=80?'Gold':final>=50?'Silver':'Bronze';
+    document.getElementById('r-desc').textContent=final>=80?'Ưu tiên phỏng vấn':final>=50?'Đáng xem xét':'Lưu cho tương lai';
+
+    // Gauge
+    const pct = final/100;
+    const offset = gaugeLen * (1 - pct);
+    const gaugeFill = document.getElementById('gauge-fill');
+    gaugeFill.style.strokeDashoffset = offset;
+    gaugeFill.style.stroke = final>=80?'var(--clay)':final>=50?'var(--olive)':'var(--blue)';
+    document.getElementById('gauge-val').textContent = final;
+    document.getElementById('gauge-label').textContent = final>=80?'GOLD':final>=50?'SILVER':'BRONZE';
+
+    // Pie chart — show contribution of each component to rule score
+    const contributions = weights.map((w,i) => vals[i]*w);
+    const total = contributions.reduce((a,b)=>a+b,0);
+    let offset2 = 0;
+    const pieIds = ['pie-skill','pie-cosine','pie-exp','pie-edu','pie-lang'];
+    pieIds.forEach((id,i)=>{
+      const seg = (contributions[i]/100) * C;
+      const el = document.getElementById(id);
+      el.setAttribute('stroke-dasharray', seg + ' ' + C);
+      el.setAttribute('stroke-dashoffset', -offset2);
+      offset2 += seg;
+    });
+    document.getElementById('pie-pct').textContent = Math.round(rule) + '/100';
+  }
+
+  ids.forEach(id=>{document.getElementById('s-'+id).addEventListener('input',calc)});
+
+  // Presets
+  document.querySelectorAll('.preset').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      const p = presets[this.dataset.p];
+      if(!p) return;
+      ids.forEach((id,i)=>{document.getElementById('s-'+id).value=p[i]});
+      calc();
+    });
+  });
+
+  calc();
+  document.getElementById('themeT').onclick=()=>{document.documentElement.classList.toggle('dark');localStorage.setItem('theme',document.documentElement.classList.contains('dark')?'dark':'light')};
+})();
+</script>
+</body>
+</html>

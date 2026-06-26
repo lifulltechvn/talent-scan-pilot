@@ -1,0 +1,291 @@
+<!-- TalentScan — AI Contest Demo Report -->
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TalentScan — Demo Report</title>
+<script>(function(){const s=localStorage.getItem('theme');const d=s?s==='dark':matchMedia('(prefers-color-scheme:dark)').matches;if(d)document.documentElement.classList.add('dark')})();</script>
+<style>
+:root{--bg:#FAF9F5;--surface:#FFF;--surface2:#F0EEE6;--ink:#141413;--body:#3D3D3A;--muted:#87867F;--line:#D1CFC5;--line-soft:#E6E3DA;--clay:#D97757;--clay-soft:rgba(217,119,87,.08);--olive:#788C5D;--olive-soft:rgba(120,140,93,.1);--serif:ui-serif,Georgia,serif;--sans:system-ui,-apple-system,sans-serif;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+html.dark{--bg:#141413;--surface:#1F1F1D;--surface2:#2A2A28;--ink:#FAF9F5;--body:#D1CFC5;--muted:#87867F;--line:#3D3D3A;--line-soft:#2A2A28;--clay:#E48A6E;--clay-soft:rgba(228,138,110,.12);--olive:#9DB07C;--olive-soft:rgba(157,176,124,.14)}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;scroll-snap-type:y mandatory;overflow-x:hidden}
+.slide{width:100vw;height:100vh;scroll-snap-align:start;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;padding:6vh 5vw}
+.slide-inner{width:100%;max-width:820px}
+.slide.invert{background:var(--ink);color:var(--bg)}
+.slide.invert .eyebrow{color:var(--line)}
+.slide.invert .sub{color:var(--line)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:22px}
+h1{font-family:var(--serif);font-weight:500;font-size:clamp(36px,5.5vw,58px);line-height:1.1;letter-spacing:-.01em;margin-bottom:16px}
+h2{font-family:var(--serif);font-weight:500;font-size:clamp(26px,3.8vw,38px);line-height:1.15;margin-bottom:28px}
+.sub{font-size:16px;line-height:1.6;color:var(--body);max-width:560px}
+.byline{margin-top:40px;font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;gap:20px;flex-wrap:wrap}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:36px}
+@media(max-width:640px){.metrics{grid-template-columns:1fr;gap:24px}}
+.metric .val{font-family:var(--serif);font-size:44px;font-weight:500;line-height:1;color:var(--clay)}
+.metric .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+.metric .desc{font-size:12px;color:var(--body);margin-top:4px}
+.items{list-style:none;display:flex;flex-direction:column;gap:14px}
+.item{display:flex;align-items:start;gap:14px;padding:12px 16px;background:var(--surface);border:1.5px solid var(--line);border-radius:10px}
+.item .num{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--clay);min-width:22px;padding-top:2px}
+.item .title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:2px}
+.item .detail{font-size:11px;color:var(--muted)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:16px 0}
+.tbl th{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--line)}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--line-soft)}
+.tbl .hi{color:var(--clay);font-weight:600}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.pill{font-family:var(--mono);font-size:11px;padding:6px 12px;border:1.5px solid var(--line);border-radius:999px;color:var(--muted)}
+.pill.on{background:var(--clay);border-color:var(--clay);color:var(--bg)}
+.sec-layers{display:flex;flex-direction:column;gap:8px}
+.sec-layer{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;background:var(--surface);border:1.5px solid var(--line);font-size:13px}
+.sec-layer .icon{font-size:16px;min-width:24px;text-align:center}
+.status{font-family:var(--mono);font-size:10px;margin-left:auto;padding:2px 7px;border-radius:4px}
+.status.ok{background:var(--olive-soft);color:var(--olive)}
+.score-bar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.score-bar .lbl{font-family:var(--mono);font-size:10px;color:var(--muted);min-width:64px;text-align:right}
+.score-bar .track{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.score-bar .fill{height:100%;border-radius:4px}
+.score-bar .pct{font-family:var(--mono);font-size:11px;font-weight:700;min-width:32px}
+.class-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+.class-card{border:1.5px solid var(--line);border-radius:10px;padding:16px;text-align:center}
+.class-card .grade{font-family:var(--serif);font-size:32px;font-weight:500}
+.class-card .name{font-size:12px;font-weight:600;margin-top:4px}
+.class-card.gold{border-color:var(--clay)}.class-card.gold .grade{color:var(--clay)}
+.class-card.silver{border-color:var(--olive)}.class-card.silver .grade{color:var(--olive)}
+.nav-dots{position:fixed;right:16px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:7px;z-index:100}
+.nav-dots .d{width:7px;height:7px;border-radius:50%;background:var(--line);cursor:pointer;transition:all .2s}
+.nav-dots .d.on{background:var(--clay);transform:scale(1.5)}
+#themeT{position:fixed;top:14px;right:14px;font-family:var(--mono);font-size:10px;padding:4px 9px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;z-index:100}
+#counter{position:fixed;bottom:18px;right:24px;font-family:var(--mono);font-size:11px;color:var(--muted);z-index:10}
+</style>
+</head>
+<body>
+<nav class="nav-dots" id="nav"></nav>
+<button id="themeT">◑</button>
+<div id="counter">1 / 14</div>
+
+<!-- S1: Title -->
+<section class="slide"><div class="slide-inner">
+<p class="eyebrow">AI Contest · LIFULL Tech Vietnam · 2025</p>
+<h1>TalentScan<br>AI CV Screening</h1>
+<p class="sub">Hệ thống tự động sàng lọc CV, matching ứng viên, scoring và quản lý phỏng vấn — từ upload đến hire.</p>
+<div class="byline"><span>Team Leader: AI Team</span><span>Quy mô: Medium</span><span>14 slides · ~8 min</span></div>
+</div></section>
+
+<!-- S2: Bối cảnh & Vấn đề -->
+<section class="slide invert"><div class="slide-inner">
+<p class="eyebrow">§1 · Bối cảnh & Vấn đề</p>
+<h2>Tuyển dụng thủ công — quá chậm, không nhất quán</h2>
+<ul class="items">
+<li class="item"><span class="num">×</span><div><div class="title">HR mất 30 giờ/đợt tuyển</div><div class="detail">5–10 phút/CV × 200 CV = 1 tuần chỉ để đọc CV</div></div></li>
+<li class="item"><span class="num">×</span><div><div class="title">Đánh giá chủ quan, không nhất quán</div><div class="detail">Người khác nhau, tiêu chí khác nhau → bỏ sót ứng viên tốt</div></div></li>
+<li class="item"><span class="num">×</span><div><div class="title">Matching thủ công ứng viên-vị trí</div><div class="detail">Không ai kịp so sánh tất cả CV với tất cả job mở</div></div></li>
+<li class="item"><span class="num">×</span><div><div class="title">Quản lý phân tán</div><div class="detail">Excel + Email + Chat — không tracking, không audit trail</div></div></li>
+</ul>
+</div></section>
+
+<!-- S3: Giải pháp -->
+<section class="slide"><div class="slide-inner">
+<p class="eyebrow">§1.2 · Giải pháp</p>
+<h2>AI xử lý — HR quyết định</h2>
+<p class="sub" style="margin-bottom:24px">TalentScan tự động hóa phần nặng. HR tập trung vào việc quan trọng: đánh giá con người và ra quyết định cuối cùng.</p>
+<ul class="items">
+<li class="item"><span class="num">1</span><div><div class="title">Upload batch 200 CV (PDF/DOCX)</div><div class="detail">Dedup MD5, realtime progress qua WebSocket</div></div></li>
+<li class="item"><span class="num">2</span><div><div class="title">AI parse + embedding + auto-match</div><div class="detail">Claude Haiku 3s/CV → Titan 1024-dim → pgvector cosine</div></div></li>
+<li class="item"><span class="num">3</span><div><div class="title">Scoring hybrid (Rule 70% + AI 30%)</div><div class="detail">Deterministic base + LLM judgment → Gold/Silver/Bronze</div></div></li>
+<li class="item"><span class="num">4</span><div><div class="title">HR review → phỏng vấn → hire/reject</div><div class="detail">Calendar, AI questions, feedback multi-round, email outreach</div></div></li>
+</ul>
+</div></section>
+
+<!-- S4: System Design -->
+<section class="slide invert"><div class="slide-inner">
+<p class="eyebrow">§2 · System Design</p>
+<h2>Kiến trúc tổng thể</h2>
+<div class="pills">
+<span class="pill on">FastAPI</span><span class="pill on">React 19</span><span class="pill on">PostgreSQL 16</span><span class="pill on">AWS Bedrock</span>
+<span class="pill">pgvector</span><span class="pill">Claude Haiku/Sonnet</span><span class="pill">Titan Embed V2</span><span class="pill">Docker Compose</span><span class="pill">Nginx</span><span class="pill">SQLAlchemy 2.0</span><span class="pill">TanStack Query</span><span class="pill">Tailwind v4</span>
+</div>
+<table class="tbl"><thead><tr><th>Component</th><th>Công nghệ</th><th>Lý do chọn</th></tr></thead><tbody>
+<tr><td>Backend</td><td class="hi">FastAPI + Python 3.11</td><td>Async-first, auto-docs, tốt cho AI integration</td></tr>
+<tr><td>Frontend</td><td class="hi">React 19 + Vite + Tailwind</td><td>Fast HMR, modern DX, component-based</td></tr>
+<tr><td>Database</td><td class="hi">PostgreSQL 16 + pgvector</td><td>OLTP + vector trong cùng DB, giảm ops</td></tr>
+<tr><td>AI</td><td class="hi">AWS Bedrock (Claude + Titan)</td><td>Managed, pay-per-use, multi-model</td></tr>
+<tr><td>Infra</td><td class="hi">Docker Compose + Nginx</td><td>Simple single-server, đủ cho pilot</td></tr>
+</tbody></table>
+</div></section>
+
+<!-- S5: Data Flow & AI Pipeline -->
+<section class="slide"><div class="slide-inner">
+<p class="eyebrow">§2.3 · Data Flow</p>
+<h2>Pipeline AI thông minh</h2>
+<ul class="items">
+<li class="item"><span class="num">①</span><div><div class="title">Extract text (PDF/DOCX/Scanned)</div><div class="detail">PyMuPDF + python-docx · OCR: Claude Sonnet Vision (~5s)</div></div></li>
+<li class="item"><span class="num">②</span><div><div class="title">PII Filter + Injection Guard</div><div class="detail">Regex ẩn danh email/SĐT/CCCD · 11 pattern detect injection</div></div></li>
+<li class="item"><span class="num">③</span><div><div class="title">Claude Haiku — parse structured data</div><div class="detail">~3s · ~$0.002/call → JSON: skills, exp, education, language</div></div></li>
+<li class="item"><span class="num">④</span><div><div class="title">Titan Embed V2 — generate vector</div><div class="detail">~0.5s · ~$0.00004 → 1024-dim embedding saved to pgvector</div></div></li>
+<li class="item"><span class="num">⑤</span><div><div class="title">Smart Pool — auto-match</div><div class="detail">pgvector cosine similarity vs all open jobs · combined = cosine 30% + skill 70%</div></div></li>
+</ul>
+</div></section>
+
+<!-- S6: Kỹ thuật AI -->
+<section class="slide invert"><div class="slide-inner">
+<p class="eyebrow">§3 · Kỹ thuật AI đã sử dụng</p>
+<h2>Tại sao chọn kỹ thuật này?</h2>
+<table class="tbl"><thead><tr><th>Quyết định</th><th>Alternatives</th><th>Lý do</th><th>Trade-off</th></tr></thead><tbody>
+<tr><td class="hi">Hybrid scoring (Rule+AI)</td><td>Pure AI / Pure rule</td><td>Deterministic base + AI creativity</td><td>Phức tạp hơn pure approach</td></tr>
+<tr><td class="hi">pgvector thay Pinecone</td><td>Pinecone, FAISS, Qdrant</td><td>Same DB cho OLTP+vector, đơn giản ops</td><td>Scale limit so với managed</td></tr>
+<tr><td class="hi">Claude Haiku cho parse/score</td><td>GPT-4, Gemini, Sonnet</td><td>Best cost/quality trên Bedrock, structured output stable</td><td>Không có fine-tune option</td></tr>
+<tr><td class="hi">Embedding search thay keyword</td><td>Full-text search, BM25</td><td>Semantic matching, cross-language</td><td>Cần generate+store vectors</td></tr>
+</tbody></table>
+</div></section>
+
+<!-- S7: Scoring -->
+<section class="slide"><div class="slide-inner">
+<p class="eyebrow">§3 · Algorithm</p>
+<h2>Hybrid Scoring</h2>
+<p class="sub" style="margin-bottom:20px;font-family:var(--mono);font-size:14px">Final Score = Rule × 70% + LLM × 30%</p>
+<div class="score-bar"><span class="lbl">Skills</span><div class="track"><div class="fill" style="width:30%;background:var(--clay)"></div></div><span class="pct">30%</span></div>
+<div class="score-bar"><span class="lbl">Cosine</span><div class="track"><div class="fill" style="width:25%;background:var(--olive)"></div></div><span class="pct">25%</span></div>
+<div class="score-bar"><span class="lbl">Experience</span><div class="track"><div class="fill" style="width:20%;background:var(--clay)"></div></div><span class="pct">20%</span></div>
+<div class="score-bar"><span class="lbl">Education</span><div class="track"><div class="fill" style="width:15%;background:var(--olive)"></div></div><span class="pct">15%</span></div>
+<div class="score-bar"><span class="lbl">Language</span><div class="track"><div class="fill" style="width:10%;background:var(--muted)"></div></div><span class="pct">10%</span></div>
+<div class="class-cards">
+<div class="class-card gold"><div class="grade">≥80</div><div class="name">Gold — Ưu tiên PV</div></div>
+<div class="class-card silver"><div class="grade">≥50</div><div class="name">Silver — Xem xét</div></div>
+<div class="class-card"><div class="grade">&lt;50</div><div class="name">Bronze</div></div>
+</div>
+</div></section>
+
+<!-- S8: Thách thức -->
+<section class="slide invert"><div class="slide-inner">
+<p class="eyebrow">§4 · Thách thức & Giải quyết</p>
+<h2>Vấn đề thực tế gặp phải</h2>
+<ul class="items">
+<li class="item"><span class="num">1</span><div><div class="title">Bedrock throttling khi batch 200 CV</div><div class="detail">Root cause: rate limit per-region · Fix: multi-region round-robin + exponential backoff (1s→2s→4s) · Result: 0% failed</div></div></li>
+<li class="item"><span class="num">2</span><div><div class="title">CV scan (ảnh) không extract được text</div><div class="detail">Root cause: PyMuPDF trả empty · Fix: detect &lt;100 chars → fallback Claude Sonnet Vision OCR · Result: 100% coverage</div></div></li>
+<li class="item"><span class="num">3</span><div><div class="title">Prompt injection trong CV</div><div class="detail">Root cause: ứng viên chèn "ignore instructions" · Fix: 11 pattern regex + XML delimiter wrapping · Result: blocked 100%</div></div></li>
+<li class="item"><span class="num">4</span><div><div class="title">Skill name không chuẩn hóa</div><div class="detail">Root cause: "ReactJS" vs "React.js" vs "React" · Fix: skill normalizer mapping + AI-assisted synonym detection</div></div></li>
+</ul>
+</div></section>
+
+<!-- S9: Security & AI Safety -->
+<section class="slide"><div class="slide-inner">
+<p class="eyebrow">§5 · Security & AI Safety</p>
+<h2>Bảo mật — Production-ready</h2>
+<div class="sec-layers">
+<div class="sec-layer"><span class="icon">🔐</span>JWT + bcrypt — 3 roles (admin/hr/interviewer)<span class="status ok">✅</span></div>
+<div class="sec-layer"><span class="icon">🚦</span>Rate limit 5 req/min login — chống brute-force<span class="status ok">✅</span></div>
+<div class="sec-layer"><span class="icon">🛡️</span>PII ẩn danh — AI không thấy email, SĐT, CCCD<span class="status ok">✅</span></div>
+<div class="sec-layer"><span class="icon">⚠️</span>Injection guard — 11 pattern + XML wrapping<span class="status ok">✅</span></div>
+<div class="sec-layer"><span class="icon">📋</span>Audit log — mọi action ghi user + entity + time<span class="status ok">✅</span></div>
+<div class="sec-layer"><span class="icon">🗑️</span>GDPR erasure — cascade delete all candidate data<span class="status ok">✅</span></div>
+<div class="sec-layer"><span class="icon">💰</span>AI cost tracking — mỗi call log model + tokens + cost<span class="status ok">✅</span></div>
+<div class="sec-layer"><span class="icon">🔄</span>Retry + fallback — 3 attempts, exponential backoff<span class="status ok">✅</span></div>
+</div>
+</div></section>
+
+<!-- S10: Chi phí -->
+<section class="slide invert"><div class="slide-inner">
+<p class="eyebrow">§6 · Chi phí & Tối ưu</p>
+<h2>Cực kỳ tiết kiệm</h2>
+<div class="metrics">
+<div class="metric"><div class="val">~170đ</div><div class="lbl">Per CV (AI)</div><div class="desc">Parse + embed + score</div></div>
+<div class="metric"><div class="val">$45</div><div class="lbl">EC2/tháng</div><div class="desc">t2.medium 24/7</div></div>
+<div class="metric"><div class="val">$0</div><div class="lbl">License</div><div class="desc">Full open-source stack</div></div>
+</div>
+<table class="tbl" style="margin-top:28px"><thead><tr><th>Biện pháp tối ưu</th><th>Hiệu quả</th><th>Chi tiết</th></tr></thead><tbody>
+<tr><td>Claude Haiku thay Sonnet</td><td class="hi">−80% cost</td><td>Đủ chất lượng cho parse/score, Sonnet chỉ dùng OCR+quiz</td></tr>
+<tr><td>Multi-region Bedrock</td><td class="hi">−0% failure</td><td>Round-robin 2 regions tránh throttle</td></tr>
+<tr><td>MD5 dedup</td><td class="hi">−15% calls</td><td>Skip duplicate CV, không gọi AI lần 2</td></tr>
+<tr><td>Background auto-score</td><td class="hi">Non-blocking</td><td>User không chờ — thread xử lý ngầm</td></tr>
+</tbody></table>
+</div></section>
+
+<!-- S11: Kết quả -->
+<section class="slide"><div class="slide-inner">
+<p class="eyebrow">§7 · Kết quả & Demo</p>
+<h2>Kết quả pilot</h2>
+<table class="tbl"><thead><tr><th>Metrics</th><th>Mục tiêu</th><th>Thực tế</th><th>Ghi chú</th></tr></thead><tbody>
+<tr><td>Thời gian/CV</td><td>&lt; 10s</td><td class="hi">~3s</td><td>Single mode, full pipeline</td></tr>
+<tr><td>50 CV batch</td><td>&lt; 3 min</td><td class="hi">~100s</td><td>With AI scoring</td></tr>
+<tr><td>Completion rate</td><td>≥ 95%</td><td class="hi">100%</td><td>Retry auto, zero loss</td></tr>
+<tr><td>Error rate</td><td>&lt; 5%</td><td class="hi">0%</td><td>Với retry mechanism</td></tr>
+<tr><td>Chi phí/1000 CV</td><td>&lt; $20</td><td class="hi">~$7</td><td>Parse + embed + score</td></tr>
+</tbody></table>
+<h2 style="font-size:20px;margin-top:28px">So sánh Trước/Sau</h2>
+<table class="tbl"><thead><tr><th>Mục</th><th>Trước (thủ công)</th><th>Sau (TalentScan)</th><th>Cải thiện</th></tr></thead><tbody>
+<tr><td>Thời gian sàng lọc</td><td>30 giờ/200 CV</td><td class="hi">~5 phút</td><td>360× nhanh hơn</td></tr>
+<tr><td>Nhất quán</td><td>Tùy người đánh giá</td><td class="hi">100% consistent</td><td>Algorithm-based</td></tr>
+<tr><td>Matching</td><td>Thủ công, bỏ sót</td><td class="hi">Auto-match toàn bộ</td><td>0% bỏ sót</td></tr>
+</tbody></table>
+</div></section>
+
+<!-- S12: Bài học -->
+<section class="slide invert"><div class="slide-inner">
+<p class="eyebrow">§8 · Bài học & Tâm đắc</p>
+<h2>Điều học được</h2>
+<ul class="items">
+<li class="item"><span class="num">1</span><div><div class="title">Hybrid scoring > pure AI scoring</div><div class="detail">AI hallucinate scores → rule-based làm anchor 70% giúp kết quả ổn định, reproducible</div></div></li>
+<li class="item"><span class="num">2</span><div><div class="title">PII protection phải ở layer riêng</div><div class="detail">Không tin tưởng prompt instruction "đừng lưu PII" — phải filter TRƯỚC khi gọi AI</div></div></li>
+<li class="item"><span class="num">3</span><div><div class="title">pgvector đủ tốt cho scale vừa</div><div class="detail">Không cần Pinecone/Qdrant — same DB đơn giản ops, query đủ nhanh ≤1000 vectors</div></div></li>
+<li class="item"><span class="num">4</span><div><div class="title">Retry + multi-region = reliability</div><div class="detail">Bedrock throttle thường xuyên — round-robin + backoff giải quyết hoàn toàn</div></div></li>
+<li class="item"><span class="num">5</span><div><div class="title">Cost tracking là feature, không phải afterthought</div><div class="detail">Log mỗi AI call → dashboard chi phí → HR thấy value proposition rõ ràng</div></div></li>
+</ul>
+</div></section>
+
+<!-- S13: Hạn chế & Hướng phát triển -->
+<section class="slide"><div class="slide-inner">
+<p class="eyebrow">§9 · Hạn chế & Roadmap</p>
+<h2>Hạn chế & Hướng phát triển</h2>
+<table class="tbl"><thead><tr><th>Hạn chế</th><th>Nguyên nhân</th><th>Giải pháp nếu thêm thời gian</th></tr></thead><tbody>
+<tr><td>Single-server, không HA</td><td>Pilot scope</td><td>ECS/EKS + RDS + load balancer</td></tr>
+<tr><td>Chưa có AI quality monitoring</td><td>Chưa đủ data production</td><td>Score drift detection, feedback loop</td></tr>
+<tr><td>JWT trong localStorage</td><td>Simple SPA auth</td><td>HttpOnly cookie + CSRF protection</td></tr>
+<tr><td>Chưa multi-language CV</td><td>Focus tiếng Việt + Anh</td><td>Prompt adaptation cho JP/KR</td></tr>
+</tbody></table>
+<h2 style="font-size:20px;margin-top:24px">Nếu đưa vào production</h2>
+<ul class="items">
+<li class="item"><span class="num">→</span><div><div class="title">Auto-scaling + monitoring</div><div class="detail">ECS Fargate + CloudWatch + AI cost alerts</div></div></li>
+<li class="item"><span class="num">→</span><div><div class="title">Ứng viên self-service</div><div class="detail">Public scheduling page, quiz verification online</div></div></li>
+<li class="item"><span class="num">→</span><div><div class="title">Analytics nâng cao</div><div class="detail">Funnel metrics, time-to-hire, source tracking, conversion rate</div></div></li>
+</ul>
+</div></section>
+
+<!-- S14: End -->
+<section class="slide invert"><div class="slide-inner" style="text-align:center">
+<svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true" style="margin:0 auto 24px">
+<circle cx="28" cy="28" r="22" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+<path d="M18 28 H38 M28 18 V38" stroke="var(--clay)" stroke-width="1.5" stroke-linecap="round"/>
+<circle cx="28" cy="28" r="3" fill="var(--bg)"/>
+</svg>
+<h1>Cảm ơn</h1>
+<p class="sub" style="margin:16px auto 0;text-align:center">
+Demo: <strong style="color:var(--clay)">http://localhost</strong><br>
+Docs: <strong style="color:var(--clay)">docs/effective-html/</strong><br>
+Swagger: <strong style="color:var(--clay)">http://localhost:8000/docs</strong>
+</p>
+<div class="byline" style="justify-content:center;margin-top:32px"><span>LIFULL Tech Vietnam</span><span>TalentScan Pilot 2025</span></div>
+</div></section>
+
+<script>
+(function(){
+const slides=Array.from(document.querySelectorAll('.slide'));
+const counter=document.getElementById('counter');
+const nav=document.getElementById('nav');
+let cur=0;
+slides.forEach((_,i)=>{const d=document.createElement('div');d.className='d'+(i===0?' on':'');d.onclick=()=>slides[i].scrollIntoView({behavior:'smooth'});nav.appendChild(d)});
+const dots=nav.querySelectorAll('.d');
+const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){cur=slides.indexOf(e.target);counter.textContent=(cur+1)+' / '+slides.length;dots.forEach((d,j)=>d.classList.toggle('on',j===cur))}})},{threshold:.6});
+slides.forEach(s=>obs.observe(s));
+document.addEventListener('keydown',e=>{
+if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key===' '){e.preventDefault();if(cur<slides.length-1)slides[cur+1].scrollIntoView({behavior:'smooth'})}
+if(e.key==='ArrowUp'||e.key==='ArrowLeft'){e.preventDefault();if(cur>0)slides[cur-1].scrollIntoView({behavior:'smooth'})}
+});
+document.getElementById('themeT').onclick=()=>{document.documentElement.classList.toggle('dark');localStorage.setItem('theme',document.documentElement.classList.contains('dark')?'dark':'light')};
+})();
+</script>
+</body>
+</html>

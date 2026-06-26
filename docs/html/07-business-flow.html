@@ -1,0 +1,197 @@
+<!-- TalentScan — Business Flow -->
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TalentScan — Business Flow</title>
+<script>(function(){const s=localStorage.getItem('theme');const d=s?s==='dark':matchMedia('(prefers-color-scheme:dark)').matches;if(d)document.documentElement.classList.add('dark')})();</script>
+<style>
+:root{--bg:#FAF9F5;--surface:#FFF;--surface2:#F0EEE6;--ink:#141413;--body:#3D3D3A;--muted:#87867F;--line:#D1CFC5;--line-soft:#E6E3DA;--clay:#D97757;--clay-soft:rgba(217,119,87,.1);--olive:#788C5D;--olive-soft:rgba(120,140,93,.12);--blue:#5B7E96;--serif:ui-serif,Georgia,serif;--sans:system-ui,-apple-system,sans-serif;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+html.dark{--bg:#141413;--surface:#1F1F1D;--surface2:#2A2A28;--ink:#FAF9F5;--body:#D1CFC5;--muted:#87867F;--line:#3D3D3A;--line-soft:#2A2A28;--clay:#E48A6E;--clay-soft:rgba(228,138,110,.14);--olive:#9DB07C;--olive-soft:rgba(157,176,124,.16);--blue:#7FA3BC}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--body);font-family:var(--sans);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden}
+.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line-soft);flex:none}
+.bar h1{font-family:var(--serif);font-weight:500;font-size:19px;color:var(--ink)}
+.bar .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.spacer{flex:1}
+.back{font-family:var(--mono);font-size:11px;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+#themeT{font-family:var(--mono);font-size:10.5px;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.stage{flex:1;position:relative;min-height:0}
+.stage svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* Swim lanes */
+.lane rect{fill:var(--surface2);stroke:none;rx:0;opacity:.4}
+.lane text{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;fill:var(--muted)}
+
+/* Flow nodes */
+.fnode{cursor:pointer}
+.fnode rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5;rx:10;transition:stroke .15s}
+.fnode:hover rect{stroke:var(--clay)}
+.fnode.sel rect{stroke:var(--clay)!important;stroke-width:2}
+.fnode .t{font-family:var(--sans);font-size:12px;font-weight:600;fill:var(--ink);pointer-events:none}
+.fnode .n{font-family:var(--mono);font-size:18px;font-weight:700;fill:var(--clay);pointer-events:none}
+.fnode.hr rect{fill:var(--clay-soft)}
+.fnode.ai rect{fill:var(--olive-soft)}
+.fnode.intv rect{fill:rgba(201,164,92,.1);stroke:#C9A45C}
+.fnode.cand rect{fill:rgba(91,126,150,.08)}
+
+/* Edges */
+.fedge{stroke:var(--muted);stroke-width:1.4;fill:none;marker-end:url(#fa)}
+
+/* Detail */
+.detail{position:absolute;right:16px;bottom:16px;width:340px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.08);display:none}
+.detail.on{display:block}
+.detail h3{font-family:var(--serif);font-size:16px;font-weight:500;color:var(--ink);margin-bottom:2px}
+.detail .actor{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.detail .actor.hr{color:var(--clay)}
+.detail .actor.ai{color:var(--olive)}
+.detail .actor.intv{color:#C9A45C}
+.detail .actor.cand{color:var(--blue)}
+.detail p{font-size:12.5px;line-height:1.55}
+.detail code{font-family:var(--mono);font-size:11px;color:var(--clay)}
+
+/* Legend */
+.legend{position:absolute;left:16px;bottom:16px;display:flex;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 14px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.legend-item .dot{width:10px;height:10px;border-radius:3px}
+.legend-item .dot.hr{background:var(--clay-soft);border:1px solid var(--clay)}
+.legend-item .dot.ai{background:var(--olive-soft);border:1px solid var(--olive)}
+.legend-item .dot.intv{background:rgba(201,164,92,.1);border:1px solid #C9A45C}
+.legend-item .dot.cand{background:rgba(91,126,150,.08);border:1px solid var(--blue)}
+@media(max-width:880px){body{overflow:auto}.stage{min-height:80vh}.detail,.legend{position:static;width:auto;margin:10px 16px}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <div><h1>Business Flow</h1><div class="sub">10 steps · tạo job → hire/reject</div></div>
+  <div class="spacer"></div>
+  <a href="index.html" class="back">← Docs</a>
+  <button id="themeT">◑</button>
+</div>
+<div class="stage">
+<svg viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid meet">
+<defs><marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>
+
+<!-- Swim lanes -->
+<g class="lane"><rect x="0" y="60" width="1200" height="140"/><text x="20" y="85">HR / Admin</text></g>
+<g class="lane"><rect x="0" y="220" width="1200" height="140"/><text x="20" y="245">AI (tự động)</text></g>
+<g class="lane"><rect x="0" y="380" width="1200" height="130"/><text x="20" y="405">Interviewer</text></g>
+<g class="lane"><rect x="0" y="530" width="1200" height="120"/><text x="20" y="555">Ứng viên</text></g>
+
+<!-- Step 1: Create Job -->
+<g class="fnode hr" data-step="1"><rect x="40" y="95" width="110" height="50"/><text class="n" x="55" y="115">1</text><text class="t" x="95" y="130" text-anchor="middle">Tạo Job</text></g>
+
+<!-- Step 2: Upload CV -->
+<g class="fnode hr" data-step="2"><rect x="180" y="95" width="110" height="50"/><text class="n" x="195" y="115">2</text><text class="t" x="235" y="130" text-anchor="middle">Upload CV</text></g>
+
+<!-- Step 3: AI Parse -->
+<g class="fnode ai" data-step="3"><rect x="180" y="245" width="130" height="50"/><text class="n" x="195" y="265">3</text><text class="t" x="245" y="280" text-anchor="middle">AI Parse + Embed</text></g>
+
+<!-- Step 4: Auto Match -->
+<g class="fnode ai" data-step="4"><rect x="340" y="245" width="130" height="50"/><text class="n" x="355" y="265">4</text><text class="t" x="405" y="280" text-anchor="middle">Auto-match</text></g>
+
+<!-- Step 5: HR Review -->
+<g class="fnode hr" data-step="5"><rect x="350" y="95" width="130" height="50"/><text class="n" x="365" y="115">5</text><text class="t" x="415" y="130" text-anchor="middle">Review Matches</text></g>
+
+<!-- Step 6: Scoring -->
+<g class="fnode ai" data-step="6"><rect x="510" y="245" width="130" height="50"/><text class="n" x="525" y="265">6</text><text class="t" x="575" y="280" text-anchor="middle">Full Scoring</text></g>
+
+<!-- Branch: Classification diamond -->
+<g class="fnode ai" data-step="6b" style="cursor:default">
+  <polygon points="700,270 740,245 780,270 740,295" fill="var(--surface)" stroke="var(--clay)" stroke-width="1.5"/>
+  <text class="t" x="740" y="275" text-anchor="middle" style="font-size:10px">Class?</text>
+</g>
+
+<!-- Gold path: fast track -->
+<g class="fnode hr" data-step="7"><rect x="820" y="95" width="130" height="50"/><text class="n" x="835" y="115">7</text><text class="t" x="885" y="130" text-anchor="middle">Approve + Book</text></g>
+
+<!-- Silver path: hold review -->
+<g class="fnode hr" data-step="7b"><rect x="820" y="175" width="130" height="50"/><text class="n" x="835" y="195">7b</text><text class="t" x="885" y="210" text-anchor="middle">Hold — Review</text></g>
+
+<!-- Bronze path: re-match -->
+<g class="fnode ai" data-step="7c"><rect x="820" y="310" width="140" height="50"/><text class="n" x="835" y="330">↺</text><text class="t" x="890" y="345" text-anchor="middle">Re-match later</text></g>
+
+<!-- Step 8: Interview -->
+<g class="fnode intv" data-step="8"><rect x="990" y="400" width="140" height="50"/><text class="n" x="1005" y="420">8</text><text class="t" x="1060" y="435" text-anchor="middle">Phỏng vấn</text></g>
+
+<!-- Step 9: Feedback -->
+<g class="fnode intv" data-step="9"><rect x="990" y="545" width="140" height="50"/><text class="n" x="1005" y="565">9</text><text class="t" x="1060" y="580" text-anchor="middle">Feedback</text></g>
+
+<!-- Step 10: Decision -->
+<g class="fnode hr" data-step="10"><rect x="1050" y="95" width="110" height="50"/><text class="n" x="1063" y="115">10</text><text class="t" x="1105" y="130" text-anchor="middle">Hire/Reject</text></g>
+
+<!-- Main flow edges -->
+<path class="fedge" d="M150,120 L180,120"/>
+<path class="fedge" d="M235,145 L235,245"/>
+<path class="fedge" d="M310,270 L340,270"/>
+<path class="fedge" d="M405,245 L415,145"/>
+<path class="fedge" d="M415,145 L415,165 L575,165 L575,245"/>
+<path class="fedge" d="M640,270 L700,270"/>
+
+<!-- Branch edges from diamond -->
+<path class="fedge" style="stroke:var(--clay)" d="M740,245 L740,130 L820,120"/>
+<text class="blbl" x="750" y="185" style="font-family:var(--mono);font-size:9px;fill:var(--clay)">Gold ≥80</text>
+<path class="fedge" style="stroke:var(--olive)" d="M780,270 L810,200 L820,200"/>
+<text class="blbl" x="785" y="235" style="font-family:var(--mono);font-size:9px;fill:var(--olive)">Silver 50–79</text>
+<path class="fedge" style="stroke:var(--muted);stroke-dasharray:4 3" d="M740,295 L740,335 L820,335"/>
+<text class="blbl" x="750" y="320" style="font-family:var(--mono);font-size:9px;fill:var(--muted)">Bronze &lt;50</text>
+
+<!-- Bronze re-match loop back to step 4 -->
+<path class="fedge" style="stroke:var(--muted);stroke-dasharray:4 3" d="M890,360 L890,375 L405,375 L405,295"/>
+
+<!-- Gold → Interview -->
+<path class="fedge" d="M950,120 L1060,400"/>
+<!-- Silver → can also go to Interview after review -->
+<path class="fedge" style="stroke:var(--olive);stroke-dasharray:4 3" d="M950,200 L1060,400"/>
+<!-- Interview → Feedback -->
+<path class="fedge" d="M1060,450 L1060,545"/>
+<!-- Feedback → Decision -->
+<path class="fedge" d="M1060,450 L1105,145"/>
+</svg>
+
+<div class="detail" id="detail"></div>
+<div class="legend">
+  <div class="legend-item"><span class="dot hr"></span>HR / Admin</div>
+  <div class="legend-item"><span class="dot ai"></span>AI (tự động)</div>
+  <div class="legend-item"><span class="dot intv"></span>Interviewer</div>
+  <div class="legend-item"><span class="dot cand"></span>Ứng viên</div>
+</div>
+</div>
+
+<script>
+(function(){
+const steps={
+  1:{title:'Tạo Job Description',actor:'hr',desc:'Tạo tin tuyển dụng: title, skills, yêu cầu kinh nghiệm, category. Auto-generate embedding cho Job.', api:'POST /api/jobs'},
+  2:{title:'Upload CV',actor:'hr',desc:'Upload từng file hoặc batch 200 PDF/DOCX. MD5 hash dedup. WebSocket progress cho batch.', api:'POST /api/cv-upload · /api/cv-batch'},
+  3:{title:'AI Parse & Embed',actor:'ai',desc:'Extract text → PII filter → Injection guard → Claude Haiku parse → Titan embed 1024-dim. ~3s/CV, background.', api:'automatic after upload'},
+  4:{title:'Auto-match Smart Pool',actor:'ai',desc:'pgvector cosine + skill overlap. Match candidate vs all jobs. Combined = cosine 30% + skill 70%.', api:'automatic after embed'},
+  5:{title:'HR Review Matches',actor:'hr',desc:'Xem danh sách suggested candidates. Approve (assign) hoặc reject. Filter by combined score.', api:'PUT /api/jobs/{id}/assign'},
+  6:{title:'Full Scoring',actor:'ai',desc:'Rule engine (skills+cosine+exp+edu+lang) ×70% + Claude LLM 30%. Phân loại Gold/Silver/Bronze.', api:'automatic after assign'},
+  '6b':{title:'Classification Branch',actor:'ai',desc:'Gold (≥80) → fast-track phỏng vấn. Silver (50-79) → HR review thêm. Bronze (<50) → lưu lại, auto re-match khi có job mới phù hợp.', api:'automatic'},
+  7:{title:'Gold → Approve + Book',actor:'hr',desc:'Ứng viên Gold: approve ngay → tạo interview slot + gửi email invitation.', api:'POST /api/interviews'},
+  '7b':{title:'Silver → Hold Review',actor:'hr',desc:'Ứng viên Silver: HR xem xét kỹ hơn. Có thể approve hoặc reject sau khi đọc chi tiết.', api:'manual review'},
+  '7c':{title:'Bronze → Re-match Loop',actor:'ai',desc:'Ứng viên Bronze: lưu vào pool. Khi có job mới → tự động re-match lại (quay về step 4).', api:'automatic on new job'},
+  8:{title:'Phỏng vấn',actor:'intv',desc:'Interviewer thực hiện phỏng vấn. AI generate câu hỏi theo skill + grade level. Multi-round supported.', api:'GET /api/interviews/{id}/questions'},
+  9:{title:'Feedback',actor:'intv',desc:'Interviewer submit rating 1-5★ + decision (pass/fail/next_round). Ghi strengths, weaknesses, notes.', api:'POST /api/interviews/{id}/feedback'},
+  10:{title:'Hire / Reject',actor:'hr',desc:'HR ra quyết định cuối. Reject → rejection email. Hire → update status.', api:'PUT /api/candidates/{id}/status'}
+};
+
+const detail=document.getElementById('detail');
+document.querySelectorAll('.fnode').forEach(n=>{
+  n.addEventListener('click',function(){
+    document.querySelectorAll('.fnode').forEach(x=>x.classList.remove('sel'));
+    this.classList.add('sel');
+    const s=steps[this.dataset.step];
+    if(s){
+      detail.innerHTML=`<h3>${s.title}</h3><div class="actor ${s.actor}">${s.actor==='hr'?'HR / Admin':s.actor==='ai'?'AI — Tự động':s.actor==='intv'?'Interviewer':'Ứng viên'}</div><p>${s.desc}</p><p style="margin-top:8px"><code>${s.api}</code></p>`;
+      detail.classList.add('on');
+    }
+  });
+});
+document.getElementById('themeT').onclick=()=>{document.documentElement.classList.toggle('dark');localStorage.setItem('theme',document.documentElement.classList.contains('dark')?'dark':'light')};
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,386 @@
+<!-- TalentScan — Architecture Diagram -->
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TalentScan — Kiến trúc hệ thống</title>
+<script>
+  (function () {
+    const saved = localStorage.getItem('theme');
+    const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    if (dark) document.documentElement.classList.add('dark');
+  })();
+</script>
+<style>
+  :root {
+    --bg: #FAF9F5; --surface: #FFFFFF; --surface2: #F0EEE6;
+    --ink: #141413; --body: #3D3D3A; --muted: #87867F;
+    --line: #D1CFC5; --line-soft: #E6E3DA;
+    --clay: #D97757; --clay-soft: rgba(217,119,87,0.10);
+    --olive: #788C5D; --olive-soft: rgba(120,140,93,0.12);
+    --zone: rgba(20,20,19,0.025); --zone-line: #D1CFC5;
+    --serif: ui-serif, Georgia, serif;
+    --sans: system-ui, -apple-system, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  html.dark {
+    --bg: #141413; --surface: #1F1F1D; --surface2: #2A2A28;
+    --ink: #FAF9F5; --body: #D1CFC5; --muted: #87867F;
+    --line: #3D3D3A; --line-soft: #2A2A28;
+    --clay: #E48A6E; --clay-soft: rgba(228,138,110,0.14);
+    --olive: #9DB07C; --olive-soft: rgba(157,176,124,0.16);
+    --zone: rgba(250,249,245,0.03); --zone-line: #3D3D3A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--body); font-family: var(--sans);
+    -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* Top bar */
+  .bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 20px; border-bottom: 1px solid var(--line-soft); flex: none;
+  }
+  .bar h1 { font-family: var(--serif); font-weight: 500; font-size: 19px; color: var(--ink); letter-spacing: -0.01em; }
+  .bar .sub { font-family: var(--mono); font-size: 10.5px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .spacer { flex: 1; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em;
+    padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px;
+    background: transparent; color: var(--muted); cursor: pointer; transition: all .15s ease;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--muted); }
+  .chip.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+  #themeToggle {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  #themeToggle:hover { color: var(--ink); border-color: var(--muted); }
+
+  /* Stage */
+  .stage { flex: 1; position: relative; min-height: 0; }
+  .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* Zones */
+  .zone rect { fill: var(--zone); stroke: var(--zone-line); stroke-width: 1; stroke-dasharray: 5 5; rx: 16; }
+  .zone .ztitle { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--muted); }
+
+  /* Nodes */
+  .node { cursor: pointer; }
+  .node rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; rx: 10; transition: stroke .15s ease; }
+  .node:hover rect { stroke: var(--muted); }
+  .node.sel rect { stroke: var(--clay) !important; stroke-width: 2; }
+  .node .t { font-family: var(--sans); font-size: 13px; font-weight: 600; fill: var(--ink); pointer-events: none; }
+  .node .m { font-family: var(--mono); font-size: 10px; fill: var(--muted); pointer-events: none; }
+  .node.ai rect { fill: var(--clay-soft); stroke: var(--clay); }
+  .node.svc rect { fill: var(--olive-soft); stroke: var(--olive); }
+  .node.db rect { fill: var(--surface2); }
+
+  /* Edges */
+  .edge { stroke: var(--muted); stroke-width: 1.4; fill: none; marker-end: url(#arrow); opacity: 0.5; transition: opacity .2s, stroke .2s; }
+  .elbl { font-family: var(--mono); font-size: 9.5px; fill: var(--muted); transition: opacity .2s; }
+
+  /* Flow animation */
+  .stage.flowing .edge { opacity: 0.1; }
+  .stage.flowing .node { opacity: 0.25; }
+  .stage.flowing .edge.lit { opacity: 1; stroke: var(--clay); stroke-width: 2.2; stroke-dasharray: 7 5; animation: march 0.8s linear infinite; marker-end: url(#arrow-clay); }
+  .stage.flowing .node.lit { opacity: 1; }
+  .stage.flowing .node.lit rect { stroke: var(--clay); stroke-width: 2; }
+  .stage.flowing .elbl { opacity: 0.1; }
+  .stage.flowing .elbl.lit { opacity: 1; fill: var(--clay); }
+  @keyframes march { to { stroke-dashoffset: -12; } }
+  @media (prefers-reduced-motion: reduce) { .stage.flowing .edge.lit { animation: none; } }
+
+  /* Badge (step numbers) */
+  .badge { font-family: var(--mono); font-size: 10px; font-weight: 700; }
+  .badge circle { fill: var(--clay); }
+  .badge text { fill: var(--bg); }
+  .stage:not(.flowing) .badge { display: none; }
+
+  /* Detail card */
+  .detail {
+    position: absolute; right: 16px; bottom: 16px; width: 320px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); display: none;
+  }
+  .detail.on { display: block; }
+  .detail h3 { font-family: var(--serif); font-weight: 500; font-size: 16px; color: var(--ink); margin-bottom: 2px; }
+  .detail .meta { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 8px; }
+  .detail p { font-size: 12.5px; line-height: 1.55; }
+  .detail code { font-family: var(--mono); font-size: 11px; color: var(--clay); }
+
+  /* Flow caption */
+  .flowcap {
+    position: absolute; left: 16px; bottom: 16px; max-width: 400px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); display: none;
+  }
+  .flowcap.on { display: block; }
+  .flowcap .fname { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--clay); margin-bottom: 6px; }
+  .flowcap ol { margin-left: 18px; }
+  .flowcap li { font-size: 12px; line-height: 1.55; margin-bottom: 2px; }
+
+  @media (max-width: 880px) {
+    body { overflow: auto; }
+    .stage { min-height: 70vh; }
+    .detail, .flowcap { position: static; width: auto; margin: 10px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div>
+    <h1>TalentScan — Kiến trúc</h1>
+    <div class="sub">nginx · fastapi · postgresql · bedrock</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="chips" id="chips">
+    <button class="chip on" data-flow="all">Tổng quan</button>
+    <button class="chip" data-flow="upload">Upload CV</button>
+    <button class="chip" data-flow="score">Scoring</button>
+    <button class="chip" data-flow="match">Auto-match</button>
+  </div>
+  <button id="themeToggle">◑</button>
+</div>
+
+<div class="stage" id="stage">
+<svg viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+    <marker id="arrow-clay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--clay)"/>
+    </marker>
+  </defs>
+
+  <!-- Zone: Docker Compose -->
+  <g class="zone">
+    <rect x="30" y="30" width="1140" height="640"/>
+    <text class="ztitle" x="60" y="58">Docker Compose</text>
+  </g>
+
+  <!-- Zone: Frontend -->
+  <g class="zone">
+    <rect x="60" y="80" width="280" height="240"/>
+    <text class="ztitle" x="90" y="106">Client Layer</text>
+  </g>
+
+  <!-- Zone: Backend -->
+  <g class="zone">
+    <rect x="400" y="80" width="380" height="580"/>
+    <text class="ztitle" x="430" y="106">Backend Services</text>
+  </g>
+
+  <!-- Zone: Data -->
+  <g class="zone">
+    <rect x="840" y="80" width="300" height="580"/>
+    <text class="ztitle" x="870" y="106">Data & AI</text>
+  </g>
+
+  <!-- Node: Browser -->
+  <g class="node" id="n-browser" data-info="browser">
+    <rect x="100" y="130" width="200" height="56"/>
+    <text class="t" x="200" y="155" text-anchor="middle">Browser</text>
+    <text class="m" x="200" y="173" text-anchor="middle">React 19 + Vite + TailwindCSS</text>
+  </g>
+
+  <!-- Node: Nginx -->
+  <g class="node svc" id="n-nginx" data-info="nginx">
+    <rect x="100" y="220" width="200" height="56"/>
+    <text class="t" x="200" y="245" text-anchor="middle">Nginx</text>
+    <text class="m" x="200" y="263" text-anchor="middle">:80 — reverse proxy</text>
+  </g>
+
+  <!-- Node: FastAPI -->
+  <g class="node svc" id="n-api" data-info="api">
+    <rect x="440" y="150" width="200" height="56"/>
+    <text class="t" x="540" y="175" text-anchor="middle">FastAPI</text>
+    <text class="m" x="540" y="193" text-anchor="middle">:8000 — async + SQLAlchemy</text>
+  </g>
+
+  <!-- Node: Auth -->
+  <g class="node" id="n-auth" data-info="auth">
+    <rect x="440" y="240" width="140" height="48"/>
+    <text class="t" x="510" y="262" text-anchor="middle">Auth</text>
+    <text class="m" x="510" y="278" text-anchor="middle">JWT + bcrypt</text>
+  </g>
+
+  <!-- Node: CV Pipeline -->
+  <g class="node ai" id="n-pipeline" data-info="pipeline">
+    <rect x="440" y="320" width="200" height="56"/>
+    <text class="t" x="540" y="345" text-anchor="middle">CV Pipeline</text>
+    <text class="m" x="540" y="363" text-anchor="middle">extract → PII → parse → embed</text>
+  </g>
+
+  <!-- Node: Scoring -->
+  <g class="node ai" id="n-scoring" data-info="scoring">
+    <rect x="440" y="410" width="200" height="56"/>
+    <text class="t" x="540" y="435" text-anchor="middle">Scoring Engine</text>
+    <text class="m" x="540" y="453" text-anchor="middle">rule 70% + LLM 30%</text>
+  </g>
+
+  <!-- Node: Smart Pool -->
+  <g class="node ai" id="n-pool" data-info="pool">
+    <rect x="440" y="500" width="200" height="56"/>
+    <text class="t" x="540" y="525" text-anchor="middle">Smart Pool</text>
+    <text class="m" x="540" y="543" text-anchor="middle">pgvector cosine matching</text>
+  </g>
+
+  <!-- Node: Scheduler -->
+  <g class="node" id="n-scheduler" data-info="scheduler">
+    <rect x="440" y="590" width="200" height="48"/>
+    <text class="t" x="540" y="612" text-anchor="middle">Scheduler</text>
+    <text class="m" x="540" y="628" text-anchor="middle">APScheduler — reminders</text>
+  </g>
+
+  <!-- Node: PostgreSQL -->
+  <g class="node db" id="n-pg" data-info="pg">
+    <rect x="880" y="150" width="220" height="56"/>
+    <text class="t" x="990" y="175" text-anchor="middle">PostgreSQL 16</text>
+    <text class="m" x="990" y="193" text-anchor="middle">:5432 — 18 tables + pgvector</text>
+  </g>
+
+  <!-- Node: Bedrock Claude -->
+  <g class="node ai" id="n-claude" data-info="claude">
+    <rect x="880" y="300" width="220" height="56"/>
+    <text class="t" x="990" y="325" text-anchor="middle">Claude Haiku / Sonnet</text>
+    <text class="m" x="990" y="343" text-anchor="middle">parse · score · generate</text>
+  </g>
+
+  <!-- Node: Titan Embed -->
+  <g class="node ai" id="n-titan" data-info="titan">
+    <rect x="880" y="400" width="220" height="56"/>
+    <text class="t" x="990" y="425" text-anchor="middle">Titan Embed V2</text>
+    <text class="m" x="990" y="443" text-anchor="middle">1024-dim vectors</text>
+  </g>
+
+  <!-- Node: File Storage -->
+  <g class="node db" id="n-files" data-info="files">
+    <rect x="880" y="500" width="220" height="56"/>
+    <text class="t" x="990" y="525" text-anchor="middle">File Storage</text>
+    <text class="m" x="990" y="543" text-anchor="middle">uploads/cv · uploads/avatars</text>
+  </g>
+
+  <!-- Edges -->
+  <path class="edge" id="e-browser-nginx" d="M200,186 L200,220"/>
+  <path class="edge" id="e-nginx-api" d="M300,248 Q370,248 440,178"/>
+  <path class="edge" id="e-api-auth" d="M490,206 L490,240"/>
+  <path class="edge" id="e-api-pipeline" d="M540,206 L540,320"/>
+  <path class="edge" id="e-api-scoring" d="M580,206 Q680,300 580,410"/>
+  <path class="edge" id="e-api-pool" d="M560,206 Q690,380 560,500"/>
+  <path class="edge" id="e-api-pg" d="M640,178 L880,178"/>
+  <text class="elbl" x="750" y="170">SQL / pgvector</text>
+  <path class="edge" id="e-pipeline-claude" d="M640,348 L880,328"/>
+  <text class="elbl" x="750" y="330">AI parse</text>
+  <path class="edge" id="e-pipeline-titan" d="M640,360 L880,420"/>
+  <text class="elbl" x="740" y="396">embed</text>
+  <path class="edge" id="e-scoring-claude" d="M640,436 L880,330"/>
+  <text class="elbl" x="770" y="376">LLM score</text>
+  <path class="edge" id="e-pool-pg" d="M640,528 Q760,528 880,200"/>
+  <text class="elbl" x="770" y="520">cosine query</text>
+  <path class="edge" id="e-pipeline-files" d="M640,350 Q800,480 880,528"/>
+  <text class="elbl" x="770" y="470">save CV</text>
+
+  <!-- Flow badges removed — step numbers shown in flowcap panel -->
+</svg>
+
+<div class="detail" id="detail"></div>
+<div class="flowcap" id="flowcap"></div>
+</div>
+
+<script>
+(function () {
+  const stage = document.getElementById('stage');
+  const detail = document.getElementById('detail');
+  const flowcap = document.getElementById('flowcap');
+  const chips = document.querySelectorAll('.chip');
+
+  const info = {
+    browser: { title: 'Browser — React 19', meta: 'frontend · :5173', desc: 'SPA với React 19, Vite, Tailwind CSS v4, TanStack Query v5. Feature-based structure.' },
+    nginx: { title: 'Nginx', meta: 'proxy · :80', desc: 'Reverse proxy, route /api → FastAPI, / → React build. CORS + static files.' },
+    api: { title: 'FastAPI', meta: 'backend · :8000', desc: 'Async Python 3.11, SQLAlchemy 2.0, 60+ endpoints. Auto-docs tại /docs.' },
+    auth: { title: 'Auth Module', meta: 'security', desc: 'JWT HS256 (access 24h + refresh 7d), bcrypt password, 3 roles (admin/hr/interviewer).' },
+    pipeline: { title: 'CV Pipeline', meta: 'ai · core', desc: 'Extract text (PDF/DOCX/Scan) → PII filter → Injection guard → Claude parse → Titan embed.' },
+    scoring: { title: 'Scoring Engine', meta: 'ai · algorithm', desc: 'Rule Score (skills 30%, cosine 25%, exp 20%, edu 15%, lang 10%) × 70% + LLM 30%.' },
+    pool: { title: 'Smart Pool', meta: 'ai · matching', desc: 'pgvector cosine + skill overlap auto-match candidates to all jobs. Combined = cosine 30% + skill 70%.' },
+    scheduler: { title: 'Scheduler', meta: 'background', desc: 'APScheduler — interview reminders, retry stuck candidates, periodic re-matching.' },
+    pg: { title: 'PostgreSQL 16', meta: 'database · :5432', desc: '18 tables, pgvector extension (1024-dim), JSONB for structured data, UUID PKs.' },
+    claude: { title: 'Claude Haiku / Sonnet', meta: 'aws bedrock', desc: 'Haiku: parse, score, generate ($0.002/call). Sonnet: OCR vision, quiz ($0.008/call).' },
+    titan: { title: 'Titan Embed V2', meta: 'aws bedrock', desc: '1024-dimensional embeddings. ~$0.00004/call. Used for CV and Job vectors.' },
+    files: { title: 'File Storage', meta: 'local volume', desc: 'Docker volume — uploads/cv (PDF/DOCX), uploads/avatars. Hash dedup.' },
+  };
+
+  const flows = {
+    upload: {
+      name: 'Upload CV Flow',
+      nodes: ['n-browser','n-nginx','n-api','n-pipeline','n-claude','n-titan','n-pool','n-pg','n-files'],
+      edges: ['e-browser-nginx','e-nginx-api','e-api-pipeline','e-pipeline-claude','e-pipeline-titan','e-pool-pg','e-pipeline-files'],
+      steps: ['User uploads CV (single/batch 200)', 'Nginx routes → FastAPI', 'Pipeline: extract → PII filter → guard', 'Claude Haiku parses structured data', 'Titan generates 1024-dim embedding', 'Smart Pool auto-matches to open jobs', 'Results saved to PostgreSQL']
+    },
+    score: {
+      name: 'Scoring Flow',
+      nodes: ['n-api','n-scoring','n-claude','n-pg'],
+      edges: ['e-api-scoring','e-scoring-claude','e-api-pg'],
+      steps: ['HR triggers scoring → FastAPI orchestrates', 'Rule engine calculates: skills + cosine + exp + edu + lang', 'Claude LLM provides qualitative score (30%)', 'Final score + classification saved to PostgreSQL']
+    },
+    match: {
+      name: 'Auto-match Flow',
+      nodes: ['n-api','n-pool','n-pg','n-titan','n-pipeline'],
+      edges: ['e-api-pool','e-pool-pg','e-pipeline-titan'],
+      steps: ['New CV or new Job triggers matching', 'pgvector cosine similarity query', 'Combined score (cosine 30% + skill 70%) saved for all jobs', 'HR reviews suggested matches']
+    }
+  };
+
+  // Node click → detail
+  document.querySelectorAll('.node').forEach(n => {
+    n.addEventListener('click', function () {
+      document.querySelectorAll('.node').forEach(x => x.classList.remove('sel'));
+      this.classList.add('sel');
+      const d = info[this.dataset.info];
+      if (d) {
+        detail.innerHTML = `<h3>${d.title}</h3><div class="meta">${d.meta}</div><p>${d.desc}</p>`;
+        detail.classList.add('on');
+      }
+    });
+  });
+
+  // Flow chips
+  chips.forEach(c => {
+    c.addEventListener('click', function () {
+      chips.forEach(x => x.classList.remove('on'));
+      this.classList.add('on');
+      const f = this.dataset.flow;
+      stage.classList.remove('flowing');
+      flowcap.classList.remove('on');
+      document.querySelectorAll('.edge, .node, .elbl').forEach(x => x.classList.remove('lit'));
+
+      if (f === 'all') return;
+
+      const flow = flows[f];
+      if (!flow) return;
+
+      stage.classList.add('flowing');
+      flow.nodes.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('lit'); });
+      flow.edges.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('lit'); });
+
+      flowcap.innerHTML = `<div class="fname">${flow.name}</div><ol>${flow.steps.map(s => `<li>${s}</li>`).join('')}</ol>`;
+      flowcap.classList.add('on');
+    });
+  });
+
+  // Theme toggle
+  document.getElementById('themeToggle').addEventListener('click', function () {
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  });
+})();
+</script>
+</body>
+</html>

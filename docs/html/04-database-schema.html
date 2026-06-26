@@ -1,0 +1,147 @@
+<!-- TalentScan — Database Schema -->
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TalentScan — Database Schema</title>
+<script>(function(){const s=localStorage.getItem('theme');const d=s?s==='dark':matchMedia('(prefers-color-scheme:dark)').matches;if(d)document.documentElement.classList.add('dark')})();</script>
+<style>
+:root{--bg:#FAF9F5;--surface:#FFF;--surface2:#F0EEE6;--ink:#141413;--body:#3D3D3A;--muted:#87867F;--line:#D1CFC5;--line-soft:#E6E3DA;--clay:#D97757;--clay-soft:rgba(217,119,87,.08);--olive:#788C5D;--olive-soft:rgba(120,140,93,.1);--blue:#5B7E96;--serif:ui-serif,Georgia,serif;--sans:system-ui,-apple-system,sans-serif;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+html.dark{--bg:#141413;--surface:#1F1F1D;--surface2:#2A2A28;--ink:#FAF9F5;--body:#D1CFC5;--muted:#87867F;--line:#3D3D3A;--line-soft:#2A2A28;--clay:#E48A6E;--clay-soft:rgba(228,138,110,.12);--olive:#9DB07C;--olive-soft:rgba(157,176,124,.14);--blue:#7FA3BC}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--body);font-family:var(--sans);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden}
+.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line-soft);flex:none}
+.bar h1{font-family:var(--serif);font-weight:500;font-size:19px;color:var(--ink)}
+.bar .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.spacer{flex:1}
+.back{font-family:var(--mono);font-size:11px;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+#themeT{font-family:var(--mono);font-size:10.5px;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.stage{flex:1;position:relative;min-height:0}
+.stage svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* Table nodes */
+.tnode{cursor:pointer}
+.tnode rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5;rx:8;transition:stroke .15s,filter .15s}
+.tnode:hover rect{stroke:var(--muted)}
+.tnode.sel rect{stroke:var(--clay)!important;stroke-width:2;filter:drop-shadow(0 2px 8px rgba(217,119,87,.2))}
+.tnode .t{font-family:var(--mono);font-size:11px;font-weight:600;fill:var(--ink);pointer-events:none}
+.tnode .c{font-family:var(--mono);font-size:9px;fill:var(--muted);pointer-events:none}
+.tnode.core rect{fill:var(--clay-soft);stroke:var(--clay)}
+.tnode.ai rect{fill:var(--olive-soft);stroke:var(--olive)}
+.tnode.interview rect{fill:rgba(91,126,150,.08);stroke:var(--blue)}
+/* Edges */
+.rel{stroke:var(--line);stroke-width:1.2;fill:none;stroke-dasharray:4 3;marker-end:url(#fk)}
+/* Detail */
+.detail{position:absolute;right:16px;top:16px;bottom:16px;width:300px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;overflow-y:auto;display:none;box-shadow:0 6px 24px rgba(0,0,0,.08)}
+.detail.on{display:block}
+.detail h3{font-family:var(--mono);font-size:14px;color:var(--ink);margin-bottom:10px}
+.detail table{width:100%;border-collapse:collapse;font-size:11px}
+.detail th{font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--muted);text-align:left;padding:5px 6px;border-bottom:1.5px solid var(--line)}
+.detail td{padding:5px 6px;border-bottom:1px solid var(--line-soft)}
+.detail .pk{color:var(--clay);font-weight:600}
+.detail .fk{color:var(--olive)}
+.detail .type{font-family:var(--mono);font-size:9px;color:var(--muted)}
+@media(max-width:880px){body{overflow:auto}.stage{min-height:80vh}.detail{position:static;width:auto;margin:10px 16px}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <div><h1>Database Schema</h1><div class="sub">18 tables · postgresql 16 · pgvector</div></div>
+  <div class="spacer"></div>
+  <a href="index.html" class="back">← Docs</a>
+  <button id="themeT">◑</button>
+</div>
+<div class="stage" id="stage">
+<svg viewBox="0 0 1100 700" preserveAspectRatio="xMidYMid meet">
+<defs><marker id="fk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--line)"/></marker></defs>
+
+<!-- Core tables -->
+<g class="tnode core" data-t="users"><rect x="40" y="40" width="140" height="44"/><text class="t" x="110" y="60" text-anchor="middle">users</text><text class="c" x="110" y="74" text-anchor="middle">7 cols · roles</text></g>
+<g class="tnode core" data-t="jobs"><rect x="240" y="40" width="140" height="44"/><text class="t" x="310" y="60" text-anchor="middle">jobs</text><text class="c" x="310" y="74" text-anchor="middle">12 cols · vector</text></g>
+<g class="tnode core" data-t="candidates"><rect x="440" y="40" width="160" height="44"/><text class="t" x="520" y="60" text-anchor="middle">candidates</text><text class="c" x="520" y="74" text-anchor="middle">12 cols · vector · JSONB</text></g>
+<g class="tnode core" data-t="scores"><rect x="660" y="40" width="140" height="44"/><text class="t" x="730" y="60" text-anchor="middle">scores</text><text class="c" x="730" y="74" text-anchor="middle">8 cols · classification</text></g>
+<g class="tnode core" data-t="job_candidates"><rect x="240" y="140" width="170" height="44"/><text class="t" x="325" y="160" text-anchor="middle">job_candidates</text><text class="c" x="325" y="174" text-anchor="middle">10 cols · matching scores</text></g>
+
+<!-- Interview -->
+<g class="tnode interview" data-t="interviews"><rect x="40" y="250" width="160" height="44"/><text class="t" x="120" y="270" text-anchor="middle">interviews</text><text class="c" x="120" y="284" text-anchor="middle">15 cols · calendar</text></g>
+<g class="tnode interview" data-t="interview_feedback"><rect x="240" y="250" width="180" height="44"/><text class="t" x="330" y="270" text-anchor="middle">interview_feedback</text><text class="c" x="330" y="284" text-anchor="middle">10 cols · rating 1-5</text></g>
+<g class="tnode interview" data-t="interview_interviewers"><rect x="40" y="340" width="200" height="44"/><text class="t" x="140" y="360" text-anchor="middle">interview_interviewers</text><text class="c" x="140" y="374" text-anchor="middle">composite PK</text></g>
+<g class="tnode interview" data-t="interview_question_sets"><rect x="280" y="340" width="200" height="44"/><text class="t" x="380" y="360" text-anchor="middle">interview_question_sets</text><text class="c" x="380" y="374" text-anchor="middle">questions + translations</text></g>
+
+<!-- Batch & Email -->
+<g class="tnode" data-t="cv_batches"><rect x="560" y="140" width="140" height="44"/><text class="t" x="630" y="160" text-anchor="middle">cv_batches</text><text class="c" x="630" y="174" text-anchor="middle">7 cols · status</text></g>
+<g class="tnode" data-t="cv_batch_items"><rect x="740" y="140" width="160" height="44"/><text class="t" x="820" y="160" text-anchor="middle">cv_batch_items</text><text class="c" x="820" y="174" text-anchor="middle">8 cols · per file</text></g>
+<g class="tnode" data-t="outreach_logs"><rect x="560" y="250" width="160" height="44"/><text class="t" x="640" y="270" text-anchor="middle">outreach_logs</text><text class="c" x="640" y="284" text-anchor="middle">9 cols · email history</text></g>
+<g class="tnode" data-t="email_templates"><rect x="760" y="250" width="160" height="44"/><text class="t" x="840" y="270" text-anchor="middle">email_templates</text><text class="c" x="840" y="284" text-anchor="middle">7 cols · 3 types</text></g>
+
+<!-- System -->
+<g class="tnode ai" data-t="audit_logs"><rect x="560" y="340" width="140" height="44"/><text class="t" x="630" y="360" text-anchor="middle">audit_logs</text><text class="c" x="630" y="374" text-anchor="middle">7 cols · actions</text></g>
+<g class="tnode ai" data-t="ai_usage_logs"><rect x="740" y="340" width="160" height="44"/><text class="t" x="820" y="360" text-anchor="middle">ai_usage_logs</text><text class="c" x="820" y="374" text-anchor="middle">8 cols · cost tracking</text></g>
+
+<!-- Migration tables -->
+<g class="tnode" data-t="question_cache"><rect x="560" y="440" width="160" height="44"/><text class="t" x="640" y="460" text-anchor="middle">question_cache</text><text class="c" x="640" y="474" text-anchor="middle">cached per job</text></g>
+<g class="tnode" data-t="timeline_events"><rect x="760" y="440" width="160" height="44"/><text class="t" x="840" y="460" text-anchor="middle">timeline_events</text><text class="c" x="840" y="474" text-anchor="middle">candidate activity</text></g>
+<g class="tnode interview" data-t="interview_question_scores"><rect x="40" y="440" width="220" height="44"/><text class="t" x="150" y="460" text-anchor="middle">interview_question_scores</text><text class="c" x="150" y="474" text-anchor="middle">per-question rating</text></g>
+
+<!-- Relationships -->
+<path class="rel" d="M180,62 L240,62"/>
+<path class="rel" d="M380,62 L440,62"/>
+<path class="rel" d="M600,62 L660,62"/>
+<path class="rel" d="M310,84 L310,140"/>
+<path class="rel" d="M520,84 L520,140 L410,140"/>
+<path class="rel" d="M120,84 L120,250"/>
+<path class="rel" d="M520,84 L640,250"/>
+<path class="rel" d="M630,184 L820,184 L820,140"/>
+<path class="rel" d="M120,294 L120,340"/>
+<path class="rel" d="M380,294 L380,340"/>
+</svg>
+<div class="detail" id="detail"></div>
+</div>
+
+<script>
+(function(){
+const tables={
+users:[['id','UUID','PK'],['email','VARCHAR(255)','UNIQUE'],['hashed_password','VARCHAR(255)',''],['full_name','VARCHAR(255)',''],['role','VARCHAR(20)','admin/hr/interviewer'],['is_active','BOOLEAN','default true'],['created_at','TIMESTAMPTZ','']],
+jobs:[['id','UUID','PK'],['title','VARCHAR(255)',''],['description','TEXT',''],['required_skills','JSONB','array'],['required_years','INT','nullable'],['required_education','VARCHAR(50)',''],['salary_range','VARCHAR(255)',''],['location','VARCHAR(255)',''],['category','VARCHAR(50)','5 types'],['deadline','TIMESTAMPTZ',''],['embedding','VECTOR(1024)','pgvector'],['created_by','UUID','FK→users']],
+candidates:[['id','UUID','PK'],['job_id','UUID','FK→jobs'],['structured_data','JSONB','AI parsed'],['embedding','VECTOR(1024)','pgvector'],['status','VARCHAR(50)','6 states'],['match_score','FLOAT',''],['cv_file_path','VARCHAR(500)',''],['cv_hash','VARCHAR(32)','MD5'],['source_app_version','VARCHAR(20)',''],['scanned_at','TIMESTAMPTZ',''],['created_at','TIMESTAMPTZ',''],['updated_at','TIMESTAMPTZ','']],
+scores:[['id','UUID','PK'],['candidate_id','UUID','FK UNIQUE'],['rule_score','FLOAT','0-100'],['llm_score','FLOAT','0-100'],['final_score','FLOAT','weighted'],['classification','VARCHAR(20)','gold/silver/bronze'],['details','JSONB','breakdown'],['created_at','TIMESTAMPTZ','']],
+job_candidates:[['id','UUID','PK'],['job_id','UUID','FK CASCADE'],['candidate_id','UUID','FK CASCADE'],['similarity_score','FLOAT','cosine'],['skill_score','FLOAT','overlap'],['combined_score','FLOAT','weighted'],['status','VARCHAR(20)','5 states'],['final_score','FLOAT',''],['classification','VARCHAR(20)',''],['matched_at','TIMESTAMPTZ','']],
+interviews:[['id','UUID','PK'],['candidate_id','UUID','FK CASCADE'],['job_id','UUID','FK SET NULL'],['title','VARCHAR(255)',''],['start_time','TIMESTAMPTZ',''],['end_time','TIMESTAMPTZ',''],['notes','TEXT',''],['interviewer_emails','JSONB',''],['status','VARCHAR(20)',''],['feedback_score','INT','1-5'],['feedback_notes','TEXT',''],['feedback_decision','VARCHAR(20)',''],['created_by','UUID','FK'],['created_at','TIMESTAMPTZ',''],['reminder_30min_sent','BOOL','']],
+interview_feedback:[['id','UUID','PK'],['candidate_id','UUID','FK'],['job_id','UUID','FK'],['interviewer','VARCHAR(100)',''],['round','INT','1-N'],['rating','INT','1-5'],['decision','VARCHAR(20)','pass/fail/next'],['strengths','TEXT',''],['weaknesses','TEXT',''],['created_at','TIMESTAMPTZ','']],
+interview_interviewers:[['interview_id','UUID','FK PK'],['user_id','UUID','FK PK']],
+cv_batches:[['id','UUID','PK'],['total_files','INT',''],['processed','INT',''],['duplicates','INT',''],['errors','INT',''],['status','VARCHAR(20)',''],['created_by','UUID','FK']],
+cv_batch_items:[['id','UUID','PK'],['batch_id','UUID','FK CASCADE'],['file_name','VARCHAR(500)',''],['file_path','VARCHAR(500)',''],['file_hash','VARCHAR(32)','MD5'],['status','VARCHAR(20)',''],['candidate_id','UUID','FK'],['error','TEXT','']],
+outreach_logs:[['id','UUID','PK'],['candidate_id','UUID','FK'],['job_id','UUID','FK'],['to_email','VARCHAR(255)',''],['template_type','VARCHAR(30)','3 types'],['subject','VARCHAR(500)',''],['content','TEXT',''],['status','VARCHAR(20)',''],['sent_at','TIMESTAMPTZ','']],
+email_templates:[['id','UUID','PK'],['template_type','VARCHAR(30)','UNIQUE'],['greeting','TEXT',''],['body','TEXT',''],['closing','TEXT',''],['highlights','JSONB',''],['tips','JSONB','']],
+audit_logs:[['id','UUID','PK'],['user_id','UUID','FK'],['action','VARCHAR(100)',''],['entity_type','VARCHAR(50)',''],['entity_id','VARCHAR(50)',''],['details','JSONB',''],['created_at','TIMESTAMPTZ','']],
+ai_usage_logs:[['id','UUID','PK'],['model_id','VARCHAR(100)',''],['feature','VARCHAR(50)',''],['input_tokens','INT',''],['output_tokens','INT',''],['cost_usd','FLOAT',''],['candidate_id','UUID','nullable'],['created_at','TIMESTAMPTZ','']],
+interview_question_sets:[['id','UUID','PK'],['job_id','UUID',''],['round','INT',''],['level','VARCHAR(20)',''],['num_questions','INT',''],['questions_en','JSONB',''],['translations','JSONB',''],['usage_count','INT','']],
+question_cache:[['id','UUID','PK'],['job_id','UUID',''],['category','VARCHAR(50)',''],['questions','JSONB',''],['created_at','TIMESTAMPTZ','']],
+timeline_events:[['id','UUID','PK'],['candidate_id','UUID',''],['event_type','VARCHAR(50)',''],['title','VARCHAR(255)',''],['detail','TEXT',''],['created_at','TIMESTAMPTZ','']],
+interview_question_scores:[['id','UUID','PK'],['interview_id','UUID','FK'],['question_id','VARCHAR(50)',''],['score','INT','1-5'],['notes','TEXT','']]
+};
+
+const detail=document.getElementById('detail');
+document.querySelectorAll('.tnode').forEach(n=>{
+  n.addEventListener('click',function(){
+    document.querySelectorAll('.tnode').forEach(x=>x.classList.remove('sel'));
+    this.classList.add('sel');
+    const t=this.dataset.t;
+    const cols=tables[t];
+    if(!cols){detail.classList.remove('on');return}
+    let html=`<h3>${t}</h3><table><thead><tr><th>Column</th><th>Type</th><th>Note</th></tr></thead><tbody>`;
+    cols.forEach(([name,type,note])=>{
+      const cls=note==='PK'||note==='FK PK'?'pk':note.startsWith('FK')?'fk':'';
+      html+=`<tr><td class="${cls}">${name}</td><td class="type">${type}</td><td>${note}</td></tr>`;
+    });
+    html+='</tbody></table>';
+    detail.innerHTML=html;
+    detail.classList.add('on');
+  });
+});
+document.getElementById('themeT').onclick=()=>{document.documentElement.classList.toggle('dark');localStorage.setItem('theme',document.documentElement.classList.contains('dark')?'dark':'light')};
+})();
+</script>
+</body>
+</html>

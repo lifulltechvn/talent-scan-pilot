@@ -1,0 +1,152 @@
+<!-- TalentScan — Security & Compliance -->
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TalentScan — Security & Compliance</title>
+<script>(function(){const s=localStorage.getItem('theme');const d=s?s==='dark':matchMedia('(prefers-color-scheme:dark)').matches;if(d)document.documentElement.classList.add('dark')})();</script>
+<style>
+:root{--bg:#FAF9F5;--surface:#FFF;--surface2:#F0EEE6;--ink:#141413;--body:#3D3D3A;--muted:#87867F;--line:#D1CFC5;--line-soft:#E6E3DA;--clay:#D97757;--clay-soft:rgba(217,119,87,.08);--olive:#788C5D;--olive-soft:rgba(120,140,93,.1);--red:#B04A3F;--red-soft:rgba(176,74,63,.08);--serif:ui-serif,Georgia,serif;--sans:system-ui,-apple-system,sans-serif;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+html.dark{--bg:#141413;--surface:#1F1F1D;--surface2:#2A2A28;--ink:#FAF9F5;--body:#D1CFC5;--muted:#87867F;--line:#3D3D3A;--line-soft:#2A2A28;--clay:#E48A6E;--clay-soft:rgba(228,138,110,.12);--olive:#9DB07C;--olive-soft:rgba(157,176,124,.14);--red:#D4635A;--red-soft:rgba(212,99,90,.1)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--body);line-height:1.6;padding:48px 24px 96px;-webkit-font-smoothing:antialiased}
+.page{max-width:900px;margin:0 auto}
+header{margin-bottom:36px}
+.header-top{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px}
+h1{font-family:var(--serif);font-weight:500;font-size:34px;letter-spacing:-.01em;color:var(--ink);margin-bottom:10px}
+.lead{font-size:15px;color:var(--muted);max-width:600px}
+#themeT{font-family:var(--mono);font-size:10.5px;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.nav-back{font-family:var(--mono);font-size:11px;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+h2{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--ink);margin:36px 0 14px}
+
+/* Layers — vertical fortress */
+.fortress{position:relative;display:flex;flex-direction:column;gap:0;margin:20px 0}
+.layer{display:flex;align-items:center;gap:14px;padding:14px 18px;border:1.5px solid var(--line);border-bottom:none;background:var(--surface);transition:all .3s}
+.layer:first-child{border-radius:12px 12px 0 0}
+.layer:last-child{border-bottom:1.5px solid var(--line);border-radius:0 0 12px 12px}
+.layer .icon{font-size:20px;min-width:32px;text-align:center}
+.layer .info{flex:1}
+.layer .name{font-size:14px;font-weight:600;color:var(--ink)}
+.layer .desc{font-size:11px;color:var(--muted);margin-top:2px}
+.layer .status{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:4px;background:var(--olive-soft);color:var(--olive)}
+.layer.lit{background:var(--olive-soft);border-color:var(--olive)}
+.layer.blocked{background:var(--red-soft);border-color:var(--red)}
+.layer.blocked .name{color:var(--red)}
+.layer.pass{background:var(--surface2)}
+
+/* Center label */
+.data-core{text-align:center;padding:16px;background:var(--olive-soft);border:1.5px solid var(--olive);border-radius:10px;margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--olive);font-weight:600}
+
+/* Attack simulation */
+.sim-section{margin-top:36px}
+.attack-btns{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.atk-btn{font-family:var(--mono);font-size:11px;padding:8px 14px;border:1.5px solid var(--line);border-radius:8px;background:transparent;color:var(--body);cursor:pointer;transition:all .15s}
+.atk-btn:hover{border-color:var(--red);color:var(--red)}
+.atk-btn.active{border-color:var(--clay);background:var(--clay-soft);color:var(--clay)}
+
+/* Result box */
+.sim-result{margin-top:16px;padding:16px;border:1.5px solid var(--olive);border-radius:10px;background:var(--olive-soft);display:none}
+.sim-result.on{display:block}
+.sim-result h4{font-family:var(--mono);font-size:11px;color:var(--olive);margin-bottom:6px}
+.sim-result p{font-size:13px;line-height:1.6}
+.sim-result .path{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft)}
+/* Layout 2 columns */
+.two-col{display:grid;grid-template-columns:1fr 340px;gap:24px;margin-top:20px}
+@media(max-width:800px){.two-col{grid-template-columns:1fr}}
+.col-left h2{margin-top:0}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="header-top">
+    <div><div class="eyebrow">05 · Security</div><h1>Defense-in-Depth</h1></div>
+    <div style="display:flex;gap:8px"><a href="index.html" class="nav-back">← Docs</a><button id="themeT">◑</button></div>
+  </div>
+  <p class="lead">Request từ ngoài phải xuyên qua 7 layers trước khi chạm data. Mỗi layer chặn 1 loại attack.</p>
+</header>
+
+<div class="two-col">
+<div class="col-left">
+<h2>7 Security Layers</h2>
+<div class="fortress" id="fortress">
+  <div class="layer" data-i="0"><span class="icon">🌐</span><div class="info"><div class="name">CORS / Nginx</div><div class="desc">Restricted origins, reverse proxy, block direct DB access</div></div><span class="status">✓</span></div>
+  <div class="layer" data-i="1"><span class="icon">🚦</span><div class="info"><div class="name">Rate Limiting</div><div class="desc">slowapi — 5 req/min login, chống brute-force & EDoS</div></div><span class="status">✓</span></div>
+  <div class="layer" data-i="2"><span class="icon">🔐</span><div class="info"><div class="name">JWT Authentication</div><div class="desc">HS256 access 24h + refresh 7d · bcrypt · 3 roles (admin/hr/interviewer)</div></div><span class="status">✓</span></div>
+  <div class="layer" data-i="3"><span class="icon">✅</span><div class="info"><div class="name">Input Validation</div><div class="desc">Pydantic schemas, file size max 10MB, type check toàn bộ endpoints</div></div><span class="status">✓</span></div>
+  <div class="layer" data-i="4"><span class="icon">🛡️</span><div class="info"><div class="name">PII Filter</div><div class="desc">6 regex: email, phone, CCCD, DOB, URL, address → masked TRƯỚC khi gửi AI</div></div><span class="status">✓</span></div>
+  <div class="layer" data-i="5"><span class="icon">⚠️</span><div class="info"><div class="name">Injection Guard</div><div class="desc">11 patterns detect prompt injection + XML delimiter wrapping</div></div><span class="status">✓</span></div>
+  <div class="layer" data-i="6"><span class="icon">📋</span><div class="info"><div class="name">Audit + Cost Tracking</div><div class="desc">Mọi action → audit_logs. Mỗi AI call → ai_usage_logs (model, tokens, cost)</div></div><span class="status">✓</span></div>
+</div>
+<div class="data-core">🗄️ DATA — PostgreSQL + File Storage</div>
+</div>
+
+<div class="col-right">
+<h2>⚡ Attack Simulation</h2>
+<p style="font-size:13px;color:var(--muted);margin-bottom:12px">Click xem request bị chặn ở layer nào:</p>
+<div class="attack-btns">
+  <button class="atk-btn" data-a="injection">💉 Prompt Injection</button>
+  <button class="atk-btn" data-a="brute">🔨 Brute-force</button>
+  <button class="atk-btn" data-a="pii">👁️ PII Leak qua AI</button>
+  <button class="atk-btn" data-a="unauth">🚫 Unauthorized</button>
+  <button class="atk-btn" data-a="edos">💸 EDoS Attack</button>
+</div>
+<div class="sim-result" id="simResult"></div>
+</div>
+</div>
+
+</div>
+<script>
+(function(){
+const attacks={
+  injection:{blocked:5, path:'CORS ✓ → Rate ✓ → Auth ✓ → Validate ✓ → PII ✓ → ⛔ INJECTION GUARD', detail:'CV chứa "ignore previous instructions" → 11 pattern regex detect → BLOCKED. Content được wrap XML delimiter.'},
+  brute:{blocked:1, path:'CORS ✓ → ⛔ RATE LIMIT (5/min exceeded)', detail:'Sau 5 failed attempts/min → IP bị block. bcrypt slow hash (~100ms) làm chậm thêm.'},
+  pii:{blocked:4, path:'CORS ✓ → Rate ✓ → Auth ✓ → Validate ✓ → ⛔ PII FILTER', detail:'Dù prompt yêu cầu "return email" — PII đã bị mask TRƯỚC khi gọi AI. AI chỉ thấy [EMAIL], [PHONE], [CCCD].'},
+  unauth:{blocked:2, path:'CORS ✓ → Rate ✓ → ⛔ JWT AUTH (token invalid)', detail:'Không có valid JWT → 401. Role-based: interviewer không access admin endpoints.'},
+  edos:{blocked:1, path:'CORS ✓ → ⛔ RATE LIMIT + FILE SIZE CHECK', detail:'Rate limit chặn spam requests. Max 200 files/batch, 10MB/file. AI cost monitored per-call.'}
+};
+
+const layers=document.querySelectorAll('.layer');
+const result=document.getElementById('simResult');
+let animTimer;
+
+document.querySelectorAll('.atk-btn').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    const atk=attacks[this.dataset.a];
+    if(!atk)return;
+
+    // Reset
+    clearTimeout(animTimer);
+    document.querySelectorAll('.atk-btn').forEach(b=>b.classList.remove('active'));
+    layers.forEach(l=>{l.classList.remove('lit','blocked','pass')});
+    result.classList.remove('on');
+    this.classList.add('active');
+
+    // Animate step by step
+    let step=0;
+    function next(){
+      if(step>atk.blocked){
+        // Show blocked
+        layers[atk.blocked].classList.remove('pass');
+        layers[atk.blocked].classList.add('blocked');
+        result.innerHTML=`<h4>⛔ Blocked at: ${layers[atk.blocked].querySelector('.name').textContent}</h4><p>${atk.detail}</p><div class="path">${atk.path}</div>`;
+        result.classList.add('on');
+        return;
+      }
+      if(step>0)layers[step-1].classList.add('pass');
+      layers[step].classList.add('lit');
+      step++;
+      animTimer=setTimeout(next,350);
+    }
+    next();
+  });
+});
+
+document.getElementById('themeT').onclick=()=>{document.documentElement.classList.toggle('dark');localStorage.setItem('theme',document.documentElement.classList.contains('dark')?'dark':'light')};
+})();
+</script>
+</body>
+</html>

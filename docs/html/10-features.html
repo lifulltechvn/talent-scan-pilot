@@ -1,0 +1,208 @@
+<!-- TalentScan — Tính năng nổi bật -->
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TalentScan — Tính năng nổi bật</title>
+<script>
+  (function () {
+    const saved = localStorage.getItem('theme');
+    const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    if (dark) document.documentElement.classList.add('dark');
+  })();
+</script>
+<style>
+  :root {
+    --bg: #FAF9F5; --surface: #FFFFFF; --surface2: #F0EEE6;
+    --ink: #141413; --body: #3D3D3A; --muted: #87867F;
+    --line: #D1CFC5; --line-soft: #E6E3DA;
+    --clay: #D97757; --clay-soft: rgba(217,119,87,0.08);
+    --olive: #788C5D; --olive-soft: rgba(120,140,93,0.10);
+    --serif: ui-serif, Georgia, serif;
+    --sans: system-ui, -apple-system, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  html.dark {
+    --bg: #141413; --surface: #1F1F1D; --surface2: #2A2A28;
+    --ink: #FAF9F5; --body: #D1CFC5; --muted: #87867F;
+    --line: #3D3D3A; --line-soft: #2A2A28;
+    --clay: #E48A6E; --clay-soft: rgba(228,138,110,0.12);
+    --olive: #9DB07C; --olive-soft: rgba(157,176,124,0.14);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--body); line-height: 1.6; padding: 56px 32px 96px; -webkit-font-smoothing: antialiased; }
+  .page { max-width: 860px; margin: 0 auto; }
+  header { margin-bottom: 48px; }
+  .header-top { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 10px; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: 36px; letter-spacing: -0.01em; color: var(--ink); margin-bottom: 12px; }
+  .lead { font-size: 16px; color: var(--muted); max-width: 600px; }
+  #themeToggle { font-family: var(--mono); font-size: 10.5px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+  .nav-back { font-family: var(--mono); font-size: 11px; color: var(--muted); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; }
+
+  /* Feature cards */
+  .features { display: flex; flex-direction: column; gap: 24px; margin-top: 32px; }
+  .feat { background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 24px; transition: border-color 0.15s; }
+  .feat:hover { border-color: var(--clay); }
+  .feat-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .feat-icon { font-size: 22px; min-width: 32px; text-align: center; }
+  .feat-title { font-family: var(--serif); font-size: 20px; font-weight: 500; color: var(--ink); }
+  .feat-tag { font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 4px; background: var(--clay-soft); color: var(--clay); margin-left: auto; }
+  .feat p { font-size: 14px; line-height: 1.6; margin-bottom: 10px; }
+  .feat-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .feat-detail { font-size: 12px; padding: 8px 12px; background: var(--surface2); border-radius: 6px; display: flex; align-items: center; gap: 6px; }
+  .feat-detail .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--olive); flex-shrink: 0; }
+  @media (max-width: 600px) { .feat-details { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="header-top">
+    <div>
+      <div class="eyebrow">10 · Highlights</div>
+      <h1>Tính năng nổi bật</h1>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="index.html" class="nav-back">← Docs</a>
+      <button id="themeToggle">◑</button>
+    </div>
+  </div>
+  <p class="lead">Không chỉ CV screening — TalentScan bao phủ toàn bộ vòng đời tuyển dụng với AI ở mọi bước.</p>
+</header>
+
+<div class="features">
+
+  <div class="feat">
+    <div class="feat-head">
+      <span class="feat-icon">📦</span>
+      <span class="feat-title">Batch Upload 200 CV + WebSocket</span>
+      <span class="feat-tag">core</span>
+    </div>
+    <p>Upload hàng loạt PDF/DOCX, hệ thống xử lý background với realtime progress qua WebSocket. Duplicate detection bằng MD5 hash — CV trùng bị reject ngay, không tốn AI call.</p>
+    <div class="feat-details">
+      <div class="feat-detail"><span class="dot"></span>Max 200 files/batch</div>
+      <div class="feat-detail"><span class="dot"></span>WebSocket push progress</div>
+      <div class="feat-detail"><span class="dot"></span>MD5 dedup — skip duplicate</div>
+      <div class="feat-detail"><span class="dot"></span>Auto-retry on AI throttle</div>
+    </div>
+  </div>
+
+  <div class="feat">
+    <div class="feat-head">
+      <span class="feat-icon">🎯</span>
+      <span class="feat-title">Smart Pool Auto-matching</span>
+      <span class="feat-tag">ai</span>
+    </div>
+    <p>pgvector cosine similarity 1024-dim — mỗi CV mới tự match vào tất cả job đang mở. Ngược lại, job mới cũng tự re-match toàn bộ ứng viên cũ. Combined score = cosine 30% + skill overlap 70%.</p>
+    <div class="feat-details">
+      <div class="feat-detail"><span class="dot"></span>Bi-directional matching</div>
+      <div class="feat-detail"><span class="dot"></span>Cosine similarity pgvector</div>
+      <div class="feat-detail"><span class="dot"></span>Skill overlap fuzzy match</div>
+      <div class="feat-detail"><span class="dot"></span>Combined score ranking</div>
+    </div>
+  </div>
+
+  <div class="feat">
+    <div class="feat-head">
+      <span class="feat-icon">🧠</span>
+      <span class="feat-title">AI Interview Questions</span>
+      <span class="feat-tag">ai</span>
+    </div>
+    <p>Sinh câu hỏi phỏng vấn thông minh theo skill ứng viên + grade level (G0–G6) + round number. Cache per job, dịch tự động EN↔VI. 4 categories: technical, problem-solving, experience validation, culture fit.</p>
+    <div class="feat-details">
+      <div class="feat-detail"><span class="dot"></span>Level-aware (junior/mid/senior)</div>
+      <div class="feat-detail"><span class="dot"></span>Cache & reuse per job</div>
+      <div class="feat-detail"><span class="dot"></span>Auto-translate EN↔VI</div>
+      <div class="feat-detail"><span class="dot"></span>4 question categories</div>
+    </div>
+  </div>
+
+  <div class="feat">
+    <div class="feat-head">
+      <span class="feat-icon">🔍</span>
+      <span class="feat-title">CV Authenticity Check</span>
+      <span class="feat-tag">ai · security</span>
+    </div>
+    <p>AI phân tích raw CV text (không phải parsed data) tìm dấu hiệu CV giả hoặc AI-generated. Cho điểm tin cậy 0–100, verdict (authentic/suspicious/likely_ai), và lý do cụ thể.</p>
+    <div class="feat-details">
+      <div class="feat-detail"><span class="dot"></span>Phân tích raw text, không parsed</div>
+      <div class="feat-detail"><span class="dot"></span>Score 0–100 + verdict</div>
+      <div class="feat-detail"><span class="dot"></span>Detect repetitive patterns</div>
+      <div class="feat-detail"><span class="dot"></span>Flagged skill inflation</div>
+    </div>
+  </div>
+
+  <div class="feat">
+    <div class="feat-head">
+      <span class="feat-icon">✉️</span>
+      <span class="feat-title">Email Outreach cá nhân hóa</span>
+      <span class="feat-tag">communication</span>
+    </div>
+    <p>3 loại template (outreach/rejection/reminder) — AI personalize nội dung theo skill và kinh nghiệm ứng viên. HR preview, edit tùy ý trước khi gửi. Log toàn bộ lịch sử gửi.</p>
+    <div class="feat-details">
+      <div class="feat-detail"><span class="dot"></span>3 template types</div>
+      <div class="feat-detail"><span class="dot"></span>AI personalization</div>
+      <div class="feat-detail"><span class="dot"></span>Preview & edit before send</div>
+      <div class="feat-detail"><span class="dot"></span>Full outreach history log</div>
+    </div>
+  </div>
+
+  <div class="feat">
+    <div class="feat-head">
+      <span class="feat-icon">🌐</span>
+      <span class="feat-title">Background Translation EN→VI</span>
+      <span class="feat-tag">ux</span>
+    </div>
+    <p>Sau khi parse CV (thường tiếng Anh), hệ thống tự dịch structured data sang tiếng Việt ở background. Fire-and-forget với retry 3 lần. UI hiển thị song ngữ, HR đọc tiếng Việt dễ dàng.</p>
+    <div class="feat-details">
+      <div class="feat-detail"><span class="dot"></span>Fire-and-forget async</div>
+      <div class="feat-detail"><span class="dot"></span>Retry 3× with backoff</div>
+      <div class="feat-detail"><span class="dot"></span>Bilingual UI display</div>
+      <div class="feat-detail"><span class="dot"></span>Status tracking per candidate</div>
+    </div>
+  </div>
+
+  <div class="feat">
+    <div class="feat-head">
+      <span class="feat-icon">📅</span>
+      <span class="feat-title">Interview Calendar + Auto Reminder</span>
+      <span class="feat-tag">workflow</span>
+    </div>
+    <p>Lên lịch phỏng vấn, gán interviewer, feedback multi-round (1–5★ + decision). APScheduler gửi reminder email 30 phút trước interview tự động.</p>
+    <div class="feat-details">
+      <div class="feat-detail"><span class="dot"></span>Multi-round feedback</div>
+      <div class="feat-detail"><span class="dot"></span>30-min auto reminder</div>
+      <div class="feat-detail"><span class="dot"></span>Rating 1–5 + decision</div>
+      <div class="feat-detail"><span class="dot"></span>Timeline tracking</div>
+    </div>
+  </div>
+
+  <div class="feat">
+    <div class="feat-head">
+      <span class="feat-icon">📊</span>
+      <span class="feat-title">Dashboard + AI Cost Tracking</span>
+      <span class="feat-tag">ops</span>
+    </div>
+    <p>Overview stats, action items (need review, need feedback), today's interviews. Riêng tab AI costs hiển thị chi phí per model, per feature, per ngày — HR thấy ROI rõ ràng.</p>
+    <div class="feat-details">
+      <div class="feat-detail"><span class="dot"></span>Action items realtime</div>
+      <div class="feat-detail"><span class="dot"></span>AI cost per model/feature</div>
+      <div class="feat-detail"><span class="dot"></span>Weekly trend charts</div>
+      <div class="feat-detail"><span class="dot"></span>Gold/Silver/Bronze breakdown</div>
+    </div>
+  </div>
+
+</div>
+
+</div>
+<script>
+  document.getElementById('themeToggle').addEventListener('click', function () {
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  });
+</script>
+</body>
+</html>
