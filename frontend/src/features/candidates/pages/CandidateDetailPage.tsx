@@ -204,9 +204,10 @@ export function CandidateDetailPage() {
       const d = query.state.data;
       if (!d) return 5000;
       const sd = d.structuredData || d.structured_data;
-      // Stop polling once enrichment arrives (experience + insight)
-      if (sd?.experience?.length && sd?.insight?.strengths) return false;
-      return 5000;
+      // Stop once enrichment + translation complete for current locale
+      if (!sd?.experience?.length || !sd?.insight?.strengths) return 5000;
+      if (sd?.skill_level?.reason && !sd.skill_level.reason.vi) return 5000;
+      return false;
     },
   });
   const { data: allCandidates } = useCandidates();
@@ -215,6 +216,7 @@ export function CandidateDetailPage() {
   const { t, locale } = useI18n();
   const { toast } = useToast();
   const { confirm } = useConfirm();
+  const queryClient = useQueryClient();
   const [cvBlobUrl, setCvBlobUrl] = useState<string | null>(null);
   const [emailModal, setEmailModal] = useState(false);
   const [blacklistModal, setBlacklistModal] = useState(false);
@@ -323,12 +325,17 @@ export function CandidateDetailPage() {
           )}
 
           {/* AI Reason */}
-          {d.skill_level.reason && ((locale === 'vi' && d.skill_level.reason.vi) || (locale !== 'vi' && d.skill_level.reason.en)) && (
+          {d.skill_level.reason && ((locale === 'vi' ? d.skill_level.reason.vi : d.skill_level.reason.en)) ? (
             <div className="mb-3 p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">{t("aiReason")}</span>
               </div>
-              <p className="text-[12px] text-text-secondary leading-relaxed">{loc(d.skill_level.reason)}</p>
+              <p className="text-[12px] text-text-secondary leading-relaxed">{locale === 'vi' ? d.skill_level.reason.vi : d.skill_level.reason.en}</p>
+            </div>
+          ) : (
+            <div className="mb-3 p-3 bg-bg-secondary/30 rounded-lg border border-border-subtle/30 flex items-center gap-2">
+              <Loader2 size={12} className="animate-spin text-purple-400" />
+              <span className="text-[11px] text-text-muted">{t("loadingAssessment")}</span>
             </div>
           )}
 
@@ -572,10 +579,15 @@ export function CandidateDetailPage() {
               <button onClick={() => setEmailModal(true)} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-accent border border-accent/30 rounded-lg hover:bg-accent/5 transition-colors">
                 <Sparkles size={14} /> AI Email
               </button>
-              {candidate.status === 'new' && !updateStatus.isSuccess && (
+              {candidate.status === 'new' && (
+                <>
                 <button onClick={() => { updateStatus.mutate({ id: candidate.id, status: 'reviewed' }, { onSuccess: () => toast('success', t("markReviewed")) }); }} disabled={updateStatus.isPending} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[13px] font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-40">
                   <CheckCircle size={14} /> {updateStatus.isPending ? t("updating") : t("markReviewed")}
                 </button>
+                <button onClick={async () => { const ok = await confirm({ title: t('deleteCandidate'), message: t('deleteCandidateConfirm'), confirmLabel: t('delete'), variant: 'danger' }); if (!ok) return; try { await apiClient.delete(`/candidates/${candidate.id}`); queryClient.invalidateQueries({ queryKey: ['candidates'] }); toast('success', 'Đã xóa'); navigate('/candidates'); } catch(e: any) { toast('error', e?.response?.data?.detail || 'Lỗi'); } }} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[12px] font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors mt-2">
+                  <Trash2 size={13} /> Xóa ứng viên
+                </button>
+                </>
               )}
               {candidate.status === 'approved' && <div className="text-center text-[13px] font-medium text-emerald-600 bg-emerald-50 py-2 rounded-lg">✓ {t("statusApproved")}</div>}
               {candidate.status === 'rejected' && <div className="text-center text-[13px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">✗ {t("statusRejected")}</div>}

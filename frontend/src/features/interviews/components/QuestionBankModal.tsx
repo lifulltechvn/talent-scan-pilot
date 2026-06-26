@@ -43,7 +43,7 @@ export function QuestionBankModal({ candidateId, candidateName, jobId, onClose }
     };
     fetchQuestions();
     return () => { cancelled = true; };
-  }, [candidateId, jobId]);
+  }, [candidateId, jobId, locale]);
 
   const categories = data?.categories || {};
   const hasQuestions = Object.keys(categories).length > 0;

@@ -102,9 +102,9 @@ def _parse_cv_text(text: str, candidate_id: str | None = None) -> dict:
                 "phone": {"type": "string"},
                 "skills": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
                 "experience_years": {"type": "number"},
-                "skill_level": {"type": "object", "description": "G0=no skills, G1=junior, G2=mid(4+domains), G3=senior(7+domains). Most are G1-G2.", "properties": {
+                "skill_level": {"type": "object", "description": "Categorize candidate. application_engineer=builds software(Python/Java/JS/React). bridge_se=MUST have Japanese(JLPT N2+) AND coordinates JP-VN teams. qa_engineer=testing/QA focus. admin=office admin. hr=recruitment/HR.", "properties": {
                     "category": {"type": "string", "enum": ["application_engineer", "bridge_se", "qa_engineer", "admin", "hr"]},
-                    "level": {"type": "string", "enum": ["G0", "G1", "G2", "G3"]},
+                    "level": {"type": "string", "enum": ["G0", "G1", "G2", "G3"], "description": "G0=no verifiable skills, G1=junior(2-3 domains), G2=mid(4-5 domains), G3=senior(7+ domains breadth)"},
                 }},
             },
             "required": ["name", "skills", "experience_years", "skill_level"],
@@ -139,7 +139,7 @@ def _parse_cv_text(text: str, candidate_id: str | None = None) -> dict:
 
 
 def _parse_cv_enrichment(text: str, candidate_id: str | None = None) -> dict:
-    """Phase 2: Full enrichment — experience, education, skill_level. Background."""
+    """Phase 2: Full enrichment — experience, education, insight. Background."""
     client = get_bedrock_client()
     tools = [{
         "name": "enrich_cv",
@@ -153,13 +153,9 @@ def _parse_cv_enrichment(text: str, candidate_id: str | None = None) -> dict:
                 "languages": {"type": "array", "items": {"type": "object", "properties": {"language": {"type": "string"}, "level": {"type": "string"}}}},
                 "strengths": {"type": "string", "description": "1-2 sentences in English ONLY"},
                 "weaknesses": {"type": "string", "description": "1 sentence in English ONLY"},
-                "skill_level": {"type": "object", "description": "G0=no skills, G1=junior, G2=mid(4+domains), G3=senior(7+domains). Most are G1-G2.", "properties": {
-                    "category": {"type": "string", "enum": ["application_engineer", "bridge_se", "qa_engineer", "admin", "hr"]},
-                    "level": {"type": "string", "enum": ["G0", "G1", "G2", "G3"]},
-                    "reason": {"type": "string", "description": "1-2 sentences English"},
-                }},
+                "skill_level": {"type": "object", "properties": {"reason_en": {"type": "string", "description": "1 sentence English explaining G-level"}, "reason_vi": {"type": "string", "description": "1 câu tiếng Việt giải thích G-level"}}},
             },
-            "required": ["experience", "education", "skill_level"],
+            "required": ["experience", "education", "strengths", "weaknesses", "skill_level"],
         },
     }]
     from app.prompts import CV_PARSE_SYSTEM

@@ -490,3 +490,23 @@ async def get_notes(
 
 
 
+
+@router.delete("/{candidate_id}", status_code=204)
+async def delete_candidate(
+    candidate_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """Delete a candidate with status 'new' from the system."""
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise HTTPException(404, "Candidate not found")
+    if candidate.status != "new":
+        raise HTTPException(400, "Only candidates with status 'new' can be deleted")
+    # Clean up related data
+    from sqlalchemy import text
+    await db.execute(text("DELETE FROM job_candidates WHERE candidate_id = :id"), {"id": str(candidate_id)})
+    await db.execute(text("DELETE FROM cv_batch_items WHERE candidate_id = :id"), {"id": str(candidate_id)})
+    await db.execute(text("DELETE FROM timeline_events WHERE candidate_id = :id"), {"id": str(candidate_id)})
+    await db.delete(candidate)
+    await db.commit()

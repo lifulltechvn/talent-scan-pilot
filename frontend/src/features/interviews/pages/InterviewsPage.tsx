@@ -521,9 +521,11 @@ function DetailModal({ interview, onClose, onFeedback, onDeleted }: { interview:
               {!interview.feedback_score && new Date(interview.end_time) >= new Date() && (
                 <span className="flex-1 py-2 text-[12px] text-text-muted text-center">{t('waitingForEnd')}</span>
               )}
+              {!interview.feedback_score && (
               <button onClick={() => setConfirmDelete(true)} className="px-4 py-2 text-[13px] font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
                 {t('deleteBtn')}
               </button>
+              )}
               <button onClick={onClose} className="px-4 py-2 text-[13px] font-medium text-text-secondary border border-border-subtle rounded-lg hover:bg-bg-surface">
                 {t('close')}
               </button>

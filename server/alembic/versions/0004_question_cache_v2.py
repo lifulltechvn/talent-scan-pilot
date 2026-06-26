@@ -23,12 +23,6 @@ def upgrade():
         )
     """)
     op.execute("CREATE INDEX idx_qcache_job ON question_cache(job_id)")
-
-
-def downgrade():
-    op.execute("DROP TABLE IF EXISTS question_cache")
-
-    # Timeline events
     op.execute("""
         CREATE TABLE IF NOT EXISTS timeline_events (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -39,3 +33,8 @@ def downgrade():
         )
     """)
     op.execute("CREATE INDEX IF NOT EXISTS idx_timeline_candidate ON timeline_events(candidate_id)")
+
+
+def downgrade():
+    op.execute("DROP TABLE IF EXISTS question_cache")
+    op.execute("DROP TABLE IF EXISTS timeline_events")

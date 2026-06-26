@@ -827,4 +827,8 @@ export const ja: Record<TranslationKey, string> = {
   selectInterviewerRequired: '面接官を1名以上選択してください',
   questionsReady: '数秒後に質問が準備されます',
   loadingAnswer: '⏳ 読み込み中...',
+  loadingAssessment: "AI評価を読み込み中...",
+  deleteCandidate: "候補者を削除",
+  deleteCandidateConfirm: "候補者はシステムから完全に削除されます。この操作は元に戻せません。",
+  delete: "削除",
 };
