@@ -825,6 +825,10 @@ export const en = {
   selectInterviewerRequired: 'Please select at least 1 interviewer',
   questionsReady: 'Questions will be ready in a few seconds',
   loadingAnswer: '⏳ Loading...',
+  loadingAssessment: "Loading AI assessment...",
+  deleteCandidate: "Delete Candidate",
+  deleteCandidateConfirm: "This candidate will be permanently removed from the system. This action cannot be undone.",
+  delete: "Delete",
 } as const;
 
 export type TranslationKey = keyof typeof en;

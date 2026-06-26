@@ -827,4 +827,8 @@ export const vi: Record<TranslationKey, string> = {
   selectInterviewerRequired: 'Vui lòng chọn ít nhất 1 người phỏng vấn',
   questionsReady: 'Câu hỏi sẽ sẵn sàng trong vài giây',
   loadingAnswer: '⏳ Đang tải...',
+  loadingAssessment: "Đang tải nhận xét AI...",
+  deleteCandidate: "Xóa ứng viên",
+  deleteCandidateConfirm: "Ứng viên sẽ bị xóa vĩnh viễn khỏi hệ thống. Hành động này không thể hoàn tác.",
+  delete: "Xóa",
 };

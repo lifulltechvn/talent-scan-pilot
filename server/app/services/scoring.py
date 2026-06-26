@@ -11,12 +11,17 @@ logger = logging.getLogger(__name__)
 
 
 def _expand_skill(skill: str) -> list[str]:
-    """Split compound skill into sub-parts for better matching.
-    E.g. 'Recruitment & Talent Acquisition' → ['recruitment & talent acquisition', 'recruitment', 'talent acquisition']
-    E.g. 'HRIS (Human Resource Information System)' → ['hris (human resource information system)', 'hris', 'human resource information system']
-    """
+    """Split compound skill into sub-parts for better matching."""
     s = skill.lower().strip()
     parts = [s]
+    # Known aliases
+    ALIASES = {
+        "ci/cd": ["github actions", "gitlab ci", "jenkins", "circleci", "travis"],
+        "github actions": ["ci/cd", "cicd"],
+        "jenkins": ["ci/cd", "cicd"],
+    }
+    if s in ALIASES:
+        parts.extend(ALIASES[s])
     # Split by & / , or
     for sep in [' & ', ' / ', ', ', ' or ']:
         if sep in s:
@@ -38,32 +43,30 @@ def score_skills(job_skills: list[str], candidate_skills: list[str]) -> tuple[fl
         return 50.0, {"matched": [], "missing": [], "note": "No skills required"}
     job_normalized = [s.lower().strip() for s in normalize_skills(job_skills)]
     cand_normalized = [s.lower().strip() for s in normalize_skills(candidate_skills)]
-    # Expand candidate skills too
     cand_expanded = set()
     for cs in cand_normalized:
         cand_expanded.update(_expand_skill(cs))
 
-    matched = []
-    for js in job_normalized:
+    def _is_match(js):
         js_parts = _expand_skill(js)
-        found = False
         for jp in js_parts:
-            if found:
-                break
             for cs in cand_expanded:
                 if jp == cs or jp in cs or cs in jp:
-                    found = True
-                    break
-        if not found:
-            # Word overlap check on original
-            j_words = set(js.replace('/', ' ').replace('&', ' ').replace('(', ' ').replace(')', ' ').split())
-            j_words.discard('')
-            for cs in cand_expanded:
-                c_words = set(cs.replace('/', ' ').replace('&', ' ').replace('(', ' ').replace(')', ' ').split())
-                c_words.discard('')
-                if j_words and c_words and len(j_words & c_words) / len(j_words) >= 0.5:
-                    found = True
-                    break
+                    return True
+        j_words = set(js.replace('/', ' ').replace('&', ' ').replace('(', ' ').replace(')', ' ').split())
+        j_words.discard('')
+        for cs in cand_expanded:
+            c_words = set(cs.replace('/', ' ').replace('&', ' ').replace('(', ' ').replace(')', ' ').split())
+            c_words.discard('')
+            if j_words and c_words and len(j_words & c_words) / len(j_words) >= 0.5:
+                return True
+        return False
+
+    matched = []
+    for js in job_normalized:
+        # Handle OR-groups: "go/java/python/ruby" → match ANY
+        alternatives = [a.strip() for a in js.split("/")]
+        found = any(_is_match(alt) for alt in alternatives)
         if found:
             matched.append(js)
 
@@ -74,7 +77,7 @@ def score_skills(job_skills: list[str], candidate_skills: list[str]) -> tuple[fl
 
 def score_experience(required_years: int | None, candidate_years: int | None) -> tuple[float, str]:
     if required_years is None:
-        return 50.0, "No requirement specified"
+        return 80.0, "No requirement specified"
     if candidate_years is None:
         return 30.0, "Candidate experience unknown"
     if candidate_years >= required_years:
@@ -86,7 +89,7 @@ def score_experience(required_years: int | None, candidate_years: int | None) ->
 def score_education(required_level: str | None, candidate_level: str | None) -> tuple[float, str]:
     levels = {"high_school": 1, "associate": 2, "bachelor": 3, "master": 4, "phd": 5}
     if not required_level:
-        return 50.0, "No requirement"
+        return 80.0, "No requirement"
     req = levels.get(required_level.lower(), 0)
     cand = levels.get((candidate_level or "").lower(), 0)
     if cand == 0:
@@ -104,7 +107,7 @@ def classify_candidate(final_score: float) -> str:
     return "bronze"
 
 
-def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str] | None = None, candidate_id: str | None = None) -> tuple[float, str]:
+def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str] | None = None, candidate_id: str | None = None, job_description: str = "") -> tuple[float, str]:
     """Use Claude Haiku to evaluate candidate (0-100 score + summary)."""
     from app.prompts import SCORING_PROMPT
 
@@ -116,6 +119,7 @@ def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str
     prompt = SCORING_PROMPT.format(
         job_title=job_title or "Software Engineer",
         job_skills=", ".join(job_skills or []),
+        job_description=job_description[:300] if job_description else "",
         skills=", ".join(skills),
         exp_years=exp_years,
         experience=experience[:3],
@@ -175,6 +179,7 @@ def compute_rule_score(
     job_title: str = "",
     use_llm: bool = True,
     candidate_id: str | None = None,
+    job_description: str = "",
 ) -> dict:
     """
     Compute hybrid score: Rule-based 70% + LLM 30%.
@@ -208,7 +213,7 @@ def compute_rule_score(
     llm_score = 60.0
     llm_summary = ""
     if use_llm:
-        llm_score, llm_summary = llm_evaluate(candidate_data, job_title, job_skills, candidate_id=candidate_id)
+        llm_score, llm_summary = llm_evaluate(candidate_data, job_title, job_skills, candidate_id=candidate_id, job_description=job_description)
 
     # Final: 70% rule + 30% LLM
     final_score = round(rule_score * 0.7 + llm_score * 0.3, 2)
