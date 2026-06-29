@@ -249,9 +249,9 @@
 
   <!-- Node: Bedrock Claude -->
   <g class="node ai" id="n-claude" data-info="claude">
-    <rect x="880" y="300" width="220" height="56"/>
+    <rect x="880" y="300" width="220" height="70"/>
     <text class="t" x="990" y="325" text-anchor="middle">Claude Haiku / Sonnet</text>
-    <text class="m" x="990" y="343" text-anchor="middle">parse · score · generate</text>
+    <text class="m" x="990" y="339" text-anchor="middle">Haiku: parse · score · generate</text><text class="m" x="990" y="355" text-anchor="middle">Sonnet: OCR vision (scanned PDF)</text>
   </g>
 
   <!-- Node: Titan Embed -->
@@ -312,7 +312,7 @@
     pool: { title: 'Smart Pool', meta: 'ai · matching', desc: 'pgvector cosine + skill overlap auto-match candidates to all jobs. Combined = cosine 30% + skill 70%.' },
     scheduler: { title: 'Scheduler', meta: 'background', desc: 'APScheduler — interview reminders, retry stuck candidates, periodic re-matching.' },
     pg: { title: 'PostgreSQL 16', meta: 'database · :5432', desc: '18 tables, pgvector extension (1024-dim), JSONB for structured data, UUID PKs.' },
-    claude: { title: 'Claude Haiku / Sonnet', meta: 'aws bedrock', desc: 'Haiku: parse, score, generate ($0.002/call). Sonnet: OCR vision, quiz ($0.008/call).' },
+    claude: { title: 'Claude Haiku / Sonnet', meta: 'aws bedrock', desc: 'Haiku: CV parse (scan), scoring (assign), question generation, translation. Sonnet: OCR vision for scanned PDFs only.' },
     titan: { title: 'Titan Embed V2', meta: 'aws bedrock', desc: '1024-dimensional embeddings. ~$0.00004/call. Used for CV and Job vectors.' },
     files: { title: 'File Storage', meta: 'local volume', desc: 'Docker volume — uploads/cv (PDF/DOCX), uploads/avatars. Hash dedup.' },
   };
