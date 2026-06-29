@@ -37,6 +37,13 @@ INJECTION_PATTERNS = [
     # Prompt leaking
     r"(?:show|reveal|print|display|repeat)\s+(?:me\s+)?(?:your|the)\s+(?:system\s+)?(?:prompt|instructions?|rules?)",
     r"what\s+(?:are|is)\s+your\s+(?:system\s+)?(?:prompt|instructions?|rules?)",
+    # Delimiter/boundary injection
+    r"---\s*END\s+OF\s+(?:USER\s+)?INPUT\s*---",
+    r"---\s*END\s*---",
+    r"(?:NEW|UPDATED?)\s+(?:SYSTEM\s+)?INSTRUCTION",
+    r"(?:SYSTEM|ADMIN)\s+(?:INSTRUCTION|COMMAND|DIRECTIVE)",
+    r"from\s+now\s+on\s*,?\s*(?:you|always|append|ignore|return)",
+    r"(?:append|prepend|add|insert)\s+['\"]?\w+['\"]?\s+to\s+(?:every|all|each)\s+(?:response|output|answer)",
 ]
 
 _compiled = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]

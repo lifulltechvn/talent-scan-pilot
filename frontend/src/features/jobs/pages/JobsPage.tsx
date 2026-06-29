@@ -68,6 +68,18 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
     if (Object.keys(errors).length > 0) return;
 
     setSubmitting(true);
+    // Validate JD content with AI
+    try {
+      await apiClient.post('/jobs/validate-content', { title: form.title, description: form.description, required_skills: form.skills });
+    } catch (err: any) {
+      if (err?.response?.status === 400) {
+        const detail = err?.response?.data?.detail || '';
+        const msg = detail === 'prompt_injection_detected' ? t('promptInjectionDetected') : t('invalidJDContent');
+        setFormErrors({ description: msg });
+        setSubmitting(false);
+        return;
+      }
+    }
     // Ensure bilingual description
     let finalDesc = descRaw || form.description;
     try {
@@ -159,6 +171,7 @@ export function JobsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [importedData, setImportedData] = useState<any>(null);
   const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const { t } = useI18n();
 
   const handleImportJD = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,7 +184,11 @@ export function JobsPage() {
       const { data } = await apiClient.post('/jobs/import', form);
       setImportedData(data);
       setShowCreate(true);
-    } catch { }
+    } catch (err: any) {
+      if (err?.response?.status === 400) {
+        setImportError(t('invalidJDFormat'));
+      }
+    }
     setImportLoading(false);
     e.target.value = '';
   };
@@ -209,6 +226,18 @@ export function JobsPage() {
       </div>
 
       {showCreate && <CreateJobModal onClose={() => { setShowCreate(false); setImportedData(null); }} initialData={importedData} />}
+
+      {importError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-bg-panel rounded-2xl w-full max-w-sm shadow-xl border border-border-subtle p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <X size={24} className="text-red-500" />
+            </div>
+            <p className="text-sm text-text-primary mb-5">{importError}</p>
+            <button onClick={() => setImportError(null)} className="px-5 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover">OK</button>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-5">
