@@ -15,6 +15,9 @@ from app.services.cv_upload import CV_UPLOAD_DIR
 router = APIRouter(prefix="/cv/batch", tags=["cv-batch"])
 
 BATCH_UPLOAD_DIR = os.path.join(CV_UPLOAD_DIR, "batches")
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB per file
+
+MAGIC_BYTES = {".pdf": b"%PDF", ".docx": b"PK\x03\x04"}
 
 
 @router.post("/upload")
@@ -44,6 +47,11 @@ async def batch_upload(
         if ext not in (".pdf", ".docx"):
             continue
         content = await f.read()
+        if len(content) > MAX_FILE_SIZE:
+            continue  # Skip oversized files
+        expected_magic = MAGIC_BYTES.get(ext)
+        if not expected_magic or not content[:len(expected_magic)] == expected_magic:
+            continue  # Skip files with invalid content
         file_hash = hashlib.md5(content).hexdigest()
         item_id = uuid.uuid4()
         stored_name = f"{item_id}{ext}"
@@ -61,7 +69,7 @@ async def batch_upload(
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Batch commit failed: {e}")
-        raise HTTPException(500, f"Failed to save batch: {e}")
+        raise HTTPException(500, "Failed to save batch")
 
     # Start background processing
     from app.services.cv_batch_worker import run_batch_sync

@@ -111,10 +111,10 @@ def _parse_cv_text(text: str, candidate_id: str | None = None) -> dict:
         },
     }]
     from app.prompts import CV_PARSE_SYSTEM, CV_PARSE_USER
-    from app.injection_guard import sanitize_for_llm
+    from app.injection_guard import guard
 
     cleaned = _clean_text(text)[:2000]
-    safe_text = sanitize_for_llm(cleaned, "CV_CONTENT")
+    safe_text, _warnings = guard(cleaned, "CV_CONTENT")
     body = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 400,
@@ -159,10 +159,10 @@ def _parse_cv_enrichment(text: str, candidate_id: str | None = None) -> dict:
         },
     }]
     from app.prompts import CV_PARSE_SYSTEM
-    from app.injection_guard import sanitize_for_llm
+    from app.injection_guard import guard
 
     cleaned = _clean_text(text)[:5000]
-    safe_text = sanitize_for_llm(cleaned, "CV_CONTENT")
+    safe_text, _warnings = guard(cleaned, "CV_CONTENT")
     body = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 1024,

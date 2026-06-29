@@ -110,20 +110,25 @@ def classify_candidate(final_score: float) -> str:
 def llm_evaluate(candidate_data: dict, job_title: str = "", job_skills: list[str] | None = None, candidate_id: str | None = None, job_description: str = "") -> tuple[float, str]:
     """Use Claude Haiku to evaluate candidate (0-100 score + summary)."""
     from app.prompts import SCORING_PROMPT
+    from app.injection_guard import sanitize_for_llm
 
     skills = candidate_data.get("skills", [])
     experience = candidate_data.get("experience", [])
     exp_years = candidate_data.get("experience_years", 0)
     insight = candidate_data.get("insight", {})
 
+    # Sanitize candidate-controlled strings before embedding in prompt
+    safe_skills = ", ".join(str(s)[:50] for s in skills[:15])
+    safe_experience = str(experience[:3])[:500]
+
     prompt = SCORING_PROMPT.format(
         job_title=job_title or "Software Engineer",
         job_skills=", ".join(job_skills or []),
         job_description=job_description[:300] if job_description else "",
-        skills=", ".join(skills),
+        skills=safe_skills,
         exp_years=exp_years,
-        experience=experience[:3],
-        insight=insight,
+        experience=safe_experience,
+        insight=str(insight)[:200],
     )
 
     try:

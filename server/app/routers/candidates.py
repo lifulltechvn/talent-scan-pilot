@@ -5,6 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,18 @@ from app.schemas import CandidateCreate, CandidateRead
 from app.services.cv_upload import CV_UPLOAD_DIR
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
+
+
+class BlacklistRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class NoteRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class CandidateDataUpdate(BaseModel):
+    data: dict = Field(default_factory=dict)
 
 
 @router.post("", response_model=CandidateRead, status_code=status.HTTP_201_CREATED)
@@ -156,13 +169,13 @@ async def list_candidates(
 @router.post("/{candidate_id}/blacklist")
 async def blacklist_candidate(
     candidate_id: uuid.UUID,
-    body: dict,
+    body: BlacklistRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """Add candidate to blacklist."""
     from sqlalchemy import text as sqt
-    reason = body.get("reason", "")
+    reason = body.reason
     if not reason:
         raise HTTPException(400, "Reason is required")
     await db.execute(sqt("""
@@ -360,7 +373,10 @@ async def get_candidate_avatar(
     """Get candidate's avatar extracted from CV."""
     import os
     from fastapi.responses import FileResponse
-    avatar_path = os.path.join("/app/uploads/avatars", f"{candidate_id}.jpg")
+    avatar_dir = "/app/uploads/avatars"
+    avatar_path = os.path.realpath(os.path.join(avatar_dir, f"{candidate_id}.jpg"))
+    if not avatar_path.startswith(os.path.realpath(avatar_dir)):
+        raise HTTPException(status_code=403, detail="Access denied")
     if not os.path.exists(avatar_path):
         raise HTTPException(status_code=404, detail="Avatar not found")
     return FileResponse(avatar_path, media_type="image/jpeg")
@@ -383,7 +399,11 @@ async def download_candidate_cv(
 
     import os
     file_path = os.path.join(CV_UPLOAD_DIR, candidate.cv_file_path)
-    if not os.path.exists(file_path):
+    # Path traversal protection
+    real_path = os.path.realpath(file_path)
+    if not real_path.startswith(os.path.realpath(CV_UPLOAD_DIR)):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not os.path.exists(real_path):
         raise HTTPException(status_code=404, detail="CV file not found on disk")
 
     filename = candidate.cv_file_path
@@ -420,7 +440,7 @@ async def update_candidate_status(
 @router.patch("/{candidate_id}/data")
 async def update_candidate_data(
     candidate_id: uuid.UUID,
-    body: dict,
+    body: CandidateDataUpdate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -431,7 +451,7 @@ async def update_candidate_data(
         raise HTTPException(404, "Candidate not found")
     # Merge updates into existing data
     current = candidate.structured_data or {}
-    for key, value in body.items():
+    for key, value in body.data.items():
         if key.startswith("_"):
             continue  # Don't allow editing internal fields
         current[key] = value
@@ -444,13 +464,13 @@ async def update_candidate_data(
 @router.post("/{candidate_id}/notes")
 async def add_note(
     candidate_id: uuid.UUID,
-    body: dict,
+    body: NoteRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """Add a note/comment to a candidate."""
     from app.models import AuditLog
-    note_text = body.get("text", "").strip()
+    note_text = body.text.strip()
     if not note_text:
         raise HTTPException(400, "Note text is required")
 

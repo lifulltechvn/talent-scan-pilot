@@ -82,10 +82,38 @@ def extract_docx(file_bytes: bytes, file_name: str) -> ExtractionResult:
 EXTRACTORS = {".pdf": extract_pdf, ".docx": extract_docx}
 SUPPORTED_EXTENSIONS = set(EXTRACTORS.keys())
 
+# Watermark patterns from CV platforms — content after these is usually footer/hidden stuffing
+_WATERMARK_PATTERNS = [
+    "© topcv.vn",
+    "©topcv.vn",
+    "© TopCV",
+    "Powered by TopCV",
+    "© vietnamworks",
+    "© VietnamWorks",
+    "© TopDev",
+    "© Jobsgo",
+    "Created with CakeResume",
+]
+
+
+def _strip_watermark_tail(text: str) -> str:
+    """Remove content after known CV platform watermarks (likely hidden/stuffed text)."""
+    earliest_pos = len(text)
+    for marker in _WATERMARK_PATTERNS:
+        pos = text.find(marker)
+        if pos != -1 and pos < earliest_pos:
+            earliest_pos = pos
+    if earliest_pos < len(text):
+        return text[:earliest_pos].rstrip()
+    return text
+
 
 def extract(file_bytes: bytes, file_name: str) -> ExtractionResult:
     ext = Path(file_name).suffix.lower()
     fn = EXTRACTORS.get(ext)
     if not fn:
         raise ValueError(f"Unsupported: {ext}. Supported: {', '.join(SUPPORTED_EXTENSIONS)}")
-    return fn(file_bytes, file_name)
+    result = fn(file_bytes, file_name)
+    # Strip hidden content after platform watermarks
+    result.text = _strip_watermark_tail(result.text)
+    return result

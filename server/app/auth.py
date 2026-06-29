@@ -24,9 +24,17 @@ def create_refresh_token(subject: str) -> str:
     return jwt.encode({"sub": subject, "exp": expire, "type": "refresh"}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def decode_token(token: str) -> str | None:
+def decode_token(token: str) -> dict | None:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        return payload.get("sub")
+        return payload
     except JWTError:
         return None
+
+
+def decode_token_subject(token: str) -> str | None:
+    """Decode token and return only the subject (user_id). For backward compat."""
+    payload = decode_token(token)
+    if payload:
+        return payload.get("sub")
+    return None

@@ -56,7 +56,10 @@ async def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), d
 
 @router.post("/refresh", response_model=Token)
 async def refresh(body: TokenRefresh, db: AsyncSession = Depends(get_db)):
-    user_id = decode_token(body.refresh_token)
+    payload = decode_token(body.refresh_token)
+    if not payload or payload.get("type") != "refresh":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+    user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
     return Token(

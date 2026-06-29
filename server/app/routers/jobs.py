@@ -43,9 +43,9 @@ async def import_jd_file(
 
     # Parse with AI
     from app.prompts import JD_IMPORT_PROMPT
-    from app.injection_guard import sanitize_for_llm
+    from app.injection_guard import guard
 
-    clean_text = sanitize_for_llm(text[:3000], "JD_CONTENT")
+    clean_text, _warnings = guard(text[:3000], "JD_CONTENT")
     prompt = JD_IMPORT_PROMPT.format(text=clean_text)
 
     try:
@@ -67,7 +67,9 @@ async def import_jd_file(
 
         return parsed
     except Exception as e:
-        raise HTTPException(500, f"AI parsing failed: {e}")
+        import logging
+        logging.getLogger(__name__).error(f"AI parsing failed: {e}")
+        raise HTTPException(500, "AI parsing temporarily unavailable")
 
 
 @router.post("/generate-jd")
@@ -110,7 +112,9 @@ async def generate_job_description(
         end = clean.rfind("}") + 1
         return json.loads(clean[start:end])
     except Exception as e:
-        raise HTTPException(500, f"AI generation failed: {e}")
+        import logging
+        logging.getLogger(__name__).error(f"AI generation failed: {e}")
+        raise HTTPException(500, "AI generation temporarily unavailable")
 
 
 async def _smart_pool_match_job(job_id: str):

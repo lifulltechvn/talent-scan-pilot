@@ -104,6 +104,12 @@ async def check_cv_authenticity(
     if not raw_text:
         raise HTTPException(400, "CV file not available for analysis")
 
+    # Guard against prompt injection in raw CV text
+    from app.injection_guard import guard
+    raw_text_safe, injection_warnings = guard(raw_text, "RAW_CV_TEXT")
+    if injection_warnings:
+        logger.warning(f"Injection patterns in CV authenticity check for {candidate_id}: {injection_warnings}")
+
     d = candidate.structured_data or {}
     # Compute concrete signals
     experience = d.get("experience", [])
@@ -131,9 +137,7 @@ async def check_cv_authenticity(
 
     prompt = f"""You are an expert CV fraud detector. Analyze this RAW CV text (not AI-parsed) for authenticity.
 
-<RAW_CV_TEXT>
-{raw_text}
-</RAW_CV_TEXT>
+{raw_text_safe}
 
 Pre-computed signals: {json.dumps(signals)}
 

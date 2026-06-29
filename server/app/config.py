@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://talent:talent@db:5432/talentscan"
     SECRET_KEY: str = "change-me"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # AWS Bedrock
@@ -28,9 +28,13 @@ class Settings(BaseSettings):
 
     model_config = {"env_file": ".env"}
 
+    ENVIRONMENT: str = "dev"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if self.SECRET_KEY == "change-me":
+            if self.ENVIRONMENT != "dev":
+                raise RuntimeError("SECRET_KEY must be changed from default 'change-me' in production!")
             import warnings
             warnings.warn("SECRET_KEY is using default value 'change-me'. Set a strong secret in .env for production!", stacklevel=2)
 

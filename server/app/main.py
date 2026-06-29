@@ -28,6 +28,16 @@ app = FastAPI(title="TalentScan API", version="0.1.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
+# CORS
+from starlette.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost", "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Request timing middleware
 import time
@@ -44,7 +54,6 @@ class TimingMiddleware(BaseHTTPMiddleware):
         duration_ms = (time.time() - start) * 1000
         if duration_ms > 100:  # Only log slow requests
             _req_logger.info(f"{request.method} {request.url.path} — {duration_ms:.0f}ms")
-        response.headers["X-Response-Time-Ms"] = f"{duration_ms:.0f}"
         return response
 
 
@@ -81,6 +90,16 @@ from app.ws_manager import connect, disconnect
 
 @app.websocket("/ws/batch/{batch_id}")
 async def batch_progress_ws(websocket: WebSocket, batch_id: str):
+    # Authenticate via query param token
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4001, reason="Missing token")
+        return
+    from app.auth import decode_token
+    payload = decode_token(token)
+    if not payload or payload.get("type") == "refresh":
+        await websocket.close(code=4001, reason="Invalid token")
+        return
     await connect(batch_id, websocket)
     try:
         while True:

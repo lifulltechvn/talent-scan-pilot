@@ -492,7 +492,9 @@ async def send_invitation_email(
         get_email_service().send(to=body.to_email, subject=body.subject, html_body=html, bcc=body.bcc)
         return {"status": "sent"}
     except Exception as e:
-        raise HTTPException(502, f"Email delivery failed: {e}")
+        import logging
+        logging.getLogger(__name__).error(f"Email delivery failed: {e}")
+        raise HTTPException(502, "Email delivery failed")
 
 
 @router.put("/{interview_id}")

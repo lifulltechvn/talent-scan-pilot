@@ -1,6 +1,8 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,9 +15,13 @@ from app.services.scoring import compute_rule_score
 
 router = APIRouter(prefix="/scoring", tags=["scoring"])
 
+_limiter = Limiter(key_func=get_remote_address)
+
 
 @router.post("/jobs/{job_id}/match")
+@_limiter.limit("5/minute")
 async def match_and_score_candidates(
+    request: Request,
     job_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),

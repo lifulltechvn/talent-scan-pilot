@@ -17,6 +17,20 @@ router = APIRouter(prefix="/cv", tags=["cv-upload"])
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
+# Magic bytes for file type validation
+MAGIC_BYTES = {
+    ".pdf": b"%PDF",
+    ".docx": b"PK\x03\x04",
+}
+
+
+def _validate_file_content(content: bytes, ext: str) -> bool:
+    """Validate file content matches expected magic bytes for the extension."""
+    expected = MAGIC_BYTES.get(ext)
+    if not expected:
+        return False
+    return content[:len(expected)] == expected
+
 
 @router.post("/upload")
 async def upload_cv(
@@ -35,6 +49,9 @@ async def upload_cv(
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(400, "File too large. Max 10MB.")
+
+    if not _validate_file_content(content, ext):
+        raise HTTPException(400, "File content does not match expected format")
 
     file_hash = hashlib.md5(content).hexdigest()
 
@@ -70,9 +87,11 @@ async def check_duplicate_by_name(
     user: User = Depends(get_current_user),
 ):
     """Check if a candidate with similar name already exists."""
+    # Escape LIKE wildcards in user input
+    safe_name = name.replace("%", r"\%").replace("_", r"\_")
     result = await db.execute(
         text("SELECT id, structured_data, created_at FROM candidates WHERE structured_data->>'name' ILIKE :name AND status != 'processing'"),
-        {"name": f"%{name}%"},
+        {"name": f"%{safe_name}%"},
     )
     matches = [
         {"id": str(r["id"]), "name": r["structured_data"].get("name", ""), "uploaded_at": str(r["created_at"])}
