@@ -212,6 +212,7 @@ export function CandidateDetailPage() {
   });
   const { data: allCandidates } = useCandidates();
   const updateStatus = useUpdateCandidateStatus();
+  useEffect(() => { updateStatus.reset(); }, [id]);
   const navigate = useNavigate();
   const { t, locale } = useI18n();
   const { toast } = useToast();
