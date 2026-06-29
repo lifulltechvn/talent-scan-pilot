@@ -34,12 +34,40 @@ INJECTION_PATTERNS = [
     r"(?:respond|reply|output|return|answer)\s+(?:with|only|exactly)\s*:?\s*(?:SCORE|score)",
     r"(?:your|the)\s+(?:score|rating|evaluation)\s+(?:should|must|is)\s+(?:be\s+)?\d+",
     r"always\s+(?:give|return|output)\s+(?:a\s+)?(?:score|rating)\s+(?:of\s+)?\d+",
+    # Delimiter injection (fake end-of-input markers)
+    r"-{2,}\s*(?:END|end)\s+(?:OF|of)\s+(?:USER|user|INPUT|input|PROMPT|prompt|CONTEXT|context)",
+    r"={2,}\s*(?:END|end)\s+(?:OF|of)\s+(?:USER|user|INPUT|input)",
+    # Fake system/instruction markers
+    r"(?:NEW|new)\s+(?:SYSTEM|system)\s+(?:INSTRUCTION|instruction|PROMPT|prompt)",
+    r"(?:SYSTEM|system)\s+(?:INSTRUCTION|instruction|OVERRIDE|override)\s*:",
+    r"(?:IMPORTANT|important)\s*:\s*(?:ignore|disregard|forget|override)",
+    r"(?:NOTE|note)\s+(?:TO|to)\s+(?:AI|assistant|model|system)\s*:",
     # Prompt leaking
     r"(?:show|reveal|print|display|repeat)\s+(?:me\s+)?(?:your|the)\s+(?:system\s+)?(?:prompt|instructions?|rules?)",
     r"what\s+(?:are|is)\s+your\s+(?:system\s+)?(?:prompt|instructions?|rules?)",
+    # Conversation/role format injection
+    r"^(?:Human|User|Assistant|System|AI)\s*:",
+    r"^\s*Role\s*:\s*(?:system|assistant|admin)",
+    # Debug/testing mode
+    r"(?:enter|entering|enable|switch\s+to)\s+(?:debug|test|testing|admin|god)\s+mode",
+    r"(?:TESTING|DEBUG|ADMIN)\s+MODE\s*:",
+    # Vietnamese injection
+    r"(?:bỏ qua|hãy bỏ qua|bỏ hết)\s+(?:tất cả\s+)?(?:hướng dẫn|chỉ dẫn|lệnh|instructions?)",
+    r"(?:bây giờ|từ giờ)\s+(?:bạn là|hãy làm|hãy trả)",
+    # Generic delimiter attacks
+    r"<{3,}(?:END|end|STOP|stop)",
+    r">{3,}\s*(?:Now|now|Then|then)",
+    # Multi-step chaining
+    r"(?:step|bước)\s*\d+\s*:.*(?:forget|ignore|bỏ qua|override)",
+    # Acknowledge-then-override
+    r"(?:first|then|after that)\s*,?\s*(?:override|ignore|forget|disregard)",
+    # Score/output manipulation (indirect)
+    r"(?:correct|expected|right)\s+(?:output|score|result)\s+(?:for|is|should)",
+    r"(?:set|make|change|ensure)\s+(?:experience_years|skills|score|level)\s+(?:to|as|=)",
+    r"(?:AI|ai)\s+[\w\s]*(?:reviewer|note|assistant)\s*[:\-].*(?:override|G3|max\s*score)",
 ]
 
-_compiled = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]
+_compiled = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in INJECTION_PATTERNS]
 
 # Leet speak normalization map
 _LEET_MAP = str.maketrans("013457@", "oieasla")
