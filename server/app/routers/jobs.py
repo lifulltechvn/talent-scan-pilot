@@ -55,6 +55,12 @@ async def import_jd_file(
         end = raw.rfind("}") + 1
         parsed = json.loads(raw[start:end])
 
+        # Reject if not a JD
+        if parsed.get("document_type") != "jd":
+            raise HTTPException(400, "ファイルがJDのフォーマットではありません。正しいJDファイルをアップロードしてください。 / File không đúng định dạng JD. Vui lòng upload file JD hợp lệ.")
+
+        parsed.pop("document_type", None)
+
         # Ensure bilingual description
         desc = parsed.get("description", "")
         if desc and not isinstance(desc, dict):
@@ -66,10 +72,67 @@ async def import_jd_file(
                 parsed["description"] = json.dumps({"en": desc, "vi": desc})
 
         return parsed
+    except HTTPException:
+        raise
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"AI parsing failed: {e}")
         raise HTTPException(500, "AI parsing temporarily unavailable")
+
+
+@router.post("/validate-content")
+async def validate_jd_content(
+    data: dict,
+    _user: User = Depends(get_current_user),
+):
+    """Validate if the provided content is a legitimate job description."""
+    from app.bedrock import invoke_claude
+    from app.config import settings
+    from app.injection_guard import detect_injection
+
+    title = data.get("title", "")
+    description = data.get("description", "")
+    skills = data.get("required_skills", [])
+
+    # Check prompt injection
+    combined = f"{title} {description} {' '.join(skills)}"
+    injections = detect_injection(combined)
+    if injections:
+        raise HTTPException(400, "prompt_injection_detected")
+
+    text = f"Title: {title}\nDescription: {description}\nSkills: {', '.join(skills)}"
+
+    prompt = f"""Check if each field below is appropriate for a job description.
+- title: should be a real job position name
+- description: should describe role responsibilities/requirements
+- skills: should be relevant technical skills for the position
+
+Content:
+{text[:1500]}
+
+Reply ONLY in this format (each field: valid or invalid):
+title:valid/invalid
+description:valid/invalid
+skills:valid/invalid"""
+
+    try:
+        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=30, feature="jd_validate")
+        lines = raw.strip().lower().split("\n")
+        invalid_fields = []
+        for line in lines:
+            if "title" in line and "invalid" in line:
+                invalid_fields.append("title")
+            if "description" in line and "invalid" in line:
+                invalid_fields.append("description")
+            if "skills" in line and "invalid" in line:
+                invalid_fields.append("skills")
+        if invalid_fields:
+            raise HTTPException(400, {"code": "invalid_jd_content", "fields": invalid_fields})
+        return {"valid": True}
+    except HTTPException:
+        raise
+    except Exception:
+        return {"valid": True}
 
 
 @router.post("/generate-jd")

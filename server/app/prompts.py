@@ -58,10 +58,20 @@ SUGGESTION_VI: <one actionable recommendation in Vietnamese>"""
 
 # --- JD Import ---
 
-JD_IMPORT_PROMPT = """Parse this job description and extract structured data.
-Only extract information explicitly stated. If a field is not mentioned, use null.
+JD_IMPORT_PROMPT = """Analyze this document and extract structured data.
 
-IMPORTANT for required_skills:
+FIRST: Determine if this is a Job Description (JD). A JD typically contains:
+- A job title being offered by a company
+- Responsibilities/duties for the role
+- Requirements/qualifications the company expects from applicants
+- Company hiring context (not a person describing their own experience)
+
+A CV/Resume is NOT a JD. A CV describes a person's own experience, skills, and education history.
+
+Set "document_type" to "jd" if this is a job description, or "other" if it is NOT (e.g. CV, article, etc).
+If document_type is "other", set all other fields to null.
+
+IMPORTANT for required_skills (only if document_type is "jd"):
 - Extract ONLY concrete technologies, tools, languages, frameworks
 - If JD says "one of X, Y, Z" or "X or Y", combine them as ONE item with "/" separator: "X/Y/Z"
 - Example: "proficient in Go, Java, or Python" → "Go/Java/Python" (one item)
@@ -78,6 +88,7 @@ IMPORTANT for description: Write a concise summary BUT preserve skill conditions
 
 Reply in JSON only:
 {{
+  "document_type": "jd" or "other",
   "title": "job title",
   "description": "Concise summary preserving conditions. Example: 'Backend role. REQUIRED: 4+ yrs, ONE OF (Go/Java/Python). MUST: PostgreSQL, Docker. PREFERRED: AWS, K8s, Japanese N3+'",
   "required_skills": ["Go/Java/Python/Ruby", "PostgreSQL/MySQL", "Redis", "Docker", "Kafka", ...max 10],

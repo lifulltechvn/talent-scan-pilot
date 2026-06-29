@@ -65,6 +65,13 @@ INJECTION_PATTERNS = [
     r"(?:correct|expected|right)\s+(?:output|score|result)\s+(?:for|is|should)",
     r"(?:set|make|change|ensure)\s+(?:experience_years|skills|score|level)\s+(?:to|as|=)",
     r"(?:AI|ai)\s+[\w\s]*(?:reviewer|note|assistant)\s*[:\-].*(?:override|G3|max\s*score)",
+    # Delimiter/boundary injection (additional patterns)
+    r"---\s*END\s+OF\s+(?:USER\s+)?INPUT\s*---",
+    r"---\s*END\s*---",
+    r"(?:NEW|UPDATED?)\s+(?:SYSTEM\s+)?INSTRUCTION",
+    r"(?:SYSTEM|ADMIN)\s+(?:INSTRUCTION|COMMAND|DIRECTIVE)",
+    r"from\s+now\s+on\s*,?\s*(?:you|always|append|ignore|return)",
+    r"(?:append|prepend|add|insert)\s+['\"]?\w+['\"]?\s+to\s+(?:every|all|each)\s+(?:response|output|answer)",
 ]
 
 _compiled = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in INJECTION_PATTERNS]

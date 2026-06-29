@@ -94,7 +94,7 @@ async def list_candidates(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    q = select(Candidate).where(Candidate.status != 'blacklisted').order_by(Candidate.created_at.desc())
+    q = select(Candidate).where(Candidate.status != 'blacklisted').order_by(text("CASE WHEN status = 'processing' THEN 1 ELSE 0 END"), Candidate.created_at.desc())
     if job_id:
         q = q.where(Candidate.job_id == job_id)
     if status_filter:
