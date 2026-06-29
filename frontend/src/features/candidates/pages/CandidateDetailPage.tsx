@@ -713,11 +713,22 @@ function MatchedJobsSection({ candidateId, hasAssignedJob }: { candidateId: stri
   const qc = useQueryClient();
 
   useEffect(() => {
-    apiClient.get(`/candidates/${candidateId}/matched-jobs`)
-      .then(({ data }) => setJobs(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [candidateId]);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const fetchJobs = () => {
+      apiClient.get(`/candidates/${candidateId}/matched-jobs`)
+        .then(({ data }) => {
+          setJobs(data);
+          // Retry once after 10s if empty (Phase 2 might still be running)
+          if (data.length === 0 && !timer) {
+            timer = setTimeout(fetchJobs, 10000);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    };
+    fetchJobs();
+    return () => { if (timer) clearTimeout(timer); };
+  }, [candidateId, hasAssignedJob]);
 
   const handleAssign = async (jobId: string) => {
     setAssigning(jobId);
@@ -732,7 +743,21 @@ function MatchedJobsSection({ candidateId, hasAssignedJob }: { candidateId: stri
   };
 
   if (loading) return null;
-  if (jobs.length === 0) return null;
+  if (jobs.length === 0) {
+    // Show placeholder if enrichment not done yet (no experience = Phase 2 still running)
+    if (!hasAssignedJob) {
+      return (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mt-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Briefcase size={15} className="text-accent" />
+            <h2 className="text-sm font-medium text-text-primary">{t("matchedJobs")}</h2>
+          </div>
+          <p className="text-[11px] text-text-muted">⏳ Đang tìm job phù hợp... Kết quả sẽ hiện sau vài giây.</p>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className="bg-bg-panel border border-border-subtle rounded-xl p-5 mt-5">
