@@ -591,7 +591,7 @@ export function CandidateDetailPage() {
                 </>
               )}
               {candidate.status === 'approved' && <div className="text-center text-[13px] font-medium text-emerald-600 bg-emerald-50 py-2 rounded-lg">✓ {t("statusApproved")}</div>}
-              {candidate.status === 'rejected' && <div className="text-center text-[13px] font-medium text-red-600 bg-red-50 py-2 rounded-lg">✗ {t("statusRejected")}</div>}
+              {candidate.status === 'rejected' && <div className="text-center text-[13px] font-medium text-red-600 bg-red-50 py-2 px-3 rounded-lg">✗ {t("statusRejected")}{candidate.jobTitle && <span className="font-normal text-red-500"> — {candidate.jobTitle}</span>}</div>}
               {candidate.cvFilePath && (
                 <div className="flex gap-2">
                   <button onClick={() => {
