@@ -56,6 +56,7 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
 
   const [submitting, setSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [validationModal, setValidationModal] = useState<string[] | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +65,7 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
     if (!form.title.trim()) errors.title = t('jobTitleRequired');
     if (!form.description.trim()) errors.description = t('jobDescRequired');
     if (form.skills.length === 0) errors.skills = t('skillsRequired');
+    if (!form.category) errors.category = t('categoryRequired');
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
@@ -73,9 +75,14 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
       await apiClient.post('/jobs/validate-content', { title: form.title, description: form.description, required_skills: form.skills });
     } catch (err: any) {
       if (err?.response?.status === 400) {
-        const detail = err?.response?.data?.detail || '';
-        const msg = detail === 'prompt_injection_detected' ? t('promptInjectionDetected') : t('invalidJDContent');
-        setFormErrors({ description: msg });
+        const detail = err?.response?.data?.detail;
+        if (detail === 'prompt_injection_detected') {
+          setValidationModal(['prompt_injection']);
+        } else if (detail?.fields) {
+          setValidationModal(detail.fields);
+        } else {
+          setValidationModal(['title', 'description', 'skills']);
+        }
         setSubmitting(false);
         return;
       }
@@ -118,7 +125,7 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
           {formErrors.title && <p className="text-[11px] text-red-500 -mt-2">{formErrors.title}</p>}
           <div>
             <label className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t('positionCategory')}</label>
-            <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 bg-white">
+            <select value={form.category} onChange={e => { setForm(p => ({ ...p, category: e.target.value })); setFormErrors(p => ({ ...p, category: '' })); }} className={`mt-1 w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 bg-white ${formErrors.category ? 'border-red-400' : 'border-border-subtle'}`}>
               <option value="">{t('selectCategory')}</option>
               <option value="application_engineer">Application Engineer</option>
               <option value="bridge_se">Bridge System Engineer</option>
@@ -126,6 +133,7 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
               <option value="admin">Admin</option>
               <option value="hr">HR</option>
             </select>
+            {formErrors.category && <p className="text-[11px] text-red-500 mt-1">{formErrors.category}</p>}
           </div>
           <textarea value={form.description} onChange={e => { setForm(p => ({ ...p, description: e.target.value })); setDescRaw(''); setFormErrors(p => ({ ...p, description: '' })); }} placeholder={t('jobDescPlaceholder')} rows={3} className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 ${formErrors.description ? 'border-red-400' : 'border-border-subtle'}`} />
           {formErrors.description && <p className="text-[11px] text-red-500 -mt-2">{formErrors.description}</p>}
@@ -160,6 +168,28 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
           </div>
         </div>
       </form>
+      {validationModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-bg-panel rounded-2xl w-full max-w-sm shadow-xl border border-border-subtle p-6">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <X size={24} className="text-red-500" />
+            </div>
+            <h3 className="text-[15px] font-semibold text-text-primary text-center mb-3">
+              {validationModal.includes('prompt_injection') ? t('promptInjectionDetected') : t('jdValidationFailed')}
+            </h3>
+            {!validationModal.includes('prompt_injection') && (
+              <ul className="space-y-2 mb-5">
+                {validationModal.includes('title') && <li className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">• {t('jdFieldInvalidTitle')}</li>}
+                {validationModal.includes('description') && <li className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">• {t('jdFieldInvalidDescription')}</li>}
+                {validationModal.includes('skills') && <li className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">• {t('jdFieldInvalidSkills')}</li>}
+              </ul>
+            )}
+            <div className="flex justify-center">
+              <button onClick={() => setValidationModal(null)} className="px-5 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

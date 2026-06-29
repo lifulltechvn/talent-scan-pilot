@@ -901,11 +901,40 @@ function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void;
   const [location, setLocation] = useState(job.location || '');
   const [salary, setSalary] = useState(job.salaryRange || '');
   const [deadline, setDeadline] = useState(job.deadline?.slice(0, 10) || '');
+  const [category, setCategory] = useState(job.category || '');
 
   const [saving, setSaving] = useState(false);
+  const [validationModal, setValidationModal] = useState<string[] | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const handleSave = async () => {
+    const errors: Record<string, string> = {};
+    if (!title.trim()) errors.title = t('jobTitleRequired');
+    if (!description.trim()) errors.description = t('jobDescRequired');
+    if (skillsList.length === 0) errors.skills = t('skillsRequired');
+    if (!category) errors.category = t('categoryRequired');
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setSaving(true);
+    // Validate JD content
+    try {
+      await apiClient.post('/jobs/validate-content', { title, description, required_skills: skillsList });
+    } catch (err: any) {
+      if (err?.response?.status === 400) {
+        const detail = err?.response?.data?.detail;
+        if (detail === 'prompt_injection_detected') {
+          setValidationModal(['prompt_injection']);
+        } else if (detail?.fields) {
+          setValidationModal(detail.fields);
+        } else {
+          setValidationModal(['title', 'description', 'skills']);
+        }
+        setSaving(false);
+        return;
+      }
+    }
+
     // Auto-translate to the other language
     const otherLocale = locale === 'vi' ? 'en' : 'vi';
     let otherDesc = description;
@@ -920,6 +949,7 @@ function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void;
       requiredSkills: skillsList,
       salaryRange: salary || undefined,
       location: location || undefined,
+      category: category || undefined,
       deadline: deadline || undefined,
     });
     setSaving(false);
@@ -934,6 +964,18 @@ function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void;
         </div>
         <div className="p-5 space-y-4">
           <Field label={t('jobTitle')} value={title} onChange={setTitle} />
+          <div>
+            <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('positionCategory')} *</label>
+            <select value={category} onChange={e => { setCategory(e.target.value); setFormErrors(p => ({ ...p, category: '' })); }} className={`mt-1 w-full px-3 py-2 border rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 bg-white ${formErrors.category ? 'border-red-400' : 'border-border-default'}`}>
+              <option value="">{t('selectCategory')}</option>
+              <option value="application_engineer">Application Engineer</option>
+              <option value="bridge_se">Bridge System Engineer</option>
+              <option value="qa_engineer">QA Engineer</option>
+              <option value="admin">Admin</option>
+              <option value="hr">HR</option>
+            </select>
+            {formErrors.category && <p className="text-[11px] text-red-500 mt-1">{formErrors.category}</p>}
+          </div>
           <div>
             <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('jobDescription')}</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} className="mt-1 w-full px-3 py-2 border border-border-default rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 resize-y" />
@@ -968,6 +1010,28 @@ function EditJobModal({ job, onClose, onSave }: { job: any; onClose: () => void;
           </div>
         </div>
       </div>
+      {validationModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-bg-panel rounded-2xl w-full max-w-sm shadow-xl border border-border-subtle p-6">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <X size={24} className="text-red-500" />
+            </div>
+            <h3 className="text-[15px] font-semibold text-text-primary text-center mb-3">
+              {validationModal.includes('prompt_injection') ? t('promptInjectionDetected') : t('jdValidationFailed')}
+            </h3>
+            {!validationModal.includes('prompt_injection') && (
+              <ul className="space-y-2 mb-5">
+                {validationModal.includes('title') && <li className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">• {t('jdFieldInvalidTitle')}</li>}
+                {validationModal.includes('description') && <li className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">• {t('jdFieldInvalidDescription')}</li>}
+                {validationModal.includes('skills') && <li className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">• {t('jdFieldInvalidSkills')}</li>}
+              </ul>
+            )}
+            <div className="flex justify-center">
+              <button onClick={() => setValidationModal(null)} className="px-5 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

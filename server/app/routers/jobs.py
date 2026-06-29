@@ -102,25 +102,37 @@ async def validate_jd_content(
 
     text = f"Title: {title}\nDescription: {description}\nSkills: {', '.join(skills)}"
 
-    prompt = f"""Determine if this is legitimate job description content.
-A valid JD should have: a real job title, a coherent description about a role/responsibilities, and relevant technical skills.
-Invalid examples: random text, personal info, jokes, unrelated content, nonsense.
+    prompt = f"""Check if each field below is appropriate for a job description.
+- title: should be a real job position name
+- description: should describe role responsibilities/requirements
+- skills: should be relevant technical skills for the position
 
 Content:
 {text[:1500]}
 
-Reply ONLY "valid" or "invalid"."""
+Reply ONLY in this format (each field: valid or invalid):
+title:valid/invalid
+description:valid/invalid
+skills:valid/invalid"""
 
     try:
-        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=10, feature="jd_validate")
-        is_valid = "valid" in raw.strip().lower() and "invalid" not in raw.strip().lower()
-        if not is_valid:
-            raise HTTPException(400, "invalid_jd_content")
+        raw = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=30, feature="jd_validate")
+        lines = raw.strip().lower().split("\n")
+        invalid_fields = []
+        for line in lines:
+            if "title" in line and "invalid" in line:
+                invalid_fields.append("title")
+            if "description" in line and "invalid" in line:
+                invalid_fields.append("description")
+            if "skills" in line and "invalid" in line:
+                invalid_fields.append("skills")
+        if invalid_fields:
+            raise HTTPException(400, {"code": "invalid_jd_content", "fields": invalid_fields})
         return {"valid": True}
     except HTTPException:
         raise
     except Exception:
-        return {"valid": True}  # Skip validation if AI unavailable
+        return {"valid": True}
 
 
 @router.post("/generate-jd")
