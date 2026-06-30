@@ -265,8 +265,23 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 structured["_duplicate_name"] = dup_match.candidate_name
 
             # Assess skill level based on skill maps
+            # AND Phase 2 Enrichment — run in PARALLEL to save time
             from app.skill_maps import assess_skill_level
-            skill_level = assess_skill_level(structured, candidate_id=candidate_id)
+            from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed
+
+            def _do_assess():
+                return assess_skill_level(structured, candidate_id=candidate_id)
+
+            def _do_enrich():
+                return _parse_cv_enrichment(text, candidate_id)
+
+            with _TPE(max_workers=2) as mini_pool:
+                future_assess = mini_pool.submit(_do_assess)
+                future_enrich = mini_pool.submit(_do_enrich)
+
+            skill_level = future_assess.result()
+            enriched = future_enrich.result()
+
             if skill_level:
                 structured["skill_level"] = skill_level
                 logger.info(f"Skill level assessed: {skill_level.get('level')} reason_len={len(skill_level.get('reason', {}).get('en', ''))}")
@@ -292,26 +307,24 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             loop.close()
             logger.info(f"Background AI done for candidate {candidate_id[:8]}")
 
-            # Phase 2: Enrichment (experience, education, insight)
+            # Apply enrichment data (already fetched in parallel above)
             try:
-                enriched = _parse_cv_enrichment(text, candidate_id)
-                if enriched.get("experience"): structured["experience"] = enriched["experience"]
-                if enriched.get("education"): structured["education"] = enriched["education"]
-                if enriched.get("certifications"): structured["certifications"] = enriched["certifications"]
-                if enriched.get("languages"): structured["languages"] = enriched["languages"]
-                structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
-                # Don't overwrite skill_level from enrichment — assess_skill_level already provides full assessment
-                # Only update reason if enrichment has one and current reason is empty
-                sl_enriched = enriched.get("skill_level")
-                if sl_enriched and isinstance(sl_enriched, dict):
-                    existing_sl = structured.get("skill_level", {})
-                    existing_reason = existing_sl.get("reason", {})
-                    if existing_reason and not existing_reason.get("en"):
-                        # Only fill reason if currently empty
-                        if sl_enriched.get("reason_en"):
-                            existing_sl.setdefault("reason", {})["en"] = sl_enriched["reason_en"]
-                        if sl_enriched.get("reason_vi"):
-                            existing_sl.setdefault("reason", {})["vi"] = sl_enriched["reason_vi"]
+                if enriched:
+                    if enriched.get("experience"): structured["experience"] = enriched["experience"]
+                    if enriched.get("education"): structured["education"] = enriched["education"]
+                    if enriched.get("certifications"): structured["certifications"] = enriched["certifications"]
+                    if enriched.get("languages"): structured["languages"] = enriched["languages"]
+                    structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
+                    # Don't overwrite skill_level from enrichment — assess_skill_level already provides full assessment
+                    sl_enriched = enriched.get("skill_level")
+                    if sl_enriched and isinstance(sl_enriched, dict):
+                        existing_sl = structured.get("skill_level", {})
+                        existing_reason = existing_sl.get("reason", {})
+                        if existing_reason and not existing_reason.get("en"):
+                            if sl_enriched.get("reason_en"):
+                                existing_sl.setdefault("reason", {})["en"] = sl_enriched["reason_en"]
+                            if sl_enriched.get("reason_vi"):
+                                existing_sl.setdefault("reason", {})["vi"] = sl_enriched["reason_vi"]
                 # Embed with enriched data (include role context for better semantic match with job descriptions)
                 latest_role = ""
                 if structured.get("experience"):
