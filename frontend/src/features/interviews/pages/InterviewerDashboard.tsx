@@ -232,7 +232,7 @@ export function InterviewerDashboard() {
                     <button onClick={() => setFeedbackModal(i)} className="text-[11px] text-accent hover:underline">{t('editBtnShort')}</button>
                     <div className="flex items-center gap-1">
                       <Star size={12} className="text-amber-500" />
-                      <span className="text-[12px] font-medium">{i.feedback_score}/5</span>
+                      <span className="text-[12px] font-medium">{i.feedback_score}/10</span>
                     </div>
                     <span className={`text-[11px] px-2 py-0.5 rounded-full ${i.feedback_decision === 'pass' ? 'bg-emerald-100 text-emerald-700' : i.feedback_decision === 'fail' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
                       {i.feedback_decision}
@@ -517,7 +517,7 @@ function QuestionsModal({ interview, onClose }: { interview: MyInterview; onClos
                     <span className="text-[10px] ml-2 text-text-muted">{q.skill}</span>
                   </div>
                   <span className="text-[11px] font-medium text-text-muted">
-                    {(scores[q.id] || []).filter(Boolean).length}/5
+                    {(scores[q.id] || []).filter(Boolean).length}/{questions.length}
                   </span>
                 </div>
                 <p className="text-[13px] text-text-primary font-medium mb-3">{q.question}</p>

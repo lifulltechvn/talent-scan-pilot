@@ -62,7 +62,7 @@ export function FeedbackModal({ candidateId, candidateName, jobId, jobTitle, rou
           <div>
             <label className="text-[12px] font-medium text-text-muted uppercase tracking-wider">{t('rating')}</label>
             <div className="flex gap-1 mt-1.5">
-              {[1, 2, 3, 4, 5].map(n => (
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                 <button key={n} type="button" onClick={() => setRating(n)} className={`p-1.5 rounded-lg transition-colors ${rating >= n ? 'text-amber-500' : 'text-border-subtle hover:text-amber-300'}`}>
                   <Star size={22} fill={rating >= n ? 'currentColor' : 'none'} />
                 </button>
