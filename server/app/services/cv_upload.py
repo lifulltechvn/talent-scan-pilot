@@ -264,10 +264,9 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 structured["_duplicate_reason"] = dup_match.reason
                 structured["_duplicate_name"] = dup_match.candidate_name
 
-            # Assess skill level based on skill maps
-            # AND Phase 2 Enrichment — run in PARALLEL to save time
+            # Assess skill level AND Enrichment — run in PARALLEL
             from app.skill_maps import assess_skill_level
-            from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed
+            from concurrent.futures import ThreadPoolExecutor as _TPE
 
             def _do_assess():
                 return assess_skill_level(structured, candidate_id=candidate_id)
@@ -282,23 +281,48 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             skill_level = future_assess.result()
             enriched = future_enrich.result()
 
+            # Apply skill_level
             if skill_level:
                 structured["skill_level"] = skill_level
                 logger.info(f"Skill level assessed: {skill_level.get('level')} reason_len={len(skill_level.get('reason', {}).get('en', ''))}")
             else:
                 logger.warning(f"assess_skill_level returned None for {candidate_id[:8]}")
 
-            # Update candidate in DB
+            # Apply enrichment
+            if enriched:
+                if enriched.get("experience"): structured["experience"] = enriched["experience"]
+                if enriched.get("education"): structured["education"] = enriched["education"]
+                if enriched.get("certifications"): structured["certifications"] = enriched["certifications"]
+                if enriched.get("languages"): structured["languages"] = enriched["languages"]
+                structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
+                # Don't overwrite skill_level reason if already assessed
+                sl_enriched = enriched.get("skill_level")
+                if sl_enriched and isinstance(sl_enriched, dict):
+                    existing_sl = structured.get("skill_level", {})
+                    existing_reason = existing_sl.get("reason", {})
+                    if existing_reason and not existing_reason.get("en"):
+                        if sl_enriched.get("reason_en"):
+                            existing_sl.setdefault("reason", {})["en"] = sl_enriched["reason_en"]
+                        if sl_enriched.get("reason_vi"):
+                            existing_sl.setdefault("reason", {})["vi"] = sl_enriched["reason_vi"]
+
+            # Embed with enriched data
+            latest_role = ""
+            if structured.get("experience"):
+                exp0 = structured["experience"][0]
+                role_val = exp0.get("role", "")
+                latest_role = role_val.get("en", "") if isinstance(role_val, dict) else str(role_val)
+            embed_text = f"{latest_role} {' '.join(structured.get('skills', []))}"
+            emb = get_embedding(embed_text, candidate_id=candidate_id)
+
+            # Single DB save — all data at once (G-level + insight + experience + embedding)
             async def _update():
+                from sqlalchemy import text as sa_text
                 engine = create_async_engine(settings.DATABASE_URL, pool_size=1)
                 factory = async_sessionmaker(engine, expire_on_commit=False)
                 async with factory() as db:
-                    from sqlalchemy import update
-                    await db.execute(
-                        update(Candidate)
-                        .where(Candidate.id == uuid.UUID(candidate_id))
-                        .values(structured_data=structured, embedding=embedding, status="new")
-                    )
+                    await db.execute(sa_text("UPDATE candidates SET structured_data = :sd, embedding = :emb, status = 'new' WHERE id = :id"),
+                        {"sd": json.dumps(structured, ensure_ascii=False), "emb": str(emb) if emb else str(embedding) if embedding else None, "id": candidate_id})
                     await db.commit()
                 await engine.dispose()
 
@@ -306,48 +330,6 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             loop.run_until_complete(_update())
             loop.close()
             logger.info(f"Background AI done for candidate {candidate_id[:8]}")
-
-            # Apply enrichment data (already fetched in parallel above)
-            try:
-                if enriched:
-                    if enriched.get("experience"): structured["experience"] = enriched["experience"]
-                    if enriched.get("education"): structured["education"] = enriched["education"]
-                    if enriched.get("certifications"): structured["certifications"] = enriched["certifications"]
-                    if enriched.get("languages"): structured["languages"] = enriched["languages"]
-                    structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
-                    # Don't overwrite skill_level from enrichment — assess_skill_level already provides full assessment
-                    sl_enriched = enriched.get("skill_level")
-                    if sl_enriched and isinstance(sl_enriched, dict):
-                        existing_sl = structured.get("skill_level", {})
-                        existing_reason = existing_sl.get("reason", {})
-                        if existing_reason and not existing_reason.get("en"):
-                            if sl_enriched.get("reason_en"):
-                                existing_sl.setdefault("reason", {})["en"] = sl_enriched["reason_en"]
-                            if sl_enriched.get("reason_vi"):
-                                existing_sl.setdefault("reason", {})["vi"] = sl_enriched["reason_vi"]
-                # Embed with enriched data (include role context for better semantic match with job descriptions)
-                latest_role = ""
-                if structured.get("experience"):
-                    exp0 = structured["experience"][0]
-                    role_val = exp0.get("role", "")
-                    latest_role = role_val.get("en", "") if isinstance(role_val, dict) else str(role_val)
-                embed_text = f"{latest_role} {' '.join(structured.get('skills', []))}"
-                emb = get_embedding(embed_text, candidate_id=candidate_id)
-                # Save enriched
-                async def _update2():
-                    from sqlalchemy import text as sa_text
-                    engine2 = create_async_engine(settings.DATABASE_URL, pool_size=1)
-                    factory2 = async_sessionmaker(engine2, expire_on_commit=False)
-                    async with factory2() as db2:
-                        await db2.execute(sa_text("UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"),
-                            {"sd": json.dumps(structured, ensure_ascii=False), "emb": str(emb) if emb else None, "id": candidate_id})
-                        await db2.commit()
-                    await engine2.dispose()
-                loop2 = asyncio.new_event_loop()
-                loop2.run_until_complete(_update2())
-                loop2.close()
-            except Exception as e2:
-                logger.warning(f"Enrichment failed for {candidate_id[:8]}: {e2}")
 
             # Translate background
             from app.services.cv_translate import translate_candidate_background
