@@ -455,24 +455,20 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
         # Calculate G-level using proportional logic
         calculated_level = _calculate_g_level(skill_scores)
 
-        # Reconcile AI-recommended level with calculated level
-        # AI has full CV context (roles, achievements, years) that scoring may miss
-        # Code calculation is strict (requires breadth across ALL domains)
+        # Trust AI-recommended level — AI has full Skill Map context + CV evidence
+        # AI scored every domain individually, then concluded the level
+        # Only sanity check: if calc says G0 (truly no evidence), cap AI at G2
         g_order = ["G0", "G1", "G2", "G3", "G4", "G5", "G6"]
         ai_idx = g_order.index(ai_level) if ai_level in g_order else -1
         calc_idx = g_order.index(calculated_level) if calculated_level in g_order else 0
 
         if ai_idx >= 0:
-            if abs(ai_idx - calc_idx) <= 1:
-                # Within 1 step: trust AI
-                level = ai_level
-            elif ai_idx > calc_idx:
-                # AI says higher: use midpoint (AI has context about depth we miss)
-                mid_idx = (ai_idx + calc_idx + 1) // 2  # round up
-                level = g_order[mid_idx]
+            if calc_idx == 0 and ai_idx > 2:
+                # Calc says G0 but AI says G3+ → something off, cap at G2
+                level = "G2"
             else:
-                # AI says lower than calculation: trust calculation
-                level = calculated_level
+                # Trust AI
+                level = ai_level
         else:
             level = calculated_level
 
