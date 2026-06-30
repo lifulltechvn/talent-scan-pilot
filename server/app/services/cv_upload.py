@@ -297,16 +297,18 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 if enriched.get("certifications"): structured["certifications"] = enriched["certifications"]
                 if enriched.get("languages"): structured["languages"] = enriched["languages"]
                 structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
-                sl = enriched.get("skill_level")
-                if sl and isinstance(sl, dict) and sl.get("level") and sl.get("category"):
-                    from app.skill_maps import SKILL_MAPS
-                    cat_data = SKILL_MAPS.get(sl["category"], {})
-                    structured["skill_level"] = {
-                        "category": sl["category"], "level": sl["level"],
-                        "reason": {"en": sl.get("reason", ""), "vi": ""},
-                        "category_title": {"vi": cat_data.get("title_vi", sl["category"]), "en": sl["category"].replace("_", " ").title()},
-                        "domains": cat_data.get("domains", []),
-                    }
+                # Don't overwrite skill_level from enrichment — assess_skill_level already provides full assessment
+                # Only update reason if enrichment has one and current reason is empty
+                sl_enriched = enriched.get("skill_level")
+                if sl_enriched and isinstance(sl_enriched, dict):
+                    existing_sl = structured.get("skill_level", {})
+                    existing_reason = existing_sl.get("reason", {})
+                    if existing_reason and not existing_reason.get("en"):
+                        # Only fill reason if currently empty
+                        if sl_enriched.get("reason_en"):
+                            existing_sl.setdefault("reason", {})["en"] = sl_enriched["reason_en"]
+                        if sl_enriched.get("reason_vi"):
+                            existing_sl.setdefault("reason", {})["vi"] = sl_enriched["reason_vi"]
                 # Embed with enriched data (include role context for better semantic match with job descriptions)
                 latest_role = ""
                 if structured.get("experience"):

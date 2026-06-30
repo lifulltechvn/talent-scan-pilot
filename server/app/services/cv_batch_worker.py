@@ -130,10 +130,12 @@ async def _process_batch(batch_id: str, target_job_id: str | None = None):
                     if enriched.get("certifications"): sd["certifications"] = enriched["certifications"]
                     if enriched.get("languages"): sd["languages"] = enriched["languages"]
                     sd["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
-                    # Keep Phase 1 skill_level category/level, but update reason from Phase 2
+                    # Keep Phase 1 skill_level — only fill reason if currently empty
                     sl = enriched.get("skill_level")
                     if sl and isinstance(sl, dict) and (sl.get("reason_en") or sl.get("reason")) and sd.get("skill_level"):
-                        sd["skill_level"]["reason"] = {"en": sl.get("reason_en", sl.get("reason", "")), "vi": sl.get("reason_vi", "")}
+                        existing_reason = sd["skill_level"].get("reason", {})
+                        if not existing_reason.get("en"):
+                            sd["skill_level"]["reason"] = {"en": sl.get("reason_en", sl.get("reason", "")), "vi": sl.get("reason_vi", "")}
                     emb = get_embedding(" ".join(sd.get("skills", [])), candidate_id=cid)
                     async with _sf() as _db:
                         await _db.execute(_text(
@@ -432,10 +434,12 @@ def process_single_item(item_id: str, file_path: str, file_name: str, file_hash:
                 if enriched.get("certifications"): structured["certifications"] = enriched["certifications"]
                 if enriched.get("languages"): structured["languages"] = enriched["languages"]
                 structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
-                # Keep Phase 1 skill_level category/level, but update reason from Phase 2
+                # Keep Phase 1 skill_level — only fill reason if currently empty
                 sl = enriched.get("skill_level")
                 if sl and isinstance(sl, dict) and (sl.get("reason_en") or sl.get("reason")) and structured.get("skill_level"):
-                    structured["skill_level"]["reason"] = {"en": sl.get("reason_en", sl.get("reason", "")), "vi": sl.get("reason_vi", "")}
+                    existing_reason = structured["skill_level"].get("reason", {})
+                    if not existing_reason.get("en"):
+                        structured["skill_level"]["reason"] = {"en": sl.get("reason_en", sl.get("reason", "")), "vi": sl.get("reason_vi", "")}
                 emb = get_embedding(" ".join(structured.get("skills", [])), candidate_id=str(candidate_id))
                 await db.execute(text("UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"),
                     {"sd": json.dumps(structured, ensure_ascii=False), "emb": str(emb) if emb else None, "id": str(candidate_id)})
