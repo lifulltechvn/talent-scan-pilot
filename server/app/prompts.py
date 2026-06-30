@@ -97,6 +97,7 @@ Reply in JSON only:
   "required_years": number or null,
   "required_education": "bachelor/master/phd or null",
   "deadline": "YYYY-MM-DD or null"
+  "category": "application_engineer or bridge_se or qa_engineer or admin or hr (choose one based on job content)"
 }}
 
 {text}"""

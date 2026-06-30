@@ -67,7 +67,7 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
       editor?.commands.setContent(html);
       setSignature(data.signature);
       setShowAI(false);
-    } catch (e: any) { setError(e.response?.data?.detail || t('aiGenerationFailed')); }
+    } catch (e: any) { setError(typeof e.response?.data?.detail === 'string' ? e.response.data.detail : t('aiGenerationFailed')); }
     setGenerating(false);
   };
 
@@ -90,7 +90,7 @@ export function EmailCompose({ candidateId, candidateName, candidateEmail, jobTi
       });
       onSent?.();
       onClose();
-    } catch (e: any) { setError(e.response?.data?.detail || t('sendFailed')); }
+    } catch (e: any) { setError(typeof e.response?.data?.detail === 'string' ? e.response.data.detail : Array.isArray(e.response?.data?.detail) ? e.response.data.detail.map((d: any) => d.msg).join(', ') : t('sendFailed')); }
     setSending(false);
   };
 

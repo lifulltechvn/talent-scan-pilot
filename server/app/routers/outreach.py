@@ -65,7 +65,7 @@ class SendRequest(BaseModel):
     tips: list[str] = []
     feedback: str = ""
     # Fixed context
-    job_title: str
+    job_title: str = ""
     company: str = "LIFULL Tech Vietnam"
     schedule_url: str | None = None
     interview_date: str | None = None
