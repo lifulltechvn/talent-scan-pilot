@@ -42,7 +42,16 @@ async def _pre_generate_question_bank(candidate_id: str, job_id: str | None = No
             d = candidate.structured_data or {}
             exp_years = d.get("experience_years", 0)
             level = "fresher" if exp_years < 1 else "junior" if exp_years < 3 else "senior" if exp_years < 7 else "master"
-            g_level = d.get("skill_level", {}).get("level", "G2")
+            # FIX: Don't blindly trust CV G-level (may be stuck at G1 due to previous bugs).
+            # Use experience-based heuristic as floor, CV assessment as input.
+            cv_g_level = d.get("skill_level", {}).get("level", "")
+            # Experience-based minimum estimate (prevent under-assessment)
+            exp_min_g = "G0" if exp_years < 1 else "G1" if exp_years < 3 else "G2" if exp_years < 6 else "G3"
+            # Use the HIGHER of CV assessment and experience-based estimate
+            g_order = ["G0", "G1", "G2", "G3", "G4", "G5"]
+            cv_idx = g_order.index(cv_g_level) if cv_g_level in g_order else 1
+            exp_idx = g_order.index(exp_min_g)
+            g_level = g_order[max(cv_idx, exp_idx)]
             job_category = job.category or d.get("skill_level", {}).get("category", "application_engineer")
 
             # Parse JD

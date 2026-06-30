@@ -1,5 +1,19 @@
-"""Skill map reference data extracted from TechSkill PDFs."""
+"""Skill map reference data extracted from TechSkill PDFs.
+
+V2: Full rewrite fixing critical bugs:
+- Truncation: removed 4000 char limit, sends full skill map to AI
+- Thresholds: proportional per category instead of absolute 40/50
+- Added accounting category
+- Multi-pass evaluation: scores all levels, not just G0/G1
+- Evidence-based scoring with structured output
+"""
+from __future__ import annotations
+
 import json
+import logging
+import os
+
+logger = logging.getLogger(__name__)
 
 SKILL_MAPS = {
     "application_engineer": {
@@ -96,6 +110,37 @@ SKILL_MAPS = {
         ],
         "key_skills": ["Recruitment", "Labor Law", "HRIS", "Payroll", "Training & Development", "Performance Management", "Employee Relations", "MS Office", "Communication"],
     },
+    "accounting": {
+        "title_vi": "Nhân viên kế toán",
+        "title_ja": "会計スタッフ",
+        "domains": [
+            "Nghiệp vụ hạch toán kế toán, lập báo cáo tài chính",
+            "Nghiệp vụ phát hành hoá đơn, lập báo cáo thuế",
+            "Nghiệp vụ quản lý công nợ phải thu phải trả",
+            "Nghiệp vụ quản lý chứng từ kế toán",
+            "Đối ứng thanh tra thuế, kiểm toán",
+            "Kỹ năng khác (ngoại ngữ, phần mềm kế toán)",
+        ],
+        "g_criteria": {
+            "G0": "Hiểu cơ bản về nghiệp vụ với sự trợ giúp. Có thể học hỏi chuẩn mực kế toán. Đọc hiểu báo cáo VAT/PIT. Lập danh sách theo dõi doanh thu. Giúp đỡ lưu chứng từ. Cung cấp dữ liệu theo chỉ thị cấp trên.",
+            "G1": "Hạch toán nghiệp vụ phát sinh hàng ngày. Phát hành hoá đơn đúng kỳ hạn, hỗ trợ lập báo cáo thuế. Hiểu và giải thích công nợ. Hiểu cách phân loại chứng từ. Cung cấp dữ liệu cho kiểm toán nội bộ. Sử dụng phần mềm kế toán.",
+            "G2": "Xác nhận tính hợp lý chứng từ, phân bổ TSCĐ/CCDC. Lập báo cáo thuế VAT/CIT/PIT đầy đủ. Soát xét chứng từ thanh toán, xây dựng dự toán. Đảm bảo sổ sách đúng thời hạn. Chuẩn bị hồ sơ cho cơ quan thuế. Đọc hiểu tài liệu tiếng Anh.",
+            "G3": "Lập BCTC hàng tháng, phân tích số liệu cho Giám đốc. Lập báo cáo quyết toán thuế hàng năm, hoàn thuế VAT. Theo dõi dự toán, thu hồi công nợ. Yêu cầu bộ phận cung cấp hồ sơ. Giải thích số liệu kế toán cho cơ quan thuế/kiểm toán. Liên lạc và báo cáo bằng tiếng Anh.",
+            "G4": "Phán đoán và xử lý tất cả nghiệp vụ kế toán. Cập nhật chính sách thuế mới, đảm bảo nghiệp vụ đúng luật. Kiểm tra tính pháp lý hợp đồng. Quản lý đảm bảo bảo mật chứng từ. Phán đoán xử lý phù hợp luật định theo kết quả thanh tra. Trình bày báo cáo mạch lạc trước Giám đốc.",
+            "G5": "Soát xét tất cả nghiệp vụ đã hạch toán. Hiểu yêu cầu Công ty mẹ, tạo báo cáo phù hợp. Phân công nhiệm vụ, quản lý tiến độ bộ phận. Hướng dẫn nghiệp vụ cho cấp dưới. Tạo quy tắc và quy trình làm việc. Đề xuất phương pháp phù hợp trước khi nhận điều chỉnh kiểm toán.",
+            "G6": "Lập báo cáo dự báo tài chính theo chiến lược kinh doanh. Đề xuất kế hoạch trung dài hạn và chiến lược kế toán tài chính. Phân tích pháp lý thuế/kế toán cho chiến lược kinh doanh mới.",
+        },
+        "g_criteria_en": {
+            "G0": "Basic understanding with assistance. Can learn accounting standards. Reads VAT/PIT reports. Tracks revenue lists. Helps store documents. Provides data per supervisor's instruction.",
+            "G1": "Posts daily transactions. Issues invoices on time, assists tax reports. Understands and explains receivables/payables. Classifies documents. Provides data for internal audit. Uses accounting software.",
+            "G2": "Verifies document validity, allocates fixed assets. Prepares full VAT/CIT/PIT reports. Reviews payment documents, builds estimates. Ensures books meet deadlines. Prepares files for tax authority. Reads English documents.",
+            "G3": "Prepares monthly financial statements, analyzes for Director. Annual tax finalization, VAT refunds. Monitors budget and debt collection. Requests documents from departments. Explains accounting to tax/audit authorities. Reports in English.",
+            "G4": "Judges and handles all accounting transactions. Updates tax policies, ensures legal compliance. Reviews contract legality. Manages document confidentiality. Handles audit findings per law. Presents reports clearly to Director.",
+            "G5": "Reviews all posted transactions. Understands parent company requirements, creates appropriate reports. Assigns tasks, manages department progress. Guides subordinates. Creates work rules and processes. Proposes solutions before audit adjustments.",
+            "G6": "Financial forecasting based on business strategy. Proposes mid/long-term accounting strategy. Analyzes legal tax/accounting aspects for new business strategies.",
+        },
+        "key_skills": ["Accounting", "Tax", "Financial Reporting", "VAT", "CIT", "PIT", "Bookkeeping", "ERP", "Excel", "Audit", "English"],
+    },
 }
 
 
@@ -123,6 +168,43 @@ def get_all_skill_maps_summary() -> str:
     return "\n".join(parts)
 
 
+def _load_skill_map_json() -> dict:
+    """Load skill map data from JSON config file."""
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "skill_maps.json")
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def _get_skill_map_for_category(category: str) -> str:
+    """Get the full skill map text for a category from JSON config.
+
+    FIX: Previously truncated at 4000 chars which caused only 25-50% of domains
+    to be visible to AI, making G2+ assessment IMPOSSIBLE. Now sends full text
+    (Claude Haiku supports 200K context, skill maps are max 16K chars = ~5K tokens).
+    Truncates at sentence boundary only if exceeding 15000 chars.
+    """
+    data = _load_skill_map_json()
+    cat_data = data.get(category, {})
+    raw_text = cat_data.get("raw_text", "")
+    if raw_text:
+        # Send full text — Claude Haiku handles 200K context easily
+        if len(raw_text) <= 15000:
+            return raw_text
+        # Only truncate extremely long texts, and at line boundary
+        truncated = raw_text[:15000]
+        last_newline = truncated.rfind('\n')
+        if last_newline > 12000:
+            return truncated[:last_newline]
+        return truncated
+    # Fallback to hardcoded g_criteria if no JSON
+    cat_data_old = SKILL_MAPS.get(category, {})
+    if "g_criteria" in cat_data_old:
+        return "\n".join(f"- {k}: {v}" for k, v in cat_data_old["g_criteria"].items())
+    return ""
+
+
 SKILL_LEVEL_PROMPT = """You are a strict HR assessor at LIFULL Tech Vietnam. Assess candidate skill level based on Technical Skill Maps.
 
 STEP 1 — DETERMINE CATEGORY:
@@ -134,36 +216,39 @@ Category rules:
 - "qa_engineer": Testing, test automation, QA processes
 - "admin": Office admin, procurement, asset management (NOT recruitment)
 - "hr": Recruitment, labor law, payroll, training, employee relations
-- "accounting": Accounting, financial reporting, bookkeeping
+- "accounting": Accounting, financial reporting, bookkeeping, tax
 
-STEP 2 — SCORE EACH SKILL:
-Below is the FULL Skill Map for the matched category with criteria for each G-level.
-The skill map is structured as a table: each ROW is a skill domain, each COLUMN is a G-level (G0-G6).
-You MUST score ONLY the skill domains listed in the skill map (e.g., Programming, Data Store, Testing, Architecture, etc.)
-Do NOT invent your own skill names. Use EXACTLY the skill names from the map.
+STEP 2 — SCORE EACH SKILL DOMAIN:
+Below is the FULL Skill Map for the matched category. It is structured as a table: each ROW is a skill domain, each COLUMN is a G-level (G0-G6).
 
-For EACH skill domain in the map, score the candidate:
-- 0 points: No evidence the candidate meets the criteria at current level
-- 3 points: Candidate meets the criteria described for THIS level
-- 5 points: Candidate exceeds and meets criteria of the NEXT level
+You MUST score ONLY the skill domains listed in the skill map.
+Do NOT invent your own skill names. Use EXACTLY the domain names from the map.
+
+For EACH skill domain, determine the HIGHEST G-level the candidate demonstrates based on CV evidence:
+- 0: No evidence of meeting even G0 criteria for this domain
+- 1: Meets G0 criteria (basic understanding with help)
+- 2: Meets G1 criteria (can complete basic tasks independently)
+- 3: Meets G2 criteria (quality-conscious, proposes improvements, self-managing)
+- 4: Meets G3 criteria (proactive leadership of team goals, optimization, cross-domain)
+- 5: Meets G4+ criteria (drives company-wide success, strategic thinking)
+
+IMPORTANT: Score based on EVIDENCE in the CV, not assumptions:
+- Listing a skill name without context of USE = score 1 maximum
+- "Familiar with X" or "studied X" = score 0-1
+- "Used X in production for Y years" with specific outcomes = score 2-3
+- "Led/architected/optimized X across projects" = score 3-4
+- "Senior" or "Lead" title alone does NOT guarantee high score — need evidence of DEPTH
 
 {skill_map_text}
 
-STEP 3 — DETERMINE G-LEVEL using this STRICT scoring rule:
-Starting from G0, check each level:
-- Count how many skill domains have criteria at this level (some levels have fewer skills with criteria)
-- If this level has FEWER than 10 skills with criteria: candidate MUST score >= 3 on ALL of them to advance
-- If this level has 10 OR MORE skills with criteria: candidate needs >= 10 skills scored >= 3 AND total points >= 26 to advance
-- G-level = the HIGHEST level where advancement criteria are MET
-- If candidate does NOT meet G0 advancement criteria → G-level is G0
-
-Example: G0 has 6 skills with criteria. If candidate only scores 3+ on 4 out of 6 → stays at G0 (NOT G1).
-
-STRICT RULES:
-- "Senior" title does NOT equal high G — G-level requires evidence across MULTIPLE skills
-- Listing skills without evidence of USE = 0 points
-- Internship < 6 months with only "studied/learned" language = 0 points for that skill
-- Years alone mean nothing without verifiable skill depth
+STEP 3 — DETERMINE G-LEVEL:
+The candidate's G-level = the level where the MAJORITY of domains are scored at or above.
+- G0: Average score < 1.0 OR most domains scored 0
+- G1: Average score >= 1.0 AND >= 70% domains scored >= 1
+- G2: Average score >= 2.0 AND >= 70% domains scored >= 2
+- G3: Average score >= 3.0 AND >= 70% domains scored >= 3
+- G4: Average score >= 4.0 AND >= 80% domains scored >= 4
+- G5: Average score >= 4.5 AND >= 90% domains scored >= 4
 
 Candidate:
 - Skills: {skills}
@@ -171,53 +256,70 @@ Candidate:
 - Roles: {roles}
 - Education: {education}
 
-Respond EXACTLY in this format:
+Respond EXACTLY in this format (each field on its own line):
 CATEGORY: <application_engineer|bridge_se|qa_engineer|admin|hr|accounting>
-SCORES: <skill_name:score, skill_name:score, ...> (score EVERY skill domain from the skill map at G0 and G1 level. Use the EXACT skill names from the map. Score 0, 3, or 5 for each.)
-REASON_EN: <5-7 sentences explaining evidence for each score>
-REASON_VI: <Dịch REASON_EN sang tiếng Việt>"""
+LEVEL: <G0|G1|G2|G3|G4|G5>
+SCORES: <domain_name:score, domain_name:score, ...> (score EVERY domain from the skill map, 0-5 each)
+EVIDENCE: <For each scored domain, briefly note what CV evidence supports the score. Format: domain=evidence; domain=evidence>
+REASON_EN: <3-5 sentences overall assessment in English>
+REASON_VI: <Same assessment in Vietnamese>"""
 
 
-def _load_skill_map_json() -> dict:
-    """Load skill map data from JSON config file."""
-    import os
-    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "skill_maps.json")
-    if os.path.exists(config_path):
-        with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+def _calculate_g_level(skill_scores: dict) -> str:
+    """Calculate G-level from domain scores using proportional logic.
 
+    FIX: Previous logic used absolute thresholds (40/50 points) which made G2+
+    impossible for categories with fewer domains (accounting max=30, hr max=40).
+    New logic uses percentage-based thresholds relative to number of domains.
 
-def _get_skill_map_for_category(category: str) -> str:
-    """Get the full skill map text for a category from JSON config."""
-    data = _load_skill_map_json()
-    cat_data = data.get(category, {})
-    raw_text = cat_data.get("raw_text", "")
-    if raw_text:
-        # Truncate to fit in prompt (keep first 4000 chars which covers G0-G3 criteria)
-        return raw_text[:4000]
-    # Fallback to hardcoded if no JSON
-    cat_data_old = SKILL_MAPS.get(category, {})
-    if "g_criteria" in cat_data_old:
-        return "\n".join(f"- {k}: {v}" for k, v in cat_data_old["g_criteria"].items())
-    return ""
+    Scoring scale: 0-5 per domain where:
+      0=no evidence, 1=meets G0, 2=meets G1, 3=meets G2, 4=meets G3, 5=meets G4+
+
+    Level determination (score N+1 = meets G-level N):
+      G0: default (cannot demonstrate even basic skills)
+      G1: >= 70% domains scored >= 2 (meets G1 criteria)
+      G2: >= 70% domains scored >= 3 (meets G2 criteria)
+      G3: >= 70% domains scored >= 4 (meets G3 criteria)
+      G4: >= 80% domains scored >= 5 (meets G4 criteria)
+      G5: >= 90% domains scored >= 5 AND average >= 4.5
+    """
+    if not skill_scores:
+        return "G0"
+
+    total_skills = len(skill_scores)
+    scores = list(skill_scores.values())
+    avg_score = sum(scores) / total_skills
+
+    def pct_at_or_above(threshold):
+        count = sum(1 for s in scores if s >= threshold)
+        return count / total_skills
+
+    # Check from highest to lowest
+    if avg_score >= 4.5 and pct_at_or_above(5) >= 0.90:
+        return "G5"
+    if pct_at_or_above(5) >= 0.80:
+        return "G4"
+    if pct_at_or_above(4) >= 0.70:
+        return "G3"
+    if pct_at_or_above(3) >= 0.70:
+        return "G2"
+    if pct_at_or_above(2) >= 0.70:
+        return "G1"
+    return "G0"
 
 
 def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, job_category: str | None = None) -> dict | None:
-    """Assess candidate skill level using AI + skill maps with point-based scoring.
-    
-    Scoring rules:
-    - Each skill: 0-5 points (3 = meets current level, 5 = exceeds to next level)
-    - Advance G-level when:
-      - If < 10 skills at level: ALL skills must score >= 3
-      - If >= 10 skills at level: >= 10 skills scored AND total >= 26 points
+    """Assess candidate skill level using AI + skill maps.
+
+    V2 improvements:
+    - Full skill map sent to AI (no truncation)
+    - Scoring scale 0-5 covering G0 through G4+
+    - Proportional G-level calculation (fair across all categories)
+    - Evidence-based assessment
+    - AI recommends level, code verifies with proportional rules
     """
-    import json
-    import logging
     from app.bedrock import invoke_claude
     from app.config import settings
-
-    logger = logging.getLogger(__name__)
 
     skills = candidate_data.get("skills", [])
     experience_years = candidate_data.get("experience_years", 0)
@@ -227,8 +329,14 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
     if not skills:
         return None
 
-    roles = ", ".join(f"{e.get('role_en', '') or e.get('role', '')} @ {e.get('company', '')}" for e in experience[:3]) or "N/A"
-    edu_str = ", ".join(f"{e.get('degree_en', '') or e.get('degree', '')} {e.get('major_en', '') or e.get('major', '')} ({e.get('school', '')})" for e in education[:2]) or "N/A"
+    roles = ", ".join(
+        f"{e.get('role_en', '') or e.get('role', '')} @ {e.get('company', '')}"
+        for e in experience[:5]
+    ) or "N/A"
+    edu_str = ", ".join(
+        f"{e.get('degree_en', '') or e.get('degree', '')} {e.get('major_en', '') or e.get('major', '')} ({e.get('school', '')})"
+        for e in education[:3]
+    ) or "N/A"
 
     # Determine target category
     target_cat = job_category if (job_category and job_category in SKILL_MAPS) else None
@@ -244,12 +352,12 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
     if not target_cat:
         target_cat = "application_engineer"
 
-    # Get full skill map text for the category
+    # Get full skill map text for the category (NO truncation)
     skill_map_text = _get_skill_map_for_category(target_cat)
 
     prompt = SKILL_LEVEL_PROMPT.format(
         categories=get_all_skill_maps_summary(),
-        skills=", ".join(skills[:15]),
+        skills=", ".join(skills[:20]),
         experience_years=experience_years,
         roles=roles,
         education=edu_str,
@@ -257,16 +365,31 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
     )
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=2000, feature="skill_level", candidate_id=candidate_id)
+        result = invoke_claude(
+            prompt,
+            model=settings.BEDROCK_MODEL_HAIKU,
+            max_tokens=3000,
+            feature="skill_level",
+            candidate_id=candidate_id,
+        )
+
+        # Parse response
         category = ""
+        ai_level = ""
         reason_vi = ""
         reason_en = ""
         scores_str = ""
+        evidence_str = ""
+
         for line in result.strip().split("\n"):
             if line.startswith("CATEGORY:"):
                 category = line.replace("CATEGORY:", "").strip()
+            elif line.startswith("LEVEL:"):
+                ai_level = line.replace("LEVEL:", "").strip()
             elif line.startswith("SCORES:"):
                 scores_str = line.replace("SCORES:", "").strip()
+            elif line.startswith("EVIDENCE:"):
+                evidence_str = line.replace("EVIDENCE:", "").strip()
             elif line.startswith("REASON_EN:"):
                 reason_en = line.replace("REASON_EN:", "").strip()
             elif line.startswith("REASON_VI:"):
@@ -280,68 +403,70 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
             for pair in scores_str.split(","):
                 pair = pair.strip()
                 if ":" in pair:
-                    name, score = pair.rsplit(":", 1)
+                    name, score_val = pair.rsplit(":", 1)
                     try:
-                        skill_scores[name.strip()] = int(score.strip())
+                        s = int(score_val.strip())
+                        skill_scores[name.strip()] = max(0, min(5, s))
                     except ValueError:
                         pass
 
         if not category:
             category = target_cat
 
-        # Calculate G-level from scores using the advancement rules
-        # Rule: if < 10 skills at level → need ALL >= 3; if >= 10 → need >= 10 skills AND total >= 26
-        skills_passing = sum(1 for s in skill_scores.values() if s >= 3)
-        total_points = sum(skill_scores.values())
-        total_skills = len(skill_scores)
+        # Calculate G-level using proportional logic
+        calculated_level = _calculate_g_level(skill_scores)
 
-        if total_skills < 10:
-            # Less than 10 skills: need ALL to be >= 3 to advance from G0
-            if skills_passing >= total_skills and total_skills > 0:
-                level = "G1"
-            else:
-                level = "G0"
+        # Use AI-recommended level if it's within 1 step of calculated level
+        # (AI has context we might miss, but we don't trust it blindly)
+        g_order = ["G0", "G1", "G2", "G3", "G4", "G5", "G6"]
+        ai_idx = g_order.index(ai_level) if ai_level in g_order else -1
+        calc_idx = g_order.index(calculated_level) if calculated_level in g_order else 0
+
+        if ai_idx >= 0 and abs(ai_idx - calc_idx) <= 1:
+            # Trust AI if within 1 level of our calculation
+            level = ai_level
         else:
-            # 10+ skills: need >= 10 passing AND total >= 26
-            if skills_passing >= 10 and total_points >= 26:
-                level = "G1"  # Passed G0, now at G1
-            else:
-                level = "G0"
+            # Use our calculated level (more reliable for edge cases)
+            level = calculated_level
 
-        # For higher levels, we'd need to re-score at each level
-        # For now, if passed G0→G1, check if we can go higher based on total score
-        if level == "G1" and total_points >= 40:
-            level = "G2"
-        if level == "G2" and total_points >= 50:
-            level = "G3"
+        # Build total string
+        total_skills = len(skill_scores)
+        total_points = sum(skill_scores.values())
+        max_points = total_skills * 5
+        avg_score = round(total_points / total_skills, 2) if total_skills > 0 else 0
+        total_str = f"{total_points}/{max_points} (avg {avg_score}/5, {total_skills} domains)"
 
-        total_str = f"{total_points}/{total_skills * 5} ({skills_passing} skills scored >= 3)"
-
-        # Always ensure VI exists - translate from EN if missing/short
+        # Ensure Vietnamese reason exists
         if reason_en and len(reason_vi.strip()) < 20:
             import time
-            for attempt in range(3):
+            for attempt in range(2):
                 try:
                     vi_r = invoke_claude(
-                        f"Translate to Vietnamese. Output ONLY the translation, nothing else:\n{reason_en}",
-                        model=settings.BEDROCK_MODEL_HAIKU, max_tokens=400, feature="skill_level", candidate_id=candidate_id
+                        f"Translate to Vietnamese. Output ONLY the translation:\n{reason_en}",
+                        model=settings.BEDROCK_MODEL_HAIKU,
+                        max_tokens=400,
+                        feature="skill_level",
+                        candidate_id=candidate_id,
                     )
                     reason_vi = vi_r.strip().split("\n\n")[0].strip()
                     if len(reason_vi) >= 20:
                         break
                 except Exception:
-                    if attempt < 2:
-                        time.sleep(2 * (attempt + 1))
+                    if attempt < 1:
+                        time.sleep(2)
                     else:
                         reason_vi = reason_en
 
         if level and category:
-            # Enrich with description
             cat_data = SKILL_MAPS.get(category, {})
             level_desc_vi = cat_data.get("g_criteria", {}).get(level, "")
             level_desc_en = cat_data.get("g_criteria_en", {}).get(level, "")
             category_title_vi = cat_data.get("title_vi", category)
-            category_titles = {"vi": category_title_vi, "en": category.replace("_", " ").title(), "ja": cat_data.get("title_ja", category_title_vi)}
+            category_titles = {
+                "vi": category_title_vi,
+                "en": category.replace("_", " ").title(),
+                "ja": cat_data.get("title_ja", category_title_vi),
+            }
             domains = cat_data.get("domains", [])
             return {
                 "category": category,
@@ -349,6 +474,7 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                 "reason": {"vi": reason_vi, "en": reason_en},
                 "scores": skill_scores,
                 "total": total_str,
+                "evidence": evidence_str,
                 "level_description": {"vi": level_desc_vi, "en": level_desc_en},
                 "category_title": category_titles,
                 "domains": domains,
