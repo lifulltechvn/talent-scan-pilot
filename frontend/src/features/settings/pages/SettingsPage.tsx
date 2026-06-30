@@ -392,6 +392,7 @@ function AIMonitor() {
   const [perCandidate, setPerCandidate] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [parseQuality, setParseQuality] = useState<any>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -400,7 +401,8 @@ function AIMonitor() {
       apiClient.get(`/ai-usage/daily?days=${Math.min(days, 90)}`),
       apiClient.get(`/ai-usage/per-candidate?days=${days}`),
       apiClient.get(`/ai-usage/logs?days=${days}`),
-    ]).then(([s, d, c, l]) => { setSummary(s.data); setDaily(d.data); setPerCandidate(c.data); setLogs(l.data); })
+      apiClient.get(`/ai-usage/parse-quality?days=${days}`),
+    ]).then(([s, d, c, l, pq]) => { setSummary(s.data); setDaily(d.data); setPerCandidate(c.data); setLogs(l.data); setParseQuality(pq.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [days]);
@@ -555,6 +557,57 @@ function AIMonitor() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Parse Quality Metrics */}
+      {parseQuality && (
+        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
+          <h3 className="text-sm font-medium text-text-primary mb-4">🎯 Parse Quality Metrics</h3>
+
+          {/* Overview stats */}
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="bg-bg-surface rounded-lg p-3 text-center">
+              <div className="text-[11px] text-text-muted uppercase">CV đã parse</div>
+              <div className="text-lg font-semibold text-text-primary">{parseQuality.parsed_success}</div>
+            </div>
+            <div className="bg-bg-surface rounded-lg p-3 text-center">
+              <div className="text-[11px] text-text-muted uppercase">Tỷ lệ thành công</div>
+              <div className="text-lg font-semibold text-emerald-600">{parseQuality.success_rate}%</div>
+            </div>
+            <div className="bg-bg-surface rounded-lg p-3 text-center">
+              <div className="text-[11px] text-text-muted uppercase">Chi phí/CV</div>
+              <div className="text-lg font-semibold text-text-primary">${parseQuality.averages.cost_per_cv.toFixed(4)}</div>
+            </div>
+            <div className="bg-bg-surface rounded-lg p-3 text-center">
+              <div className="text-[11px] text-text-muted uppercase">Tokens/CV</div>
+              <div className="text-lg font-semibold text-text-primary">{parseQuality.averages.tokens_per_cv.toLocaleString()}</div>
+            </div>
+          </div>
+
+          {/* Field Coverage */}
+          <div className="mb-3">
+            <h4 className="text-[12px] font-medium text-text-secondary mb-2 uppercase">Tỷ lệ trích xuất thành công theo field</h4>
+            <div className="space-y-2">
+              {Object.entries(parseQuality.field_coverage).map(([field, pct]: [string, any]) => (
+                <div key={field} className="flex items-center gap-3">
+                  <span className="text-[12px] text-text-secondary w-32 capitalize">{field.replace(/_/g, ' ')}</span>
+                  <div className="flex-1 h-5 bg-bg-surface rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${pct >= 90 ? 'bg-emerald-500' : pct >= 70 ? 'bg-amber-500' : 'bg-red-400'}`} style={{ width: `${Math.max(pct, 2)}%` }} />
+                  </div>
+                  <span className={`text-[12px] font-medium w-12 text-right ${pct >= 90 ? 'text-emerald-600' : pct >= 70 ? 'text-amber-600' : 'text-red-500'}`}>{pct}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Averages */}
+          <div className="flex items-center gap-6 pt-3 border-t border-border-subtle text-[12px] text-text-muted">
+            <span>Trung bình: <strong className="text-text-primary">{parseQuality.averages.skills_per_cv}</strong> skills/CV</span>
+            <span><strong className="text-text-primary">{parseQuality.averages.experience_years}</strong> năm KN</span>
+            <span>Tổng chi phí parse: <strong className="text-text-primary">${parseQuality.total_parse_cost}</strong></span>
+            {parseQuality.stuck_processing > 0 && <span className="text-red-500">⚠️ {parseQuality.stuck_processing} CV đang stuck</span>}
           </div>
         </div>
       )}

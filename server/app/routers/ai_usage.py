@@ -220,6 +220,77 @@ async def get_candidate_usage_detail(
     }
 
 
+@router.get("/parse-quality")
+async def get_parse_quality(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """Get CV parsing quality metrics — read-only from existing data."""
+    from sqlalchemy import text
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Parse success rate & field coverage
+    stats = await db.execute(text("""
+        SELECT
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status != 'processing') as parsed,
+            COUNT(*) FILTER (WHERE status = 'processing') as stuck,
+            COUNT(*) FILTER (WHERE structured_data->>'name' IS NOT NULL AND structured_data->>'name' != 'null') as has_name,
+            COUNT(*) FILTER (WHERE jsonb_array_length(COALESCE(structured_data->'skills', '[]'::jsonb)) > 0) as has_skills,
+            COUNT(*) FILTER (WHERE (structured_data->>'experience_years')::float > 0) as has_exp_years,
+            COUNT(*) FILTER (WHERE jsonb_array_length(COALESCE(structured_data->'experience', '[]'::jsonb)) > 0) as has_experience,
+            COUNT(*) FILTER (WHERE jsonb_array_length(COALESCE(structured_data->'education', '[]'::jsonb)) > 0) as has_education,
+            COUNT(*) FILTER (WHERE jsonb_array_length(COALESCE(structured_data->'languages', '[]'::jsonb)) > 0) as has_languages,
+            COUNT(*) FILTER (WHERE structured_data->'skill_level' IS NOT NULL) as has_skill_level,
+            AVG(jsonb_array_length(COALESCE(structured_data->'skills', '[]'::jsonb))) FILTER (WHERE status != 'processing') as avg_skills,
+            AVG((structured_data->>'experience_years')::float) FILTER (WHERE status != 'processing' AND (structured_data->>'experience_years')::float > 0) as avg_exp_years
+        FROM candidates
+        WHERE created_at >= :since
+    """), {"since": since})
+    row = stats.mappings().first()
+
+    total = row["total"] or 0
+    parsed = row["parsed"] or 0
+
+    # Avg parse time from ai_usage_logs (cv_parsing feature)
+    time_stats = await db.execute(text("""
+        SELECT
+            COUNT(DISTINCT candidate_id) as cv_count,
+            AVG(cost_usd) as avg_cost,
+            SUM(cost_usd) as total_cost,
+            AVG(input_tokens + output_tokens) as avg_tokens
+        FROM ai_usage_logs
+        WHERE feature = 'cv_parsing' AND created_at >= :since
+    """), {"since": since})
+    time_row = time_stats.mappings().first()
+
+    return {
+        "period_days": days,
+        "total_cvs": total,
+        "parsed_success": parsed,
+        "stuck_processing": row["stuck"] or 0,
+        "success_rate": round(parsed / total * 100, 1) if total > 0 else 0,
+        "field_coverage": {
+            "name": round((row["has_name"] or 0) / parsed * 100, 1) if parsed > 0 else 0,
+            "skills": round((row["has_skills"] or 0) / parsed * 100, 1) if parsed > 0 else 0,
+            "experience_years": round((row["has_exp_years"] or 0) / parsed * 100, 1) if parsed > 0 else 0,
+            "experience_details": round((row["has_experience"] or 0) / parsed * 100, 1) if parsed > 0 else 0,
+            "education": round((row["has_education"] or 0) / parsed * 100, 1) if parsed > 0 else 0,
+            "languages": round((row["has_languages"] or 0) / parsed * 100, 1) if parsed > 0 else 0,
+            "skill_level": round((row["has_skill_level"] or 0) / parsed * 100, 1) if parsed > 0 else 0,
+        },
+        "averages": {
+            "skills_per_cv": round(float(row["avg_skills"] or 0), 1),
+            "experience_years": round(float(row["avg_exp_years"] or 0), 1),
+            "tokens_per_cv": int(time_row["avg_tokens"] or 0),
+            "cost_per_cv": round(float(time_row["avg_cost"] or 0), 5),
+        },
+        "total_parse_cost": round(float(time_row["total_cost"] or 0), 4),
+    }
+
+
 @router.get("/logs")
 async def get_usage_logs(
     days: int = Query(30, ge=1, le=365),
