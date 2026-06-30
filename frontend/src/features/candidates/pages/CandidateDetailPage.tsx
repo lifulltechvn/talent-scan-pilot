@@ -366,7 +366,7 @@ export function CandidateDetailPage() {
         )}
 
         {/* AI Insight */}
-        {d.insight && (d.insight.strengths || d.insight.weaknesses) ? (
+        {d.insight && (d.insight.strengths || d.insight.weaknesses) && (locale === 'en' || d.insight.strengths_vi || (typeof d.insight.strengths === 'object')) ? (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles size={16} className="text-accent" />
