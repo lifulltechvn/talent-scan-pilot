@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
@@ -11,6 +12,28 @@ from app.models import Candidate, Job, Score, User
 from app.schemas import JobCreate, JobRead, JobUpdate
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+
+def _extract_required_years(description: str) -> int | None:
+    """Auto-extract required years of experience from job description text."""
+    # Match patterns like: "4+ năm", "3-5 years", "minimum 4 years", "ít nhất 3 năm"
+    patterns = [
+        # Range: "3-5 years" → take minimum (3)
+        (r"(\d+)\s*[-–]\s*\d+\s*(?:năm|year|yr)s?\s*(?:kinh nghiệm|experience)?", None),
+        # Labeled: "kinh nghiệm: 4+ năm"
+        (r"(?:kinh nghiệm|experience|exp)[\s:]*(\d+)\+?\s*(?:năm|year|yr)?", None),
+        # Prefix: "ít nhất 3 năm", "minimum 5 years"
+        (r"(?:ít nhất|at least|minimum|tối thiểu|from)\s*(\d+)\s*(?:năm|year|yr)", None),
+        # Simple: "4+ năm kinh nghiệm"
+        (r"(\d+)\+?\s*(?:năm|year|yr)s?\s*(?:kinh nghiệm|experience|exp)", None),
+    ]
+    for pattern, _ in patterns:
+        match = re.search(pattern, description, re.IGNORECASE)
+        if match:
+            years = int(match.group(1))
+            if 1 <= years <= 20:  # Sanity check
+                return years
+    return None
 
 
 @router.post("/import")
@@ -223,6 +246,12 @@ async def create_job(
     user: User = Depends(get_current_user),
 ):
     job = Job(**data.model_dump(), created_by=user.id)
+
+    # Auto-extract required_years from description if not provided
+    if not job.required_years and job.description:
+        extracted_years = _extract_required_years(job.description)
+        if extracted_years:
+            job.required_years = extracted_years
 
     # Generate JD embedding (non-blocking — skip on failure)
     try:
