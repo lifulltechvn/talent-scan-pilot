@@ -97,10 +97,10 @@
 </defs>
 
 <!-- Step 1: Upload -->
-<g class="pnode" data-step="upload"><rect x="40" y="250" width="130" height="60"/><text class="t" x="105" y="276" text-anchor="middle">Upload</text><text class="m" x="105" y="294" text-anchor="middle">PDF / DOCX</text></g>
+<g class="pnode" data-step="upload"><rect x="40" y="250" width="130" height="60"/><text class="t" x="105" y="276" text-anchor="middle">Upload</text><text class="m" x="105" y="294" text-anchor="middle">PDF</text></g>
 
 <!-- Step 2: Extract -->
-<g class="pnode" data-step="extract"><rect x="220" y="250" width="130" height="60"/><text class="t" x="285" y="276" text-anchor="middle">Extract Text</text><text class="m" x="285" y="294" text-anchor="middle">PyMuPDF / docx</text></g>
+<g class="pnode" data-step="extract"><rect x="220" y="250" width="130" height="60"/><text class="t" x="285" y="276" text-anchor="middle">Extract Text</text><text class="m" x="285" y="294" text-anchor="middle">PyMuPDF</text></g>
 
 <!-- Step 3: PII -->
 <g class="pnode sec" data-step="pii"><rect x="400" y="250" width="130" height="60"/><text class="t" x="465" y="276" text-anchor="middle">PII Filter</text><text class="m" x="465" y="294" text-anchor="middle">6 regex patterns</text></g>
@@ -155,15 +155,15 @@
 <script>
 (function(){
   const info = {
-    upload:{title:'Upload',meta:'POST /api/cv-upload · /api/cv-batch',desc:'Nhận PDF/DOCX (max 10MB). Batch 200 files. MD5 hash dedup — CV trùng bị reject ngay. WebSocket push progress.'},
-    extract:{title:'Extract Text',meta:'extractor.py · PyMuPDF + python-docx',desc:'PDF → fitz text extraction. DOCX → python-docx paragraphs. Nếu text <50 chars → fallback OCR Vision.'},
+    upload:{title:'Upload',meta:'POST /api/cv-upload · /api/cv-batch',desc:'Nhận PDF (max 10MB). Batch 200 files. MD5 hash dedup — CV trùng bị reject ngay. WebSocket push progress.'},
+    extract:{title:'Extract Text',meta:'extractor.py · PyMuPDF',desc:'PDF → fitz text extraction. Lọc white fonting (text ẩn). Nếu text <50 chars → fallback OCR Vision.'},
     pii:{title:'PII Filter',meta:'pii_filter.py · 6 regex patterns',desc:'Ẩn danh: email→[EMAIL], phone→[PHONE], CCCD→[CCCD], DOB→[DOB], URL→[URL], address→[ADDRESS]. AI không thấy PII thật.'},
-    guard:{title:'Injection Guard',meta:'injection_guard.py · 11 patterns',desc:'Detect prompt injection (ignore instructions, DAN mode, system override...). XML delimiter wrapping isolate content.'},
+    guard:{title:'Injection Guard',meta:'injection_guard.py · 53 patterns',desc:'Detect prompt injection (ignore instructions, DAN mode, system override, Vietnamese injection, delimiter attacks...). XML delimiter wrapping + leet speak detection.'},
     parse:{title:'Claude Haiku Parse',meta:'bedrock.py · ~3s · ~$0.002/call',desc:'Trích xuất structured JSON: name, skills, experience, education, languages. Retry 3× exponential backoff.'},
     embed:{title:'Titan Embed V2',meta:'bedrock.py · ~0.5s · ~$0.00004',desc:'Generate 1024-dim vector từ skills + experience. Lưu vào candidates.embedding (pgvector column).'},
     match:{title:'Smart Pool',meta:'smart_pool.py · pgvector cosine',desc:'Match candidate vs tất cả jobs. Combined = cosine×30% + skill_overlap×70%. Lưu vào job_candidates.'},
     ocr:{title:'OCR Vision',meta:'Claude Sonnet · ~5s · ~$0.01',desc:'Fallback cho scanned PDF (text <50 chars). Claude Sonnet vision đọc ảnh pages, trả về plain text.'},
-    files:{title:'File Storage',meta:'Docker volume · uploads/cv',desc:'Lưu file gốc PDF/DOCX. Path stored in candidates.cv_file_path. Dùng cho CV Authenticity Check sau này.'},
+    files:{title:'File Storage',meta:'Docker volume · uploads/cv',desc:'Lưu file gốc PDF. Path stored in candidates.cv_file_path. Dùng cho CV Authenticity Check sau này.'},
     pg:{title:'PostgreSQL 16',meta:':5432 · pgvector',desc:'Lưu structured_data (JSONB), embedding (Vector 1024), match scores, classification.'}
   };
 
