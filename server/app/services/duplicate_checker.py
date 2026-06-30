@@ -78,7 +78,7 @@ async def check_duplicate(
             result.matches.append(DuplicateMatch(
                 candidate_id=str(row["id"]),
                 candidate_name=row["structured_data"].get("name", "Unknown"),
-                reason="email",
+                reason="email_match",
             ))
 
     # --- Phone match ---
@@ -102,7 +102,7 @@ async def check_duplicate(
                 result.matches.append(DuplicateMatch(
                     candidate_id=cid,
                     candidate_name=row["structured_data"].get("name", "Unknown"),
-                    reason="phone",
+                    reason="phone_match",
                 ))
 
     result.is_duplicate = len(result.matches) > 0
