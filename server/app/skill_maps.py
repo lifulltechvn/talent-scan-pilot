@@ -261,8 +261,8 @@ CATEGORY: <application_engineer|bridge_se|qa_engineer|admin|hr|accounting>
 LEVEL: <G0|G1|G2|G3|G4|G5>
 SCORES: <domain_name:score, domain_name:score, ...> (score EVERY domain from the skill map, 0-5 each)
 EVIDENCE: <For each scored domain, briefly note what CV evidence supports the score. Format: domain=evidence; domain=evidence>
-REASON_EN: <3-5 sentences overall assessment in English>
-REASON_VI: <Same assessment in Vietnamese>"""
+REASON_EN: <5-8 sentences detailed assessment in English. Include: (1) overall strength areas, (2) specific evidence from CV that supports the level, (3) weak areas or gaps, (4) comparison to level criteria, (5) recommendation for improvement>
+REASON_VI: <Same detailed assessment in Vietnamese, 5-8 câu. Bao gồm: (1) điểm mạnh chính, (2) bằng chứng cụ thể từ CV, (3) điểm yếu/thiếu sót, (4) so sánh với tiêu chí level, (5) đề xuất cải thiện>"""
 
 
 def _calculate_g_level(skill_scores: dict) -> str:

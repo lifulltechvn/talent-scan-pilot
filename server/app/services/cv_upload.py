@@ -102,9 +102,9 @@ def _parse_cv_text(text: str, candidate_id: str | None = None) -> dict:
                 "phone": {"type": "string"},
                 "skills": {"type": "array", "items": {"type": "string"}, "maxItems": 12},
                 "experience_years": {"type": "number"},
-                "skill_level": {"type": "object", "description": "Categorize candidate. application_engineer=builds software(Python/Java/JS/React). bridge_se=MUST have Japanese(JLPT N2+) AND coordinates JP-VN teams. qa_engineer=testing/QA focus. admin=office admin. hr=recruitment/HR.", "properties": {
-                    "category": {"type": "string", "enum": ["application_engineer", "bridge_se", "qa_engineer", "admin", "hr"]},
-                    "level": {"type": "string", "enum": ["G0", "G1", "G2", "G3"], "description": "G0=no verifiable skills, G1=junior(2-3 domains), G2=mid(4-5 domains), G3=senior(7+ domains breadth)"},
+                "skill_level": {"type": "object", "description": "Categorize candidate. application_engineer=builds software(Python/Java/JS/React). bridge_se=MUST have Japanese(JLPT N2+) AND coordinates JP-VN teams. qa_engineer=testing/QA focus. admin=office admin. hr=recruitment/HR. accounting=accounting/tax/financial reporting.", "properties": {
+                    "category": {"type": "string", "enum": ["application_engineer", "bridge_se", "qa_engineer", "admin", "hr", "accounting"]},
+                    "level": {"type": "string", "enum": ["G0", "G1", "G2", "G3", "G4"], "description": "G0=intern/no evidence. G1=can do basic tasks independently(1-2yr). G2=quality-focused, proposes improvements(2-4yr). G3=leads team, optimizes across domains(4-7yr). G4=strategic, system-wide impact(7+yr)"},
                 }},
             },
             "required": ["name", "skills", "experience_years", "skill_level"],

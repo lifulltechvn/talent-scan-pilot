@@ -285,8 +285,8 @@ export function CandidateDetailPage() {
         {/* Missing Info Warning */}
         <MissingInfoPanel data={d} />
 
-        {/* Skill Level Assessment */}
-        {d.skill_level ? (
+        {/* Skill Level Assessment — only show after Phase 2 completes (has reason) */}
+        {d.skill_level && d.skill_level.reason && (d.skill_level.reason.en || d.skill_level.reason.vi) ? (
         <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -325,43 +325,48 @@ export function CandidateDetailPage() {
             </div>
           )}
 
-          {/* AI Reason */}
+          {/* AI Reason — main assessment */}
           {d.skill_level.reason && ((locale === 'vi' ? d.skill_level.reason.vi : d.skill_level.reason.en)) ? (
-            <div className="mb-3 p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">{t("aiReason")}</span>
+            <div className="p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">💬 {locale === 'vi' ? 'Nhận xét từ AI' : 'AI Assessment'}</span>
               </div>
-              <p className="text-[12px] text-text-secondary leading-relaxed">{locale === 'vi' ? d.skill_level.reason.vi : d.skill_level.reason.en}</p>
+              <p className="text-[12.5px] text-text-primary leading-[1.8] whitespace-pre-wrap">{locale === 'vi' ? d.skill_level.reason.vi : d.skill_level.reason.en}</p>
             </div>
           ) : (
-            <div className="mb-3 p-3 bg-bg-secondary/30 rounded-lg border border-border-subtle/30 flex items-center gap-2">
+            <div className="p-3 bg-bg-secondary/30 rounded-lg border border-border-subtle/30 flex items-center gap-2">
               <Loader2 size={12} className="animate-spin text-purple-400" />
               <span className="text-[11px] text-text-muted">{t("loadingAssessment")}</span>
             </div>
           )}
-
-          {/* Domains */}
-          {d.skill_level.domains && d.skill_level.domains.length > 0 && (
-            <div className="pt-3 border-t border-border-subtle/50">
-              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">{t("assessmentDomains")}</span>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {d.skill_level.domains.map((domain, i) => (
-                  <span key={i} className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100">{domain.split('(')[0].trim()}</span>
+        </div>
+        ) : (
+        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-xl p-5">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-shrink-0">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-200 to-indigo-200 flex items-center justify-center">
+                <span className="text-purple-500 text-lg font-bold animate-pulse">G?</span>
+              </div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-400 rounded-full animate-ping opacity-60" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[13px] font-semibold text-purple-800">{t('skillLevelAssessment')}</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-600 text-[10px] font-medium rounded-full">
+                  <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  Đang phân tích
+                </span>
+              </div>
+              <p className="text-[11px] text-purple-600/70 leading-relaxed">AI đang đọc CV và so sánh với bảng Technical Skill Map để xác định G-level...</p>
+              <div className="flex gap-1 mt-2.5">
+                {["G0","G1","G2","G3","G4","G5"].map((g, i) => (
+                  <div key={g} className="flex-1 h-1.5 rounded-full bg-purple-200 overflow-hidden">
+                    <div className="h-full bg-purple-400 rounded-full animate-pulse" style={{animationDelay: `${i * 200}ms`, width: '60%'}} />
+                  </div>
                 ))}
               </div>
             </div>
-          )}
-        </div>
-        ) : (
-        <div className="bg-bg-panel border border-border-subtle rounded-xl p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-purple-100 animate-pulse" />
-            <div className="flex-1 space-y-2">
-              <div className="h-3 bg-gray-200 rounded w-1/3 animate-pulse" />
-              <div className="h-2 bg-gray-100 rounded w-2/3 animate-pulse" />
-            </div>
           </div>
-          <p className="text-[10px] text-text-muted mt-3">{t('analyzingSkillLevel')}</p>
         </div>
         )}
 
