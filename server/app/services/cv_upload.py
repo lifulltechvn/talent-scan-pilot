@@ -265,8 +265,9 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 structured["_duplicate_name"] = dup_match.candidate_name
 
             # Assess skill level AND Enrichment — run in PARALLEL
+            # Save enrichment first (faster), then G-level when ready
             from app.skill_maps import assess_skill_level
-            from concurrent.futures import ThreadPoolExecutor as _TPE
+            from concurrent.futures import ThreadPoolExecutor as _TPE, Future
 
             def _do_assess():
                 return assess_skill_level(structured, candidate_id=candidate_id)
@@ -274,37 +275,20 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             def _do_enrich():
                 return _parse_cv_enrichment(text, candidate_id)
 
-            with _TPE(max_workers=2) as mini_pool:
-                future_assess = mini_pool.submit(_do_assess)
-                future_enrich = mini_pool.submit(_do_enrich)
+            mini_pool = _TPE(max_workers=2)
+            future_assess = mini_pool.submit(_do_assess)
+            future_enrich = mini_pool.submit(_do_enrich)
 
-            skill_level = future_assess.result()
+            # Wait for enrichment first (usually faster ~6s)
             enriched = future_enrich.result()
 
-            # Apply skill_level
-            if skill_level:
-                structured["skill_level"] = skill_level
-                logger.info(f"Skill level assessed: {skill_level.get('level')} reason_len={len(skill_level.get('reason', {}).get('en', ''))}")
-            else:
-                logger.warning(f"assess_skill_level returned None for {candidate_id[:8]}")
-
-            # Apply enrichment
+            # Apply enrichment immediately
             if enriched:
                 if enriched.get("experience"): structured["experience"] = enriched["experience"]
                 if enriched.get("education"): structured["education"] = enriched["education"]
                 if enriched.get("certifications"): structured["certifications"] = enriched["certifications"]
                 if enriched.get("languages"): structured["languages"] = enriched["languages"]
                 structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
-                # Don't overwrite skill_level reason if already assessed
-                sl_enriched = enriched.get("skill_level")
-                if sl_enriched and isinstance(sl_enriched, dict):
-                    existing_sl = structured.get("skill_level", {})
-                    existing_reason = existing_sl.get("reason", {})
-                    if existing_reason and not existing_reason.get("en"):
-                        if sl_enriched.get("reason_en"):
-                            existing_sl.setdefault("reason", {})["en"] = sl_enriched["reason_en"]
-                        if sl_enriched.get("reason_vi"):
-                            existing_sl.setdefault("reason", {})["vi"] = sl_enriched["reason_vi"]
 
             # Embed with enriched data
             latest_role = ""
@@ -315,20 +299,54 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             embed_text = f"{latest_role} {' '.join(structured.get('skills', []))}"
             emb = get_embedding(embed_text, candidate_id=candidate_id)
 
-            # Single DB save — all data at once (G-level + insight + experience + embedding)
-            async def _update():
+            # SAVE 1: enrichment data (insight + experience visible to HR immediately)
+            async def _save_enrichment():
                 from sqlalchemy import text as sa_text
-                engine = create_async_engine(settings.DATABASE_URL, pool_size=1)
-                factory = async_sessionmaker(engine, expire_on_commit=False)
-                async with factory() as db:
-                    await db.execute(sa_text("UPDATE candidates SET structured_data = :sd, embedding = :emb, status = 'new' WHERE id = :id"),
+                engine1 = create_async_engine(settings.DATABASE_URL, pool_size=1)
+                factory1 = async_sessionmaker(engine1, expire_on_commit=False)
+                async with factory1() as db1:
+                    await db1.execute(sa_text("UPDATE candidates SET structured_data = :sd, embedding = :emb, status = 'new' WHERE id = :id"),
                         {"sd": json.dumps(structured, ensure_ascii=False), "emb": str(emb) if emb else str(embedding) if embedding else None, "id": candidate_id})
-                    await db.commit()
-                await engine.dispose()
+                    await db1.commit()
+                await engine1.dispose()
 
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(_update())
-            loop.close()
+            loop1 = asyncio.new_event_loop()
+            loop1.run_until_complete(_save_enrichment())
+            loop1.close()
+            logger.info(f"Enrichment saved for {candidate_id[:8]} (insight + experience ready)")
+
+            # Now wait for G-level assessment
+            skill_level = future_assess.result()
+            mini_pool.shutdown(wait=False)
+
+            if skill_level:
+                structured["skill_level"] = skill_level
+                # Don't let enrichment reason overwrite full assessment
+                sl_enriched = enriched.get("skill_level") if enriched else None
+                if sl_enriched and isinstance(sl_enriched, dict):
+                    existing_reason = structured["skill_level"].get("reason", {})
+                    if not existing_reason.get("en"):
+                        if sl_enriched.get("reason_en"):
+                            structured["skill_level"].setdefault("reason", {})["en"] = sl_enriched["reason_en"]
+
+                # SAVE 2: G-level assessment
+                async def _save_glevel():
+                    from sqlalchemy import text as sa_text
+                    engine2 = create_async_engine(settings.DATABASE_URL, pool_size=1)
+                    factory2 = async_sessionmaker(engine2, expire_on_commit=False)
+                    async with factory2() as db2:
+                        await db2.execute(sa_text("UPDATE candidates SET structured_data = :sd WHERE id = :id"),
+                            {"sd": json.dumps(structured, ensure_ascii=False), "id": candidate_id})
+                        await db2.commit()
+                    await engine2.dispose()
+
+                loop2 = asyncio.new_event_loop()
+                loop2.run_until_complete(_save_glevel())
+                loop2.close()
+                logger.info(f"G-level assessed: {skill_level.get('level')} for {candidate_id[:8]}")
+            else:
+                logger.warning(f"assess_skill_level returned None for {candidate_id[:8]}")
+
             logger.info(f"Background AI done for candidate {candidate_id[:8]}")
 
             # Translate background
