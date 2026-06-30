@@ -263,12 +263,12 @@ def _process_item_sync(batch_id: str, row: dict, _post_items: list, target_job_i
                 if dup_result.is_duplicate:
                     dup_match = dup_result.matches[0]
                     details = json.dumps({"existing_name": dup_match.candidate_name, "reason": dup_match.reason})
+                    # Clear FK references first, then delete candidate
+                    await db.execute(text("UPDATE cv_batch_items SET candidate_id = NULL WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+                    await db.execute(text("DELETE FROM candidates WHERE id = :id"), {"id": str(candidate_id)})
                     await db.execute(text("""
                         UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = CAST(:dup_id AS uuid), duplicate_reason = :reason, duplicate_details = CAST(:details AS jsonb) WHERE id = :id
                     """), {"dup_id": dup_match.candidate_id, "reason": dup_match.reason, "details": details, "id": item_id})
-                    # Remove the candidate we just created
-                    await db.execute(text("UPDATE cv_batch_items SET candidate_id = NULL WHERE candidate_id = :cid AND id != :id"), {"cid": str(candidate_id), "id": item_id})
-                    await db.execute(text("DELETE FROM candidates WHERE id = :id"), {"id": str(candidate_id)})
                     await db.commit()
                     print(f"[TIMING] {file_name}: duplicate ({dup_match.reason}) of {dup_match.candidate_name} {time.time()-t0:.1f}s", flush=True)
                     return
