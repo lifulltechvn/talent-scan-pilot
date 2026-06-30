@@ -386,6 +386,7 @@ async def suggest_candidates(
             "name": c["structured_data"].get("name", "Unknown"),
             "skills": c["structured_data"].get("skills", []),
             "experience_years": c["structured_data"].get("experience_years", 0),
+            "skill_level": c["structured_data"].get("skill_level"),
             "similarity_score": round(float(c["similarity_score"]), 4),
             "skill_score": round(float(c["skill_score"]), 4),
             "combined_score": round(float(c["combined_score"]), 4),

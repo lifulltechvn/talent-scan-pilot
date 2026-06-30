@@ -272,7 +272,11 @@ export function JobDetailPage() {
               <div key={s.id} className="px-4 py-3 flex items-center gap-3">
                 <span className="text-xs text-text-muted w-5">{i + 1}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-text-primary truncate">{s.name}</div>
+                  <div className="text-sm font-medium text-text-primary truncate">
+                    {s.name}
+                    {s.skill_level && <span className="ml-1.5 px-1.5 py-0 bg-purple-100 text-purple-700 text-[10px] font-bold rounded">{s.skill_level.level}</span>}
+                    {s.skill_level?.category_title && <span className="ml-1 text-[10px] text-text-muted">{s.skill_level.category_title.en || s.skill_level.category?.replace('_', ' ')}</span>}
+                  </div>
                   {s.rejected_from && (
                     <div className="text-[11px] text-red-500 mt-0.5">{t('rejectedAt', { jobs: s.rejected_from.join(', ') })}</div>
                   )}
@@ -427,6 +431,7 @@ export function JobDetailPage() {
                     </div>
                     <span className="text-[13px] font-medium text-accent hover:underline">{c.structuredData.name}</span>
                     {c.structuredData.skill_level && <span className="ml-1.5 px-1.5 py-0 bg-purple-100 text-purple-700 text-[10px] font-bold rounded">{c.structuredData.skill_level.level}</span>}
+                    {c.structuredData.skill_level?.category_title && <span className="ml-1 text-[10px] text-text-muted">{c.structuredData.skill_level.category_title.en || c.structuredData.skill_level.category?.replace('_', ' ')}</span>}
                     {aiRank && <span className={`ml-1.5 px-1.5 py-0.5 text-[9px] font-bold rounded ${aiRank.action === 'invite_now' ? 'bg-emerald-100 text-emerald-700' : aiRank.action === 'consider' ? 'bg-amber-100 text-amber-700' : aiRank.action === 'need_more_info' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>AI #{aiRank.rank}</span>}
                   </Link>
                 </td>
