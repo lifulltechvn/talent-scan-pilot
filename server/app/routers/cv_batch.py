@@ -3,7 +3,7 @@ import hashlib
 import os
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +24,7 @@ MAGIC_BYTES = {".pdf": b"%PDF", ".docx": b"PK\x03\x04"}
 async def batch_upload(
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
+    target_job_id: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -37,9 +38,9 @@ async def batch_upload(
 
     # Create batch record
     await db.execute(text("""
-        INSERT INTO cv_batches (id, total_files, status, created_by)
-        VALUES (:id, :total, 'processing', :uid)
-    """), {"id": str(batch_id), "total": len(files), "uid": str(user.id)})
+        INSERT INTO cv_batches (id, total_files, status, created_by, target_job_id)
+        VALUES (:id, :total, 'processing', :uid, :tjid)
+    """), {"id": str(batch_id), "total": len(files), "uid": str(user.id), "tjid": target_job_id})
 
     # Save each file and create batch item
     for f in files:
@@ -73,7 +74,7 @@ async def batch_upload(
 
     # Start background processing
     from app.services.cv_batch_worker import run_batch_sync
-    background_tasks.add_task(run_batch_sync, str(batch_id))
+    background_tasks.add_task(run_batch_sync, str(batch_id), target_job_id)
 
     return {"batch_id": str(batch_id), "total_files": len(files), "status": "processing"}
 

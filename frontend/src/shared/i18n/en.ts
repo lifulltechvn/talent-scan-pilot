@@ -644,6 +644,17 @@ export const en = {
   // CV Upload
   cvUploadTitle: 'Upload CV',
   cvUploadSubtitle: 'Upload CVs to create candidate profiles. Supports up to 200 files per batch.',
+  uploadForJob: "Upload for Job:",
+  noJobSelected: "— None (individual CVs) —",
+  cvPreTagged: "📌 CV will be pre-tagged for this job",
+  preTaggedBadge: "Pre-tagged",
+  questionBankTitle: "📋 Interview Questions",
+  readyIn15s: "Will be ready in 10-15 seconds",
+  basic: "Basic",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+  generatingQuestions: "Generating interview questions...",
+  questions: "questions",
   dragDropText: 'Drag & drop CVs here or select files',
   fileConstraints: 'PDF, DOCX — max 10MB/file, 200 files/batch',
   selectFiles: 'Select files',
@@ -752,6 +763,10 @@ export const en = {
 
   // Question Bank Modal
   questionBankTitle: 'Interview Question Bank',
+  readyIn15s: "Will be ready in 10-15 seconds",
+  basic: "Basic",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
   generatingQuestions: 'Generating questions...',
   cannotLoadQuestions: 'Cannot load questions',
   correctAnswer: 'Correct answer',

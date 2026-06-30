@@ -51,7 +51,7 @@ class Job(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    candidates = relationship("Candidate", back_populates="job")
+    candidates = relationship("Candidate", back_populates="job", foreign_keys="[Candidate.job_id]")
 
 
 class Candidate(Base):
@@ -66,11 +66,12 @@ class Candidate(Base):
     cv_file_path: Mapped[str | None] = mapped_column(String(500))
     cv_hash: Mapped[str | None] = mapped_column(String(32), nullable=True)
     source_app_version: Mapped[str | None] = mapped_column(String(20))
+    source_job_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True)
     scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    job = relationship("Job", back_populates="candidates")
+    job = relationship("Job", back_populates="candidates", foreign_keys=[job_id])
     score = relationship("Score", back_populates="candidate", uselist=False)
 
 

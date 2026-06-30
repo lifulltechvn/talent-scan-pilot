@@ -132,7 +132,7 @@ async def list_candidates(
 
     out = []
     # Batch fetch job titles
-    job_ids = {c.job_id for c in candidates if c.job_id}
+    job_ids = {c.job_id for c in candidates if c.job_id} | {c.source_job_id for c in candidates if c.source_job_id}
     job_titles = {}
     if job_ids:
         from app.models import Job
@@ -159,6 +159,8 @@ async def list_candidates(
             "structured_data": c.structured_data,
             "status": c.status, "match_score": c.match_score,
             "source_app_version": c.source_app_version, "scanned_at": c.scanned_at,
+            "source_job_id": str(c.source_job_id) if c.source_job_id else None,
+            "source_job_title": job_titles.get(c.source_job_id) if c.source_job_id else None,
             "created_at": c.created_at,
             "updated_at": c.updated_at,
             "interview_end_time": interview_times.get(c.id) if c.status == 'pending' else None,
@@ -306,12 +308,21 @@ async def get_candidate(
     mc = await db.execute(sa_text("SELECT COUNT(*) FROM job_candidates WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
     matched_jobs_count = mc.scalar() or 0
 
+    # Get source job title if tagged
+    source_job_title = None
+    if candidate.source_job_id:
+        from app.models import Job
+        sj = await db.get(Job, candidate.source_job_id)
+        source_job_title = sj.title if sj else None
+
     return {
         "id": candidate.id, "job_id": candidate.job_id,
         "structured_data": candidate.structured_data,
         "status": candidate.status, "match_score": candidate.match_score,
         "cv_file_path": candidate.cv_file_path,
         "source_app_version": candidate.source_app_version,
+        "source_job_id": str(candidate.source_job_id) if candidate.source_job_id else None,
+        "source_job_title": source_job_title,
         "scanned_at": candidate.scanned_at, "created_at": candidate.created_at,
         "matched_jobs_count": matched_jobs_count,
     }

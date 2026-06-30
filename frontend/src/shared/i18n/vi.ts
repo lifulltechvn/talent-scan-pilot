@@ -492,6 +492,17 @@ export const vi: Record<TranslationKey, string> = {
   // CV Upload
   cvUploadTitle: 'Upload CV',
   cvUploadSubtitle: 'Upload CV để tạo hồ sơ ứng viên. Hỗ trợ tối đa 200 file/lần.',
+  uploadForJob: "Upload cho Job:",
+  noJobSelected: "— Không chọn (CV riêng lẻ) —",
+  cvPreTagged: "📌 CV sẽ được chỉ định cho job này",
+  preTaggedBadge: "Chỉ định",
+  questionBankTitle: "📋 Câu hỏi phỏng vấn",
+  readyIn15s: "Sẽ sẵn sàng trong 10-15 giây",
+  basic: "Cơ bản",
+  intermediate: "Trung bình",
+  advanced: "Nâng cao",
+  generatingQuestions: "Đang tạo câu hỏi phỏng vấn...",
+  questions: "câu hỏi",
   dragDropText: 'Kéo thả CV vào đây hoặc chọn file',
   fileConstraints: 'PDF, DOCX — tối đa 10MB/file, 200 file/lần',
   selectFiles: 'Chọn file',
@@ -754,6 +765,10 @@ export const vi: Record<TranslationKey, string> = {
 
   // Question Bank Modal
   questionBankTitle: 'Bộ câu hỏi phỏng vấn',
+  readyIn15s: "Sẽ sẵn sàng trong 10-15 giây",
+  basic: "Cơ bản",
+  intermediate: "Trung bình",
+  advanced: "Nâng cao",
   generatingQuestions: 'Đang tạo câu hỏi...',
   cannotLoadQuestions: 'Không thể tải câu hỏi',
   correctAnswer: 'Đáp án đúng',

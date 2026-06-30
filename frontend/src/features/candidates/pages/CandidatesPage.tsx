@@ -235,7 +235,7 @@ function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
           <p className="text-[11px] text-text-muted">
-            {c.structuredData.skill_level && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.[locale] || c.structuredData.skill_level.category_title?.en}</span></span>}
+            {c.structuredData.skill_level && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.[locale] || c.structuredData.skill_level.category_title?.en}</span></span>}{c.sourceJobTitle && <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] rounded-md mr-1.5">📌 {c.sourceJobTitle}</span>}
             {c.structuredData.totalYearsExperience ? t('yearsExpShort', { years: c.structuredData.totalYearsExperience }) : ''}
           </p>
         </div>

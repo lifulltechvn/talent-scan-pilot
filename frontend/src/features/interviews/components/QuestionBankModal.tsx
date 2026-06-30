@@ -10,14 +10,14 @@ interface Props {
   onClose: () => void;
 }
 
-const CATEGORY_META: Record<string, { label: string; labelVi: string; icon: any; color: string }> = {
-  problem_solving: { label: 'Problem Solving', labelVi: 'Giải quyết vấn đề', icon: Brain, color: 'text-blue-600 bg-blue-50' },
-  ai_skills: { label: 'AI Skills', labelVi: 'Kỹ năng sử dụng AI', icon: Zap, color: 'text-purple-600 bg-purple-50' },
-  g_assessment: { label: 'G-Level Assessment', labelVi: 'Đánh giá G-level', icon: Target, color: 'text-amber-600 bg-amber-50' },
+const CATEGORY_META: Record<string, { label: string; labelVi: string; labelJa: string; icon: any; color: string }> = {
+  problem_solving: { label: 'Problem Solving', labelVi: 'Giải quyết vấn đề', labelJa: '問題解決', icon: Brain, color: 'text-blue-600 bg-blue-50' },
+  ai_skills: { label: 'AI Skills', labelVi: 'Kỹ năng sử dụng AI', labelJa: 'AIスキル', icon: Zap, color: 'text-purple-600 bg-purple-50' },
+  g_assessment: { label: 'G-Level Assessment', labelVi: 'Đánh giá G-level', labelJa: 'G-level評価', icon: Target, color: 'text-amber-600 bg-amber-50' },
 };
 
 export function QuestionBankModal({ candidateId, candidateName, jobId, onClose }: Props) {
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export function QuestionBankModal({ candidateId, candidateName, jobId, onClose }
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-gray-200">
           <div>
-            <h2 className="text-[15px] font-semibold text-gray-900">📋 Câu hỏi phỏng vấn</h2>
+            <h2 className="text-[15px] font-semibold text-gray-900">{t('questionBankTitle')}</h2>
             <p className="text-[12px] text-gray-500 mt-0.5">{candidateName}</p>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
@@ -64,20 +64,20 @@ export function QuestionBankModal({ candidateId, candidateName, jobId, onClose }
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 size={24} className="text-accent animate-spin" />
-            <span className="ml-2 text-[13px] text-gray-500">Đang tải...</span>
+            <span className="ml-2 text-[13px] text-gray-500">{t('loading')}</span>
           </div>
         ) : !hasQuestions ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3">
             <Loader2 className="animate-spin text-accent" size={24} />
-            <p className="text-[13px] text-gray-500">Đang tạo câu hỏi phỏng vấn...</p>
-            <p className="text-[11px] text-gray-400">Sẽ sẵn sàng trong 10-15 giây</p>
+            <p className="text-[13px] text-gray-500">{t('generatingQuestions')}</p>
+            <p className="text-[11px] text-gray-400">{t('readyIn15s')}</p>
           </div>
         ) : (
           <div className="flex-1 flex overflow-hidden">
             {/* Left: Category tabs */}
             <div className="w-56 shrink-0 border-r border-gray-100 bg-gray-50/50 overflow-y-auto">
               {Object.entries(categories).map(([cat, catData]: [string, any]) => {
-                const meta = CATEGORY_META[cat] || { label: cat, labelVi: cat, icon: Brain, color: 'text-gray-600 bg-gray-50' };
+                const meta = CATEGORY_META[cat] || { label: cat, labelVi: cat, labelJa: cat, icon: Brain, color: 'text-gray-600 bg-gray-50' };
                 const Icon = meta.icon;
                 const qs = catData.questions || [];
                 return (
@@ -89,8 +89,8 @@ export function QuestionBankModal({ candidateId, candidateName, jobId, onClose }
                     <div className="flex items-center gap-2.5">
                       <div className={`p-1.5 rounded-md ${meta.color}`}><Icon size={14} /></div>
                       <div>
-                        <div className="text-[12px] font-medium text-gray-800">{locale === 'vi' ? meta.labelVi : meta.label}</div>
-                        <div className="text-[10px] text-gray-400">{qs.length} câu hỏi</div>
+                        <div className="text-[12px] font-medium text-gray-800">{locale === 'vi' ? meta.labelVi : locale === 'ja' ? meta.labelJa : meta.label}</div>
+                        <div className="text-[10px] text-gray-400">{qs.length} {t('questions')}</div>
                       </div>
                     </div>
                   </button>
@@ -110,7 +110,7 @@ export function QuestionBankModal({ candidateId, candidateName, jobId, onClose }
                       <div className="flex-1">
                         <p className="text-[13px] text-gray-800 leading-relaxed">{q}</p>
                         <span className="text-[9px] text-gray-400 mt-1 inline-block">
-                          {i < 3 ? '● Cơ bản' : i < 7 ? '●● Trung bình' : '●●● Nâng cao'}
+                          {i < 3 ? `● ${t('basic')}` : i < 7 ? `●● ${t('intermediate')}` : `●●● ${t('advanced')}`}
                         </span>
                       </div>
                     </div>

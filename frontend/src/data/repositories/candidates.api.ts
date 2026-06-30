@@ -37,6 +37,8 @@ function mapCandidate(raw: any, score?: Score | null): Candidate {
     createdAt: raw.created_at,
     updatedAt: raw.updated_at ?? null,
     jobTitle: raw.job_title ?? null,
+    sourceJobId: raw.source_job_id ?? null,
+    sourceJobTitle: raw.source_job_title ?? null,
     interviewEndTime: raw.interview_end_time ?? null,
   };
 }

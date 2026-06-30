@@ -42,6 +42,9 @@ export function CvUploadPage() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [dragOver, setDragOver] = useState(false);
+  const [targetJobId, setTargetJobId] = useState<string>("");
+  const [jobs, setJobs] = useState<{id: string; title: string}[]>([]);
+  useEffect(() => { apiClient.get("/jobs").then(({data}) => setJobs(data.map((j: any) => ({id: j.id, title: j.title})))).catch(() => {}); }, []);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [batch, setBatch] = useState<BatchStatus | null>(null);
@@ -82,6 +85,7 @@ export function CvUploadPage() {
 
     const form = new FormData();
     valid.forEach(f => form.append('files', f));
+    if (targetJobId) form.append('target_job_id', targetJobId);
 
     try {
       const { data } = await apiClient.post('/cv/batch/upload', form, {
@@ -177,7 +181,19 @@ export function CvUploadPage() {
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
       <h1 className="text-xl font-semibold text-text-primary mb-1">{t('cvUploadTitle')}</h1>
-      <p className="text-sm text-text-secondary mb-6">{t('cvUploadSubtitle')}</p>
+      <p className="text-sm text-text-secondary mb-4">{t('cvUploadSubtitle')}</p>
+
+      {/* Job selector (optional) */}
+      {jobs.length > 0 && (
+        <div className="mb-5 flex items-center gap-3">
+          <label className="text-[12px] font-medium text-text-muted whitespace-nowrap">{t('uploadForJob')}</label>
+          <select value={targetJobId} onChange={e => setTargetJobId(e.target.value)} className="flex-1 max-w-xs px-3 py-2 border border-border-subtle rounded-lg text-[13px] bg-white">
+            <option value="">{t('noJobSelected')}</option>
+            {jobs.map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
+          </select>
+          {targetJobId && <span className="text-[10px] text-accent font-medium">{t('cvPreTagged')}</span>}
+        </div>
+      )}
 
       {/* Drop zone */}
       {!uploading && !batch && (

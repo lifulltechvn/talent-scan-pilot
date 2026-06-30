@@ -492,6 +492,17 @@ export const ja: Record<TranslationKey, string> = {
   // CV Upload
   cvUploadTitle: 'CVアップロード',
   cvUploadSubtitle: 'CVをアップロードして候補者プロフィールを作成。1回最大200ファイル対応。',
+  uploadForJob: "対象求人:",
+  noJobSelected: "— 選択なし（個別CV） —",
+  cvPreTagged: "📌 このCVは指定求人にタグ付けされます",
+  preTaggedBadge: "指定済み",
+  questionBankTitle: "📋 面接質問",
+  readyIn15s: "10〜15秒で準備完了",
+  basic: "基本",
+  intermediate: "中級",
+  advanced: "上級",
+  generatingQuestions: "面接質問を生成中...",
+  questions: "問",
   dragDropText: 'CVをここにドラッグ＆ドロップまたはファイルを選択',
   fileConstraints: 'PDF, DOCX — 最大10MB/ファイル、200ファイル/回',
   selectFiles: 'ファイルを選択',
@@ -754,6 +765,10 @@ export const ja: Record<TranslationKey, string> = {
 
   // Question Bank Modal
   questionBankTitle: '面接質問バンク',
+  readyIn15s: "10〜15秒で準備完了",
+  basic: "基本",
+  intermediate: "中級",
+  advanced: "上級",
   generatingQuestions: '質問を生成中...',
   cannotLoadQuestions: '質問を読み込めません',
   correctAnswer: '正解',

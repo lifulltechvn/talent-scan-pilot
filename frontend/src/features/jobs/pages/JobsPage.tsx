@@ -160,7 +160,7 @@ function CreateJobModal({ onClose, initialData }: { onClose: () => void; initial
             </div>
           </div>
           <DatePicker value={form.deadline} onChange={v => setForm(p => ({ ...p, deadline: v }))} placeholder="Deadline" />
-          <div className="flex justify-center gap-2 pt-3">
+          <div className="flex justify-between pt-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('cancel')}</button>
             <button type="submit" disabled={createJob.isPending || submitting} className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-hover disabled:opacity-50">
               {(createJob.isPending || submitting) ? t('creating') : t('createJob')}

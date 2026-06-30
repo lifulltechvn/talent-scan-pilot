@@ -57,12 +57,12 @@ def start_batch_processing(batch_id: str):
     threading.Thread(target=_run, daemon=True).start()
 
 
-async def run_batch_sync(batch_id: str):
+async def run_batch_sync(batch_id: str, target_job_id: str | None = None):
     """Run batch processing (called from FastAPI BackgroundTasks)."""
-    await _process_batch(batch_id)
+    await _process_batch(batch_id, target_job_id)
 
 
-async def _process_batch(batch_id: str):
+async def _process_batch(batch_id: str, target_job_id: str | None = None):
     """Process all pending items in a batch."""
     session_factory = _get_session_factory()
 
@@ -79,7 +79,7 @@ async def _process_batch(batch_id: str):
     from concurrent.futures import as_completed
     futures = []
     for row in rows:
-        f = _executor.submit(_process_item_sync, batch_id, dict(row), _post_items)
+        f = _executor.submit(_process_item_sync, batch_id, dict(row), _post_items, target_job_id)
         futures.append(f)
 
     # Wait for all to complete
@@ -167,7 +167,7 @@ async def _process_batch(batch_id: str):
         threading.Thread(target=_run_enrichment, daemon=True).start()
 
 
-def _process_item_sync(batch_id: str, row: dict, _post_items: list):
+def _process_item_sync(batch_id: str, row: dict, _post_items: list, target_job_id: str | None = None):
     """Process a single batch item SYNCHRONOUSLY in its own thread."""
     import time
     import asyncio
@@ -221,7 +221,7 @@ def _process_item_sync(batch_id: str, row: dict, _post_items: list):
                     id=candidate_id, job_id=None,
                     structured_data={"name": file_name, "status": "processing"},
                     embedding=None, cv_file_path=stored_filename, cv_hash=file_hash,
-                    source_app_version="web", status="processing",
+                    source_app_version="web", status="processing", source_job_id=uuid.UUID(target_job_id) if target_job_id else None,
                 )
                 db.add(candidate)
                 await db.flush()  # Ensure candidate is persisted before FK reference

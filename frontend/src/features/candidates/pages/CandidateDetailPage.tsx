@@ -515,7 +515,7 @@ export function CandidateDetailPage() {
 
       {/* Matched Jobs (Smart Pool) */}
       {candidate.status !== 'blacklisted' && (
-        <MatchedJobsSection candidateId={id!} hasAssignedJob={!!candidate.jobId} />
+        <MatchedJobsSection candidateId={id!} hasAssignedJob={!!candidate.jobId} sourceJobId={candidate.sourceJobId} sourceJobTitle={candidate.sourceJobTitle} />
       )}
 
       {/* Timeline */}
@@ -704,7 +704,7 @@ function AiSummaryInline({ summary }: { summary: string }) {
   return <p className="text-[11px] text-blue-800 mt-0.5 whitespace-pre-line">{summary}</p>;
 }
 
-function MatchedJobsSection({ candidateId, hasAssignedJob }: { candidateId: string; hasAssignedJob: boolean }) {
+function MatchedJobsSection({ candidateId, hasAssignedJob, sourceJobId, sourceJobTitle }: { candidateId: string; hasAssignedJob: boolean; sourceJobId?: string | null; sourceJobTitle?: string | null }) {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { t } = useI18n();
@@ -778,6 +778,7 @@ function MatchedJobsSection({ candidateId, hasAssignedJob }: { candidateId: stri
               >
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-text-primary">{j.title || j.job_title}</span>
+                  {sourceJobId && (j.id === sourceJobId || j.job_id === sourceJobId) && <span className="inline-flex items-center px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-medium rounded border border-amber-200">{t('preTaggedBadge')}</span>}
                   <span className="text-xs text-text-muted">{mainLabel}: {mainScore}</span>
                 </div>
                 <div className="flex items-center gap-2">
