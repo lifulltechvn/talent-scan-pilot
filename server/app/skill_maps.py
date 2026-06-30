@@ -518,5 +518,6 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                 "domains": domains,
             }
     except Exception as e:
-        logger.warning(f"Skill level assessment failed: {e}")
+        import traceback
+        logger.warning(f"Skill level assessment failed: {e}\n{traceback.format_exc()}")
     return None

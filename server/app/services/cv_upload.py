@@ -269,6 +269,9 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             skill_level = assess_skill_level(structured, candidate_id=candidate_id)
             if skill_level:
                 structured["skill_level"] = skill_level
+                logger.info(f"Skill level assessed: {skill_level.get('level')} reason_len={len(skill_level.get('reason', {}).get('en', ''))}")
+            else:
+                logger.warning(f"assess_skill_level returned None for {candidate_id[:8]}")
 
             # Update candidate in DB
             async def _update():
