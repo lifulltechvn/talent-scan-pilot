@@ -1,4 +1,5 @@
 """Skill map reference data extracted from TechSkill PDFs."""
+import json
 
 SKILL_MAPS = {
     "application_engineer": {
@@ -133,27 +134,35 @@ Category rules:
 - "qa_engineer": Testing, test automation, QA processes
 - "admin": Office admin, procurement, asset management (NOT recruitment)
 - "hr": Recruitment, labor law, payroll, training, employee relations
+- "accounting": Accounting, financial reporting, bookkeeping
 
-STEP 2 — ASSESS LEVEL:
-You MUST evaluate the candidate against EACH domain of the matched category's skill map.
-The final G-level = the OVERALL level where the candidate meets MOST criteria.
-If the candidate only excels in 2-3 domains but lacks others, they CANNOT be rated at a high G.
+STEP 2 — SCORE EACH SKILL:
+Below is the FULL Skill Map for the matched category with criteria for each G-level.
+The skill map is structured as a table: each ROW is a skill domain, each COLUMN is a G-level (G0-G6).
+You MUST score ONLY the skill domains listed in the skill map (e.g., Programming, Data Store, Testing, Architecture, etc.)
+Do NOT invent your own skill names. Use EXACTLY the skill names from the map.
 
-{category_instruction}
+For EACH skill domain in the map, score the candidate:
+- 0 points: No evidence the candidate meets the criteria at current level
+- 3 points: Candidate meets the criteria described for THIS level
+- 5 points: Candidate exceeds and meets criteria of the NEXT level
+
+{skill_map_text}
+
+STEP 3 — DETERMINE G-LEVEL using this STRICT scoring rule:
+Starting from G0, check each level:
+- Count how many skill domains have criteria at this level (some levels have fewer skills with criteria)
+- If this level has FEWER than 10 skills with criteria: candidate MUST score >= 3 on ALL of them to advance
+- If this level has 10 OR MORE skills with criteria: candidate needs >= 10 skills scored >= 3 AND total points >= 26 to advance
+- G-level = the HIGHEST level where advancement criteria are MET
+- If candidate does NOT meet G0 advancement criteria → G-level is G0
+
+Example: G0 has 6 skills with criteria. If candidate only scores 3+ on 4 out of 6 → stays at G0 (NOT G1).
 
 STRICT RULES:
-- To reach G3, candidate MUST show evidence in at least 7-8 of the 12 domains (Programming, Data Store, Testing, Architecture, Server/Middleware, Infra/Network, Security, Frontend, Requirements, Schedule, Data Analysis, Improvement)
-- To reach G2, must show evidence in at least 4-5 domains with concrete depth
-- To reach G1, must show 2-3 domains with basic competence
-- A backend-only dev (even Senior title) with no Testing/Security/Architecture/Frontend evidence → G2 max
-- A frontend-only dev with no Backend/Data Store/Security/Infra evidence → G2 max
-- A specialist (ML/Data/Mobile only) covering 2-3 domains deeply → G2 max unless also shows breadth
-- "Senior" title at a company does NOT equal G3 — G3 requires BREADTH across domains, not just depth in one area
-- Most developers are G1-G2. G3+ is rare and requires demonstrable multi-domain expertise
-
-DATA QUALITY:
-- No specific technologies (only "Programming", "Teamwork") → MAX G0
-- All companies UNKNOWN → MAX G0
+- "Senior" title does NOT equal high G — G-level requires evidence across MULTIPLE skills
+- Listing skills without evidence of USE = 0 points
+- Internship < 6 months with only "studied/learned" language = 0 points for that skill
 - Years alone mean nothing without verifiable skill depth
 
 Candidate:
@@ -162,16 +171,47 @@ Candidate:
 - Roles: {roles}
 - Education: {education}
 
-Respond EXACTLY in this format (4 lines, ALL MANDATORY):
-CATEGORY: <application_engineer|bridge_se|qa_engineer|admin|hr>
-LEVEL: <G0|G1|G2|G3|G4|G5|G6>
-REASON_EN: <5-7 sentences in English. Explain: which domains the candidate demonstrates, specific evidence from their experience, and why this level (not higher/lower)>
-REASON_VI: <Dịch REASON_EN sang tiếng Việt, 5-7 câu đầy đủ>"""
+Respond EXACTLY in this format:
+CATEGORY: <application_engineer|bridge_se|qa_engineer|admin|hr|accounting>
+SCORES: <skill_name:score, skill_name:score, ...> (score EVERY skill domain from the skill map at G0 and G1 level. Use the EXACT skill names from the map. Score 0, 3, or 5 for each.)
+REASON_EN: <5-7 sentences explaining evidence for each score>
+REASON_VI: <Dịch REASON_EN sang tiếng Việt>"""
+
+
+def _load_skill_map_json() -> dict:
+    """Load skill map data from JSON config file."""
+    import os
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "skill_maps.json")
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def _get_skill_map_for_category(category: str) -> str:
+    """Get the full skill map text for a category from JSON config."""
+    data = _load_skill_map_json()
+    cat_data = data.get(category, {})
+    raw_text = cat_data.get("raw_text", "")
+    if raw_text:
+        # Truncate to fit in prompt (keep first 4000 chars which covers G0-G3 criteria)
+        return raw_text[:4000]
+    # Fallback to hardcoded if no JSON
+    cat_data_old = SKILL_MAPS.get(category, {})
+    if "g_criteria" in cat_data_old:
+        return "\n".join(f"- {k}: {v}" for k, v in cat_data_old["g_criteria"].items())
+    return ""
 
 
 def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, job_category: str | None = None) -> dict | None:
-    """Assess candidate skill level using AI + skill maps. Returns {category, level, reason} or None.
-    If job_category is provided, forces assessment against that specific category."""
+    """Assess candidate skill level using AI + skill maps with point-based scoring.
+    
+    Scoring rules:
+    - Each skill: 0-5 points (3 = meets current level, 5 = exceeds to next level)
+    - Advance G-level when:
+      - If < 10 skills at level: ALL skills must score >= 3
+      - If >= 10 skills at level: >= 10 skills scored AND total >= 26 points
+    """
     import json
     import logging
     from app.bedrock import invoke_claude
@@ -190,25 +230,22 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
     roles = ", ".join(f"{e.get('role_en', '') or e.get('role', '')} @ {e.get('company', '')}" for e in experience[:3]) or "N/A"
     edu_str = ", ".join(f"{e.get('degree_en', '') or e.get('degree', '')} {e.get('major_en', '') or e.get('major', '')} ({e.get('school', '')})" for e in education[:2]) or "N/A"
 
-    if job_category and job_category in SKILL_MAPS:
-        category_instruction = f"The candidate is being evaluated for the position category: {job_category} ({SKILL_MAPS[job_category]['title_vi']}). Use ONLY this category for assessment. Set CATEGORY to: {job_category}"
-    else:
-        category_instruction = "Determine the best matching category based on the candidate's skills and experience."
-
-    # Add G-criteria for better assessment
-    criteria_text = ""
+    # Determine target category
     target_cat = job_category if (job_category and job_category in SKILL_MAPS) else None
     if not target_cat:
-        # Try to guess category from skills for criteria
         for cat_key, cat_data in SKILL_MAPS.items():
+            if "key_skills" not in cat_data:
+                continue
             cat_skills_lower = {s.lower() for s in cat_data["key_skills"]}
             candidate_skills_lower = {s.lower() for s in skills[:15]}
             if len(cat_skills_lower & candidate_skills_lower) >= 2:
                 target_cat = cat_key
                 break
-    if target_cat and "g_criteria" in SKILL_MAPS.get(target_cat, {}):
-        g_crit = SKILL_MAPS[target_cat]["g_criteria"]
-        criteria_text = f"\nDetailed G-level criteria for {target_cat}:\n" + "\n".join(f"- {k}: {v}" for k, v in g_crit.items())
+    if not target_cat:
+        target_cat = "application_engineer"
+
+    # Get full skill map text for the category
+    skill_map_text = _get_skill_map_for_category(target_cat)
 
     prompt = SKILL_LEVEL_PROMPT.format(
         categories=get_all_skill_maps_summary(),
@@ -216,26 +253,70 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
         experience_years=experience_years,
         roles=roles,
         education=edu_str,
-        category_instruction=category_instruction + criteria_text,
+        skill_map_text=skill_map_text,
     )
 
     try:
-        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=1500, feature="skill_level", candidate_id=candidate_id)
+        result = invoke_claude(prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=2000, feature="skill_level", candidate_id=candidate_id)
         category = ""
-        level = ""
         reason_vi = ""
         reason_en = ""
+        scores_str = ""
         for line in result.strip().split("\n"):
             if line.startswith("CATEGORY:"):
                 category = line.replace("CATEGORY:", "").strip()
-            elif line.startswith("LEVEL:"):
-                level = line.replace("LEVEL:", "").strip()
+            elif line.startswith("SCORES:"):
+                scores_str = line.replace("SCORES:", "").strip()
             elif line.startswith("REASON_EN:"):
                 reason_en = line.replace("REASON_EN:", "").strip()
             elif line.startswith("REASON_VI:"):
                 reason_vi = line.replace("REASON_VI:", "").strip()
             elif line.startswith("REASON:"):
                 reason_en = line.replace("REASON:", "").strip()
+
+        # Parse scores
+        skill_scores = {}
+        if scores_str:
+            for pair in scores_str.split(","):
+                pair = pair.strip()
+                if ":" in pair:
+                    name, score = pair.rsplit(":", 1)
+                    try:
+                        skill_scores[name.strip()] = int(score.strip())
+                    except ValueError:
+                        pass
+
+        if not category:
+            category = target_cat
+
+        # Calculate G-level from scores using the advancement rules
+        # Rule: if < 10 skills at level → need ALL >= 3; if >= 10 → need >= 10 skills AND total >= 26
+        skills_passing = sum(1 for s in skill_scores.values() if s >= 3)
+        total_points = sum(skill_scores.values())
+        total_skills = len(skill_scores)
+
+        if total_skills < 10:
+            # Less than 10 skills: need ALL to be >= 3 to advance from G0
+            if skills_passing >= total_skills and total_skills > 0:
+                level = "G1"
+            else:
+                level = "G0"
+        else:
+            # 10+ skills: need >= 10 passing AND total >= 26
+            if skills_passing >= 10 and total_points >= 26:
+                level = "G1"  # Passed G0, now at G1
+            else:
+                level = "G0"
+
+        # For higher levels, we'd need to re-score at each level
+        # For now, if passed G0→G1, check if we can go higher based on total score
+        if level == "G1" and total_points >= 40:
+            level = "G2"
+        if level == "G2" and total_points >= 50:
+            level = "G3"
+
+        total_str = f"{total_points}/{total_skills * 5} ({skills_passing} skills scored >= 3)"
+
         # Always ensure VI exists - translate from EN if missing/short
         if reason_en and len(reason_vi.strip()) < 20:
             import time
@@ -266,6 +347,8 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                 "category": category,
                 "level": level,
                 "reason": {"vi": reason_vi, "en": reason_en},
+                "scores": skill_scores,
+                "total": total_str,
                 "level_description": {"vi": level_desc_vi, "en": level_desc_en},
                 "category_title": category_titles,
                 "domains": domains,

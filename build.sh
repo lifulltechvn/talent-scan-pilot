@@ -31,3 +31,12 @@ echo "🌐 Web:      http://localhost"
 echo "📚 API docs: http://localhost:8000/docs"
 echo "👤 Login:    hr@test.com / test1234"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+docker-compose down -v --rmi all 2>/dev/null || true
+docker builder prune -f
+docker-compose up -d --build
+sleep 10
+docker-compose run --rm api alembic upgrade head
+docker-compose restart api
+sleep 3
+docker-compose exec api python seed.py

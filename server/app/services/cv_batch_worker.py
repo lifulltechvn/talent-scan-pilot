@@ -257,6 +257,22 @@ def _process_item_sync(batch_id: str, row: dict, _post_items: list, target_job_i
                     if pii_data.get("dob"):
                         structured["date_of_birth"] = pii_data["dob"][0]
 
+                # Check duplicate by email/phone (after PII inject)
+                from app.services.duplicate_checker import check_duplicate
+                dup_result = await check_duplicate(db, structured, exclude_id=str(candidate_id))
+                if dup_result.is_duplicate:
+                    dup_match = dup_result.matches[0]
+                    details = json.dumps({"existing_name": dup_match.candidate_name, "reason": dup_match.reason})
+                    # Clear FK references first, then delete candidate
+                    await db.execute(text("UPDATE cv_batch_items SET candidate_id = NULL WHERE candidate_id = :cid"), {"cid": str(candidate_id)})
+                    await db.execute(text("DELETE FROM candidates WHERE id = :id"), {"id": str(candidate_id)})
+                    await db.execute(text("""
+                        UPDATE cv_batch_items SET status = 'duplicate', duplicate_of = CAST(:dup_id AS uuid), duplicate_reason = :reason, duplicate_details = CAST(:details AS jsonb) WHERE id = :id
+                    """), {"dup_id": dup_match.candidate_id, "reason": dup_match.reason, "details": details, "id": item_id})
+                    await db.commit()
+                    print(f"[TIMING] {file_name}: duplicate ({dup_match.reason}) of {dup_match.candidate_name} {time.time()-t0:.1f}s", flush=True)
+                    return
+
                 # Extract avatar
                 if file_bytes:
                     avatar = _extract_avatar(file_bytes, str(candidate_id))

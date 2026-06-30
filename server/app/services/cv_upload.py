@@ -147,10 +147,10 @@ def _parse_cv_enrichment(text: str, candidate_id: str | None = None) -> dict:
         "input_schema": {
             "type": "object",
             "properties": {
-                "experience": {"type": "array", "items": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}, "duration": {"type": "string"}}}, "maxItems": 3},
-                "education": {"type": "array", "items": {"type": "object", "properties": {"school": {"type": "string"}, "degree": {"type": "string"}, "major": {"type": "string"}}}, "maxItems": 2},
+                "experience": {"type": "array", "items": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}, "duration": {"type": "string"}, "description": {"type": "string", "description": "Brief summary of responsibilities/projects"}}}, "maxItems": 6},
+                "education": {"type": "array", "items": {"type": "object", "properties": {"school": {"type": "string"}, "degree": {"type": "string"}, "major": {"type": "string"}, "year": {"type": "string"}}}, "maxItems": 3},
                 "certifications": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "issuer": {"type": "string"}}}},
-                "languages": {"type": "array", "items": {"type": "object", "properties": {"language": {"type": "string"}, "level": {"type": "string"}}}},
+                "languages": {"type": "array", "items": {"type": "object", "properties": {"language": {"type": "string", "description": "Human language like English, Japanese, NOT programming language"}, "level": {"type": "string"}}}},
                 "strengths": {"type": "string", "description": "1-2 sentences in English ONLY"},
                 "weaknesses": {"type": "string", "description": "1 sentence in English ONLY"},
                 "skill_level": {"type": "object", "properties": {"reason_en": {"type": "string", "description": "1 sentence English explaining G-level"}, "reason_vi": {"type": "string", "description": "1 câu tiếng Việt giải thích G-level"}}},
@@ -165,7 +165,7 @@ def _parse_cv_enrichment(text: str, candidate_id: str | None = None) -> dict:
     safe_text, _warnings = guard(cleaned, "CV_CONTENT")
     body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1024,
+        "max_tokens": 1500,
         "temperature": 0,
         "system": CV_PARSE_SYSTEM,
         "messages": [{"role": "user", "content": f"Extract detailed experience, education, certifications, languages, and assess skill level from this CV:\n\n{safe_text}"}],
@@ -241,6 +241,29 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 if avatar:
                     structured["avatar"] = avatar
 
+            # Check duplicate by email/phone
+            from app.services.duplicate_checker import check_duplicate as _check_dup
+
+            async def _check_duplicate():
+                engine_dup = create_async_engine(settings.DATABASE_URL, pool_size=1)
+                factory_dup = async_sessionmaker(engine_dup, expire_on_commit=False)
+                async with factory_dup() as db_dup:
+                    dup_result = await _check_dup(db_dup, structured, exclude_id=candidate_id)
+                await engine_dup.dispose()
+                return dup_result
+
+            loop_dup = asyncio.new_event_loop()
+            dup_result = loop_dup.run_until_complete(_check_duplicate())
+            loop_dup.close()
+
+            if dup_result.is_duplicate:
+                dup_match = dup_result.matches[0]
+                logger.warning(f"Duplicate detected for {candidate_id[:8]}: {dup_match.reason} match with {dup_match.candidate_name} ({dup_match.candidate_id[:8]})")
+                # Mark candidate as duplicate but keep it (HR can merge later)
+                structured["_duplicate_of"] = dup_match.candidate_id
+                structured["_duplicate_reason"] = dup_match.reason
+                structured["_duplicate_name"] = dup_match.candidate_name
+
             # Assess skill level based on skill maps
             from app.skill_maps import assess_skill_level
             skill_level = assess_skill_level(structured, candidate_id=candidate_id)
@@ -288,10 +311,11 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 emb = get_embedding(" ".join(structured.get("skills", [])), candidate_id=candidate_id)
                 # Save enriched
                 async def _update2():
+                    from sqlalchemy import text as sa_text
                     engine2 = create_async_engine(settings.DATABASE_URL, pool_size=1)
                     factory2 = async_sessionmaker(engine2, expire_on_commit=False)
                     async with factory2() as db2:
-                        await db2.execute(text("UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"),
+                        await db2.execute(sa_text("UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"),
                             {"sd": json.dumps(structured, ensure_ascii=False), "emb": str(emb) if emb else None, "id": candidate_id})
                         await db2.commit()
                     await engine2.dispose()

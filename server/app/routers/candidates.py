@@ -60,6 +60,7 @@ async def create_candidate(
                     job_skills=job.required_skills,
                     candidate_data=candidate.structured_data,
                     job_title=job.title, job_description=job.description or "", job_skills_expanded=job.required_skills_expanded or [],
+                    job_category=job.category,
                 )
 
                 candidate.match_score = match_result["combined_score"]
