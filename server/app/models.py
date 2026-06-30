@@ -39,6 +39,7 @@ class Job(Base):
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str] = mapped_column(Text)
     required_skills: Mapped[list] = mapped_column(JSONB, default=list)
+    required_skills_expanded: Mapped[list] = mapped_column(JSONB, default=list, nullable=True)
     required_years: Mapped[int | None] = mapped_column(nullable=True)
     required_education: Mapped[str | None] = mapped_column(String(50), nullable=True)
     salary_range: Mapped[str | None] = mapped_column(String(255))

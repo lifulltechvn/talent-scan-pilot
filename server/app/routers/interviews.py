@@ -60,6 +60,15 @@ async def _pre_generate_question_bank(candidate_id: str, job_id: str | None = No
             g_criteria_en = sm.get("g_criteria_en", {}).get(g_level, g_criteria)
             domains = sm.get("domains", [])
 
+            # Candidate recent experience for contextual questions
+            candidate_exp = d.get("experience", [])[:3]
+            candidate_skills = d.get("skills", [])[:10]
+            exp_context = ""
+            if candidate_exp:
+                exp_lines = [f"- {e.get('role','')} at {e.get('company','')} ({e.get('duration','')})" for e in candidate_exp if isinstance(e, dict)]
+                exp_context = f"\nCandidate recent experience:\n" + "\n".join(exp_lines)
+                exp_context += f"\nCandidate skills: {', '.join(candidate_skills)}"
+
             # === 3 Categories with cache keys ===
             categories_to_gen = {
                 "problem_solving": {
@@ -107,18 +116,21 @@ Rules:
 Return JSON array of 10 strings (questions only). No markdown."""
                 },
                 "g_assessment": {
-                    "key": f"g_{job_category}_{g_level}",
+                    "key": f"g_{job_category}_{g_level}_{candidate_id[:8]}",
                     "prompt": f"""Generate 10 interview questions to assess if a candidate truly matches {g_level} level for {job_category.replace('_',' ')}.
 
 {g_level} criteria: {g_criteria_en[:300]}
 Domains to probe: {', '.join(domains[:8])}
 JD: {jd_desc[:200]}
+{exp_context}
 
 Rules:
-- Questions must directly test {g_level} competencies listed above
+- Questions MUST relate to the candidate's actual work experience listed above
+- Ask specific scenarios from their recent roles (e.g. "At [company], how did you handle...")
+- Questions must directly test {g_level} competencies
 - Ordered EASY to HARD within {g_level} scope
-- Early questions (1-4): confirm basic {g_level} skills
-- Middle questions (5-7): test depth at {g_level}
+- Early questions (1-4): confirm basic {g_level} skills using their experience
+- Middle questions (5-7): test depth at {g_level} in their domain
 - Hard questions (8-10): probe if candidate could be {g_level[0]}{int(g_level[1])+1} level
 - Practical, 1-2 sentences each
 

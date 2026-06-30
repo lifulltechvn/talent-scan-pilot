@@ -14,11 +14,37 @@ def _expand_skill(skill: str) -> list[str]:
     """Split compound skill into sub-parts for better matching."""
     s = skill.lower().strip()
     parts = [s]
-    # Known aliases
+    # Known aliases (framework ↔ language, tool ↔ category)
     ALIASES = {
         "ci/cd": ["github actions", "gitlab ci", "jenkins", "circleci", "travis"],
         "github actions": ["ci/cd", "cicd"],
         "jenkins": ["ci/cd", "cicd"],
+        # Framework → Language
+        "laravel": ["php"],
+        "symfony": ["php"],
+        "php": ["laravel", "symfony"],
+        "react": ["javascript", "typescript", "frontend"],
+        "vue": ["javascript", "typescript", "frontend"],
+        "angular": ["javascript", "typescript", "frontend"],
+        "next.js": ["react", "javascript", "typescript"],
+        "nuxt": ["vue", "javascript"],
+        "express": ["node.js", "javascript"],
+        "fastapi": ["python"],
+        "django": ["python"],
+        "flask": ["python"],
+        "spring boot": ["java"],
+        "spring": ["java"],
+        "ruby on rails": ["ruby"],
+        "rails": ["ruby"],
+        "node.js": ["javascript", "typescript"],
+        "nodejs": ["javascript", "typescript"],
+        # Cloud/Infra
+        "kubernetes": ["k8s", "docker", "container"],
+        "k8s": ["kubernetes", "docker"],
+        "terraform": ["iac", "infrastructure"],
+        "aws": ["cloud"],
+        "gcp": ["cloud"],
+        "azure": ["cloud"],
     }
     if s in ALIASES:
         parts.extend(ALIASES[s])
@@ -37,7 +63,7 @@ def _expand_skill(skill: str) -> list[str]:
     return parts
 
 
-def score_skills(job_skills: list[str], candidate_skills: list[str]) -> tuple[float, dict]:
+def score_skills(job_skills: list[str], candidate_skills: list[str], job_skills_expanded: list[str] | None = None) -> tuple[float, dict]:
     from app.skill_normalizer import normalize_skills
     if not job_skills:
         return 50.0, {"matched": [], "missing": [], "note": "No skills required"}
@@ -47,6 +73,7 @@ def score_skills(job_skills: list[str], candidate_skills: list[str]) -> tuple[fl
     for cs in cand_normalized:
         cand_expanded.update(_expand_skill(cs))
 
+    expanded_set = set(s.lower().strip() for s in (job_skills_expanded or []))
     def _is_match(js):
         js_parts = _expand_skill(js)
         for jp in js_parts:
@@ -60,6 +87,11 @@ def score_skills(job_skills: list[str], candidate_skills: list[str]) -> tuple[fl
             c_words.discard('')
             if j_words and c_words and len(j_words & c_words) / len(j_words) >= 0.5:
                 return True
+        # Check against expanded list (AI-generated equivalents)
+        if expanded_set:
+            for cs in cand_expanded:
+                if cs in expanded_set:
+                    return True
         return False
 
     matched = []
@@ -185,6 +217,7 @@ def compute_rule_score(
     use_llm: bool = True,
     candidate_id: str | None = None,
     job_description: str = "",
+    job_skills_expanded: list[str] | None = None,
 ) -> dict:
     """
     Compute hybrid score: Rule-based 70% + LLM 30%.
@@ -195,7 +228,7 @@ def compute_rule_score(
     cand_years = candidate_data.get("experience_years")
     cand_edu = candidate_data.get("education_level")
 
-    skill_score, skill_detail = score_skills(job_skills, cand_skills)
+    skill_score, skill_detail = score_skills(job_skills, cand_skills, job_skills_expanded=job_skills_expanded)
     exp_score, exp_detail = score_experience(required_years, cand_years)
     edu_score, edu_detail = score_education(required_education, cand_edu)
 

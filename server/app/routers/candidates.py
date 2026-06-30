@@ -59,7 +59,7 @@ async def create_candidate(
                 score_result = compute_rule_score(
                     job_skills=job.required_skills,
                     candidate_data=candidate.structured_data,
-                    job_title=job.title, job_description=job.description or "",
+                    job_title=job.title, job_description=job.description or "", job_skills_expanded=job.required_skills_expanded or [],
                 )
 
                 candidate.match_score = match_result["combined_score"]

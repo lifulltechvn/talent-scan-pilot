@@ -61,6 +61,32 @@ async def import_jd_file(
 
         parsed.pop("document_type", None)
 
+        # Generate expanded skills (framework/tool equivalents for scoring)
+        skills = parsed.get("required_skills", [])
+        if skills:
+            try:
+                expand_prompt = f"""For each skill below, list equivalent frameworks/tools/libraries that a developer might have instead.
+Skills: {', '.join(skills[:10])}
+
+Example: "PHP" → ["PHP", "Laravel", "Symfony", "CodeIgniter"]
+Example: "JavaScript" → ["JavaScript", "React", "Vue", "Angular", "Node.js", "TypeScript"]
+
+Return JSON object: {{"skill": ["skill", "equiv1", "equiv2", ...]}}
+Only include well-known, widely-used equivalents. No markdown."""
+                expand_raw = invoke_claude(expand_prompt, model=settings.BEDROCK_MODEL_HAIKU, max_tokens=500, feature="skill_expand")
+                expand_clean = expand_raw.strip()
+                if expand_clean.startswith("```"): expand_clean = expand_clean.split("\n", 1)[1]
+                if expand_clean.endswith("```"): expand_clean = expand_clean[:-3]
+                expand_data = json.loads(expand_clean[expand_clean.find("{"):expand_clean.rfind("}")+1])
+                # Flatten all equivalents into one list
+                expanded = set()
+                for equivs in expand_data.values():
+                    if isinstance(equivs, list):
+                        expanded.update(e.lower().strip() for e in equivs)
+                parsed["required_skills_expanded"] = list(expanded)
+            except Exception:
+                parsed["required_skills_expanded"] = [s.lower().strip() for s in skills]
+
         # Ensure bilingual description
         desc = parsed.get("description", "")
         if desc and not isinstance(desc, dict):
@@ -493,7 +519,7 @@ async def assign_candidate_to_job(
             candidate_data=candidate.structured_data,
             required_years=job.required_years,
             required_education=job.required_education,
-            job_title=job.title, job_description=job.description or "",
+            job_title=job.title, job_description=job.description or "", job_skills_expanded=job.required_skills_expanded or [],
         )
 
         candidate.match_score = match_result["combined_score"]
