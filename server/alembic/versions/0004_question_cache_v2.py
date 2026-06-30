@@ -33,6 +33,7 @@ def upgrade():
         )
     """)
     op.execute("CREATE INDEX IF NOT EXISTS idx_timeline_candidate ON timeline_events(candidate_id)")
+    op.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS required_skills_expanded JSONB DEFAULT '[]'")
 
 
 def downgrade():
