@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone, Eye, Globe, AlertTriangle, Shield, Loader2 } from 'lucide-react';
+import { ArrowLeft, Briefcase, GraduationCap, Languages, DollarSign, Sparkles, Users, Clock, Download, CheckCircle, XCircle, Award, MapPin, Heart, ChevronLeft, ChevronRight, Trash2, Mail, Phone, Eye, Globe, AlertTriangle, Shield, Loader2, Cake } from 'lucide-react';
 import { useCandidate, useCandidates, useUpdateCandidateStatus } from '../hooks/useCandidates';
 import { LoadingSkeleton } from '@/shared/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -549,13 +549,12 @@ export function CandidateDetailPage() {
                   'bg-bg-surface text-text-muted'
                 }`}>{candidate.status}</span>
               </div>
-              {d._parse_confidence != null && d._parse_confidence < 0.8 && (
-                <div className="mt-2 text-[10px] text-amber-600 bg-amber-50 px-2 py-1 rounded-full">⚠ Parse: {Math.round(d._parse_confidence * 100)}%</div>
-              )}
+
             </div>
 
             <div className="space-y-2 text-[12px] text-text-secondary border-t border-border-subtle pt-3 mb-4">
               <div className="flex items-center gap-2"><Briefcase size={12} className="text-text-muted" /> {t("yearsExp", { years: d.totalYearsExperience })}</div>
+              {d.date_of_birth && d.date_of_birth !== 'null' && <div className="flex items-center gap-2"><Cake size={12} className="text-text-muted" /> {d.date_of_birth}</div>}
               {d.hometown && d.hometown !== 'null' && <div className="flex items-center gap-2"><MapPin size={12} className="text-text-muted" /> {d.hometown}</div>}
               {Array.isArray(d.languages) && d.languages.filter(l => l.language && l.language !== 'null').length > 0 && <div className="flex items-center gap-2"><Languages size={12} className="text-text-muted" /> {d.languages.filter(l => l.language && l.language !== 'null').map(l => l.language).join(', ')}</div>}
               {d.email && d.email !== '<UNKNOWN>' && d.email !== 'null' && <div className="flex items-center gap-2"><Mail size={12} className="text-text-muted" /> <span className="truncate">{d.email}</span></div>}

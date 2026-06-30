@@ -147,10 +147,10 @@ def _parse_cv_enrichment(text: str, candidate_id: str | None = None) -> dict:
         "input_schema": {
             "type": "object",
             "properties": {
-                "experience": {"type": "array", "items": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}, "duration": {"type": "string"}}}, "maxItems": 3},
-                "education": {"type": "array", "items": {"type": "object", "properties": {"school": {"type": "string"}, "degree": {"type": "string"}, "major": {"type": "string"}}}, "maxItems": 2},
+                "experience": {"type": "array", "items": {"type": "object", "properties": {"company": {"type": "string"}, "role": {"type": "string"}, "duration": {"type": "string"}, "description": {"type": "string", "description": "Brief summary of responsibilities/projects"}}}, "maxItems": 6},
+                "education": {"type": "array", "items": {"type": "object", "properties": {"school": {"type": "string"}, "degree": {"type": "string"}, "major": {"type": "string"}, "year": {"type": "string"}}}, "maxItems": 3},
                 "certifications": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "issuer": {"type": "string"}}}},
-                "languages": {"type": "array", "items": {"type": "object", "properties": {"language": {"type": "string"}, "level": {"type": "string"}}}},
+                "languages": {"type": "array", "items": {"type": "object", "properties": {"language": {"type": "string", "description": "Human language like English, Japanese, NOT programming language"}, "level": {"type": "string"}}}},
                 "strengths": {"type": "string", "description": "1-2 sentences in English ONLY"},
                 "weaknesses": {"type": "string", "description": "1 sentence in English ONLY"},
                 "skill_level": {"type": "object", "properties": {"reason_en": {"type": "string", "description": "1 sentence English explaining G-level"}, "reason_vi": {"type": "string", "description": "1 câu tiếng Việt giải thích G-level"}}},
@@ -165,7 +165,7 @@ def _parse_cv_enrichment(text: str, candidate_id: str | None = None) -> dict:
     safe_text, _warnings = guard(cleaned, "CV_CONTENT")
     body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1024,
+        "max_tokens": 1500,
         "temperature": 0,
         "system": CV_PARSE_SYSTEM,
         "messages": [{"role": "user", "content": f"Extract detailed experience, education, certifications, languages, and assess skill level from this CV:\n\n{safe_text}"}],
@@ -288,10 +288,11 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 emb = get_embedding(" ".join(structured.get("skills", [])), candidate_id=candidate_id)
                 # Save enriched
                 async def _update2():
+                    from sqlalchemy import text as sa_text
                     engine2 = create_async_engine(settings.DATABASE_URL, pool_size=1)
                     factory2 = async_sessionmaker(engine2, expire_on_commit=False)
                     async with factory2() as db2:
-                        await db2.execute(text("UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"),
+                        await db2.execute(sa_text("UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"),
                             {"sd": json.dumps(structured, ensure_ascii=False), "emb": str(emb) if emb else None, "id": candidate_id})
                         await db2.commit()
                     await engine2.dispose()
