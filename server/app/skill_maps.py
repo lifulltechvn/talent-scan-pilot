@@ -260,9 +260,12 @@ Respond EXACTLY in this format (each field on its own line):
 CATEGORY: <application_engineer|bridge_se|qa_engineer|admin|hr|accounting>
 LEVEL: <G0|G1|G2|G3|G4|G5>
 SCORES: <domain_name:score, domain_name:score, ...> (score EVERY domain from the skill map, 0-5 each)
-EVIDENCE: <For each scored domain, briefly note what CV evidence supports the score. Format: domain=evidence; domain=evidence>
-REASON_EN: <5-8 sentences detailed assessment in English. Include: (1) overall strength areas, (2) specific evidence from CV that supports the level, (3) weak areas or gaps, (4) comparison to level criteria, (5) recommendation for improvement>
-REASON_VI: <Same detailed assessment in Vietnamese, 5-8 câu. Bao gồm: (1) điểm mạnh chính, (2) bằng chứng cụ thể từ CV, (3) điểm yếu/thiếu sót, (4) so sánh với tiêu chí level, (5) đề xuất cải thiện>"""
+STRENGTHS_EN: <3-4 specific strengths with evidence from CV. Example: "Strong backend skills (5yr Python, optimized API to 200ms), solid DevOps (Docker, AWS, CI/CD pipeline), good system design thinking (Clean Architecture, microservices migration)">
+STRENGTHS_VI: <Same in Vietnamese>
+GAPS_EN: <2-3 specific weak areas or missing skills based on skill map. Example: "No evidence of security practices (OAuth, SAML, vulnerability prevention), limited frontend depth (only basic React mentioned), no data analysis or pipeline experience">
+GAPS_VI: <Same in Vietnamese>
+SUMMARY_EN: <2-3 sentences: What level they are, why, and what would bring them to next level. Example: "Candidate demonstrates solid G2 capabilities across programming, infrastructure and architecture domains. Their 5 years of backend experience with optimization evidence pushes them beyond basic G1. To reach G3, they need to show security design skills, cross-team project leadership, and data store design at physical/logical level.">
+SUMMARY_VI: <Same in Vietnamese>"""
 
 
 def _calculate_g_level(skill_scores: dict) -> str:
@@ -379,7 +382,12 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
         reason_vi = ""
         reason_en = ""
         scores_str = ""
-        evidence_str = ""
+        strengths_en = ""
+        strengths_vi = ""
+        gaps_en = ""
+        gaps_vi = ""
+        summary_en = ""
+        summary_vi = ""
 
         for line in result.strip().split("\n"):
             if line.startswith("CATEGORY:"):
@@ -388,14 +396,45 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                 ai_level = line.replace("LEVEL:", "").strip()
             elif line.startswith("SCORES:"):
                 scores_str = line.replace("SCORES:", "").strip()
-            elif line.startswith("EVIDENCE:"):
-                evidence_str = line.replace("EVIDENCE:", "").strip()
+            elif line.startswith("STRENGTHS_EN:"):
+                strengths_en = line.replace("STRENGTHS_EN:", "").strip()
+            elif line.startswith("STRENGTHS_VI:"):
+                strengths_vi = line.replace("STRENGTHS_VI:", "").strip()
+            elif line.startswith("GAPS_EN:"):
+                gaps_en = line.replace("GAPS_EN:", "").strip()
+            elif line.startswith("GAPS_VI:"):
+                gaps_vi = line.replace("GAPS_VI:", "").strip()
+            elif line.startswith("SUMMARY_EN:"):
+                summary_en = line.replace("SUMMARY_EN:", "").strip()
+            elif line.startswith("SUMMARY_VI:"):
+                summary_vi = line.replace("SUMMARY_VI:", "").strip()
+            # Legacy fallback
             elif line.startswith("REASON_EN:"):
                 reason_en = line.replace("REASON_EN:", "").strip()
             elif line.startswith("REASON_VI:"):
                 reason_vi = line.replace("REASON_VI:", "").strip()
             elif line.startswith("REASON:"):
                 reason_en = line.replace("REASON:", "").strip()
+
+        # Build rich reason from structured fields
+        if strengths_en or gaps_en or summary_en:
+            parts_en = []
+            if summary_en:
+                parts_en.append(summary_en)
+            if strengths_en:
+                parts_en.append(f"✅ Strengths: {strengths_en}")
+            if gaps_en:
+                parts_en.append(f"⚠️ Gaps: {gaps_en}")
+            reason_en = "\n".join(parts_en)
+
+            parts_vi = []
+            if summary_vi:
+                parts_vi.append(summary_vi)
+            if strengths_vi:
+                parts_vi.append(f"✅ Điểm mạnh: {strengths_vi}")
+            if gaps_vi:
+                parts_vi.append(f"⚠️ Thiếu sót: {gaps_vi}")
+            reason_vi = "\n".join(parts_vi)
 
         # Parse scores
         skill_scores = {}
@@ -474,7 +513,6 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                 "reason": {"vi": reason_vi, "en": reason_en},
                 "scores": skill_scores,
                 "total": total_str,
-                "evidence": evidence_str,
                 "level_description": {"vi": level_desc_vi, "en": level_desc_en},
                 "category_title": category_titles,
                 "domains": domains,
