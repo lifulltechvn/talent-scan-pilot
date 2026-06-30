@@ -570,12 +570,12 @@ export function CandidateDetailPage() {
               {d.address && <div className="flex items-center gap-2"><MapPin size={12} className="text-text-muted" /> <span className="text-[11px]">{d.address}</span></div>}
             </div>
 
-            {/* Edit parsed data */}
-            {candidate.status !== 'blacklisted' && (
+            {/* Edit parsed data — hidden for demo */}
+            {/* {candidate.status !== 'blacklisted' && (
             <div className="border-t border-border-subtle pt-2 mb-2">
               <EditCandidateData candidateId={candidate.id} data={d} />
             </div>
-            )}
+            )} */}
 
             {/* Actions */}
             <div className="space-y-2">

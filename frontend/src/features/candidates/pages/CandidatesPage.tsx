@@ -41,17 +41,19 @@ type SortKey = 'name' | 'score' | 'date';
 
 export function CandidatesPage() {
   const { t, locale } = useI18n();
-  const { data: candidates, isLoading } = useCandidates();
-  const [enrichWait, setEnrichWait] = useState(true);
+  const { data: candidates, isLoading, refetch } = useCandidates();
 
-  // Wait up to 3s for G-level data if any candidate is missing it
+  // Retry refetch every 5s until all candidates have G-level reason data
+  const [gLoading, setGLoading] = useState(true);
   useEffect(() => {
-    if (!candidates || candidates.length === 0) { setEnrichWait(false); return; }
-    const allHaveG = candidates.every((c: any) => c.structuredData?.skill_level || c.structured_data?.skill_level);
-    if (allHaveG) { setEnrichWait(false); return; }
-    const timer = setTimeout(() => setEnrichWait(false), 3000);
-    return () => clearTimeout(timer);
-  }, [candidates]);
+    if (!candidates || candidates.length === 0) { setGLoading(false); return; }
+    const allReady = candidates.filter((c: any) => c.status !== 'processing').every((c: any) =>
+      c.structuredData?.skill_level?.reason?.en || c.structuredData?.skill_level?.reason?.vi
+    );
+    if (allReady) { setGLoading(false); return; }
+    const timer = setInterval(() => { refetch(); }, 5000);
+    return () => clearInterval(timer);
+  }, [candidates?.length, candidates?.filter((c: any) => c.structuredData?.skill_level?.reason?.en).length]);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<CandidateStatus | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortKey>('date');
@@ -98,7 +100,7 @@ export function CandidatesPage() {
     setPage(1);
   };
 
-  if (isLoading || enrichWait) return <LoadingSkeleton rows={8} />;
+  if (isLoading) return <LoadingSkeleton rows={8} />;
 
   return (
     <div>
@@ -235,7 +237,7 @@ function CandidateRowDesktop({ candidate: c }: { candidate: Candidate }) {
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
           <p className="text-[11px] text-text-muted">
-            {c.structuredData.skill_level && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.[locale] || c.structuredData.skill_level.category_title?.en}</span></span>}{c.sourceJobTitle && <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] rounded-md mr-1.5">📌 {c.sourceJobTitle}</span>}
+            {c.structuredData.skill_level && c.structuredData.skill_level.reason && (c.structuredData.skill_level.reason.en || c.structuredData.skill_level.reason.vi) ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.[locale] || c.structuredData.skill_level.category_title?.en}</span></span> : c.status !== 'processing' && <span className="inline-flex items-center px-2 py-0.5 bg-gray-50 text-gray-400 text-[10px] rounded-md mr-1.5 animate-pulse">⏳ G-level...</span>}{c.sourceJobTitle && <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] rounded-md mr-1.5">📌 {c.sourceJobTitle}</span>}
             {c.structuredData.totalYearsExperience ? t('yearsExpShort', { years: c.structuredData.totalYearsExperience }) : ''}
           </p>
         </div>
@@ -266,7 +268,7 @@ function CandidateRowMobile({ candidate: c }: { candidate: Candidate }) {
           <div className="min-w-0">
             <p className="text-[14px] font-medium text-text-primary truncate">{c.structuredData.name}</p>
             <p className="text-[12px] text-text-muted">
-              {c.structuredData.skill_level && <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.[locale] || c.structuredData.skill_level.category_title?.en}</span></span>}
+              {c.structuredData.skill_level && c.structuredData.skill_level.reason && (c.structuredData.skill_level.reason.en || c.structuredData.skill_level.reason.vi) ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-md mr-1.5">{c.structuredData.skill_level.level} <span className="font-normal text-purple-400 border-l border-purple-200 pl-1.5">{c.structuredData.skill_level.category_title?.[locale] || c.structuredData.skill_level.category_title?.en}</span></span> : c.status !== 'processing' && <span className="inline-flex items-center px-2 py-0.5 bg-gray-50 text-gray-400 text-[10px] rounded-md mr-1.5 animate-pulse">⏳ G-level...</span>}
               {c.structuredData.totalYearsExperience ? t('yearsExpShort', { years: c.structuredData.totalYearsExperience }) : ''}
             </p>
           </div>
