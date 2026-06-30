@@ -241,6 +241,29 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 if avatar:
                     structured["avatar"] = avatar
 
+            # Check duplicate by email/phone
+            from app.services.duplicate_checker import check_duplicate as _check_dup
+
+            async def _check_duplicate():
+                engine_dup = create_async_engine(settings.DATABASE_URL, pool_size=1)
+                factory_dup = async_sessionmaker(engine_dup, expire_on_commit=False)
+                async with factory_dup() as db_dup:
+                    dup_result = await _check_dup(db_dup, structured, exclude_id=candidate_id)
+                await engine_dup.dispose()
+                return dup_result
+
+            loop_dup = asyncio.new_event_loop()
+            dup_result = loop_dup.run_until_complete(_check_duplicate())
+            loop_dup.close()
+
+            if dup_result.is_duplicate:
+                dup_match = dup_result.matches[0]
+                logger.warning(f"Duplicate detected for {candidate_id[:8]}: {dup_match.reason} match with {dup_match.candidate_name} ({dup_match.candidate_id[:8]})")
+                # Mark candidate as duplicate but keep it (HR can merge later)
+                structured["_duplicate_of"] = dup_match.candidate_id
+                structured["_duplicate_reason"] = dup_match.reason
+                structured["_duplicate_name"] = dup_match.candidate_name
+
             # Assess skill level based on skill maps
             from app.skill_maps import assess_skill_level
             skill_level = assess_skill_level(structured, candidate_id=candidate_id)

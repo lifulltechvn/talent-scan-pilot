@@ -107,15 +107,47 @@ def score_skills(job_skills: list[str], candidate_skills: list[str], job_skills_
     return round(score, 1), {"matched": matched, "missing": missing}
 
 
-def score_experience(required_years: int | None, candidate_years: int | None) -> tuple[float, str]:
+def score_experience(required_years: int | None, candidate_years: int | None, candidate_category: str | None = None, job_category: str | None = None) -> tuple[float, str]:
+    """Score experience considering relevance between candidate category and job category."""
     if required_years is None:
         return 80.0, "No requirement specified"
     if candidate_years is None:
         return 30.0, "Candidate experience unknown"
-    if candidate_years >= required_years:
+
+    # Calculate relevance factor based on category match
+    relevance = _category_relevance(candidate_category, job_category)
+    effective_years = candidate_years * relevance
+
+    if effective_years >= required_years:
+        if relevance < 1.0:
+            return round(min(100, (effective_years / required_years) * 100), 1), f"{candidate_years}y ({candidate_category}) × {relevance} relevance = {effective_years:.1f}y effective >= {required_years}y required"
         return 100.0, f"{candidate_years}y >= {required_years}y required"
-    ratio = candidate_years / required_years
+
+    ratio = effective_years / required_years
+    if relevance < 1.0:
+        return round(ratio * 100, 1), f"{candidate_years}y ({candidate_category}) × {relevance} relevance = {effective_years:.1f}y effective / {required_years}y required"
     return round(ratio * 100, 1), f"{candidate_years}y / {required_years}y required"
+
+
+# Category relevance matrix: how transferable is experience between categories
+# 1.0 = same field, 0.7 = closely related, 0.4 = partially related, 0.2 = unrelated
+_CATEGORY_RELEVANCE = {
+    #                         app_eng  bridge   qa      admin   hr
+    "application_engineer": {"application_engineer": 1.0, "bridge_se": 0.7, "qa_engineer": 0.6, "admin": 0.2, "hr": 0.2},
+    "bridge_se":            {"application_engineer": 0.7, "bridge_se": 1.0, "qa_engineer": 0.5, "admin": 0.3, "hr": 0.3},
+    "qa_engineer":          {"application_engineer": 0.6, "bridge_se": 0.5, "qa_engineer": 1.0, "admin": 0.2, "hr": 0.2},
+    "admin":                {"application_engineer": 0.2, "bridge_se": 0.3, "qa_engineer": 0.2, "admin": 1.0, "hr": 0.6},
+    "hr":                   {"application_engineer": 0.2, "bridge_se": 0.3, "qa_engineer": 0.2, "admin": 0.6, "hr": 1.0},
+}
+
+
+def _category_relevance(candidate_category: str | None, job_category: str | None) -> float:
+    """Get relevance factor between candidate's background and job category."""
+    if not candidate_category or not job_category:
+        return 1.0  # No category info → don't penalize
+    if candidate_category == job_category:
+        return 1.0
+    return _CATEGORY_RELEVANCE.get(candidate_category, {}).get(job_category, 0.3)
 
 
 def score_education(required_level: str | None, candidate_level: str | None) -> tuple[float, str]:
@@ -218,6 +250,7 @@ def compute_rule_score(
     candidate_id: str | None = None,
     job_description: str = "",
     job_skills_expanded: list[str] | None = None,
+    job_category: str | None = None,
 ) -> dict:
     """
     Compute hybrid score: Rule-based 70% + LLM 30%.
@@ -227,9 +260,10 @@ def compute_rule_score(
     cand_skills = candidate_data.get("skills", [])
     cand_years = candidate_data.get("experience_years")
     cand_edu = candidate_data.get("education_level")
+    cand_category = (candidate_data.get("skill_level") or {}).get("category")
 
     skill_score, skill_detail = score_skills(job_skills, cand_skills, job_skills_expanded=job_skills_expanded)
-    exp_score, exp_detail = score_experience(required_years, cand_years)
+    exp_score, exp_detail = score_experience(required_years, cand_years, candidate_category=cand_category, job_category=job_category)
     edu_score, edu_detail = score_education(required_education, cand_edu)
 
     # Language score (simplified)

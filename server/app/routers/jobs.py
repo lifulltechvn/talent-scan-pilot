@@ -521,6 +521,7 @@ async def assign_candidate_to_job(
             required_years=job.required_years,
             required_education=job.required_education,
             job_title=job.title, job_description=job.description or "", job_skills_expanded=job.required_skills_expanded or [],
+            job_category=job.category,
         )
 
         candidate.match_score = match_result["combined_score"]
