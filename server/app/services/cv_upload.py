@@ -307,8 +307,14 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                         "category_title": {"vi": cat_data.get("title_vi", sl["category"]), "en": sl["category"].replace("_", " ").title()},
                         "domains": cat_data.get("domains", []),
                     }
-                # Embed with enriched data
-                emb = get_embedding(" ".join(structured.get("skills", [])), candidate_id=candidate_id)
+                # Embed with enriched data (include role context for better semantic match with job descriptions)
+                latest_role = ""
+                if structured.get("experience"):
+                    exp0 = structured["experience"][0]
+                    role_val = exp0.get("role", "")
+                    latest_role = role_val.get("en", "") if isinstance(role_val, dict) else str(role_val)
+                embed_text = f"{latest_role} {' '.join(structured.get('skills', []))}"
+                emb = get_embedding(embed_text, candidate_id=candidate_id)
                 # Save enriched
                 async def _update2():
                     from sqlalchemy import text as sa_text

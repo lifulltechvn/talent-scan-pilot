@@ -356,14 +356,22 @@ async def get_candidate_matched_jobs(
     results = []
     for r in rows.mappings().all():
         req_skills = r["required_skills"] or []
-        matched = [s for s in req_skills if s.lower() in cand_skills]
+        # Match using same logic as scoring: split "/" for OR-groups
+        matched = []
+        missing = []
+        for s in req_skills:
+            alternatives = [a.strip().lower() for a in s.split("/")]
+            if any(alt in cand_skills or any(alt in cs or cs in alt for cs in cand_skills) for alt in alternatives):
+                matched.append(s)
+            else:
+                missing.append(s)
         results.append({
             "job_id": str(r["job_id"]),
             "title": r["title"],
             "location": r["location"],
             "required_skills": req_skills,
             "matched_skills": matched,
-            "missing_skills": [s for s in req_skills if s.lower() not in cand_skills],
+            "missing_skills": missing,
             "similarity_score": round(float(r["similarity_score"]), 4),
             "skill_score": round(float(r["skill_score"]), 4),
             "combined_score": round(float(r["combined_score"]), 4),
