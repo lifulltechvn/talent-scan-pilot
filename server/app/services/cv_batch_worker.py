@@ -136,7 +136,14 @@ async def _process_batch(batch_id: str, target_job_id: str | None = None):
                         existing_reason = sd["skill_level"].get("reason", {})
                         if not existing_reason.get("en"):
                             sd["skill_level"]["reason"] = {"en": sl.get("reason_en", sl.get("reason", "")), "vi": sl.get("reason_vi", "")}
-                    emb = get_embedding(" ".join(sd.get("skills", [])), candidate_id=cid)
+                    # Embed with enriched data (include role context for better semantic match)
+                    latest_role = ""
+                    if sd.get("experience"):
+                        exp0 = sd["experience"][0]
+                        role_val = exp0.get("role", "")
+                        latest_role = role_val.get("en", "") if isinstance(role_val, dict) else str(role_val)
+                    embed_text = f"{latest_role} {' '.join(sd.get('skills', []))}"
+                    emb = get_embedding(embed_text, candidate_id=cid)
                     async with _sf() as _db:
                         await _db.execute(_text(
                             "UPDATE candidates SET structured_data = :sd, embedding = :emb WHERE id = :id"
