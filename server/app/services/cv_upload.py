@@ -264,25 +264,12 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 structured["_duplicate_reason"] = dup_match.reason
                 structured["_duplicate_name"] = dup_match.candidate_name
 
-            # Assess skill level AND Enrichment — run in PARALLEL
-            # Save enrichment first (faster), then G-level when ready
-            from app.skill_maps import assess_skill_level
-            from concurrent.futures import ThreadPoolExecutor as _TPE, Future
+            # Phase 2: Enrichment first (faster, ~6-9s)
+            print(f"[DEBUG] starting enrichment for {candidate_id[:8]}", flush=True)
+            enriched = _parse_cv_enrichment(text, candidate_id)
+            print(f"[DEBUG] enriched done for {candidate_id[:8]}", flush=True)
 
-            def _do_assess():
-                return assess_skill_level(structured, candidate_id=candidate_id)
-
-            def _do_enrich():
-                return _parse_cv_enrichment(text, candidate_id)
-
-            mini_pool = _TPE(max_workers=2)
-            future_assess = mini_pool.submit(_do_assess)
-            future_enrich = mini_pool.submit(_do_enrich)
-
-            # Wait for enrichment first (usually faster ~6s)
-            enriched = future_enrich.result()
-
-            # Apply enrichment immediately
+            # Apply enrichment
             if enriched:
                 if enriched.get("experience"): structured["experience"] = enriched["experience"]
                 if enriched.get("education"): structured["education"] = enriched["education"]
@@ -299,7 +286,7 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             embed_text = f"{latest_role} {' '.join(structured.get('skills', []))}"
             emb = get_embedding(embed_text, candidate_id=candidate_id)
 
-            # SAVE 1: enrichment data (insight + experience visible to HR immediately)
+            # SAVE 1: enrichment (insight + experience visible to HR immediately)
             async def _save_enrichment():
                 from sqlalchemy import text as sa_text
                 engine1 = create_async_engine(settings.DATABASE_URL, pool_size=1)
@@ -313,15 +300,23 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             loop1 = asyncio.new_event_loop()
             loop1.run_until_complete(_save_enrichment())
             loop1.close()
-            logger.info(f"Enrichment saved for {candidate_id[:8]} (insight + experience ready)")
+            print(f"[DEBUG] enrichment saved for {candidate_id[:8]}", flush=True)
 
-            # Now wait for G-level assessment
-            skill_level = future_assess.result()
-            mini_pool.shutdown(wait=False)
+            # Smart Pool: auto-match candidate to all jobs (needs embedding)
+            if emb:
+                from app.services.smart_pool import background_match_candidate
+                background_match_candidate(candidate_id)
+                print(f"[DEBUG] smart pool matched for {candidate_id[:8]}", flush=True)
+
+            # Phase 3: G-level assessment (slower, ~10-15s)
+            from app.skill_maps import assess_skill_level
+            print(f"[DEBUG] starting assess for {candidate_id[:8]}", flush=True)
+            skill_level = assess_skill_level(structured, candidate_id=candidate_id)
+            print(f"[DEBUG] assess done for {candidate_id[:8]}", flush=True)
 
             if skill_level:
                 structured["skill_level"] = skill_level
-                # Don't let enrichment reason overwrite full assessment
+                # Don't let enrichment reason overwrite
                 sl_enriched = enriched.get("skill_level") if enriched else None
                 if sl_enriched and isinstance(sl_enriched, dict):
                     existing_reason = structured["skill_level"].get("reason", {})
@@ -343,7 +338,7 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
                 loop2 = asyncio.new_event_loop()
                 loop2.run_until_complete(_save_glevel())
                 loop2.close()
-                logger.info(f"G-level assessed: {skill_level.get('level')} for {candidate_id[:8]}")
+                print(f"[DEBUG] G-level saved: {skill_level.get('level')} for {candidate_id[:8]}", flush=True)
             else:
                 logger.warning(f"assess_skill_level returned None for {candidate_id[:8]}")
 
@@ -352,13 +347,9 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
             # Translate background
             from app.services.cv_translate import translate_candidate_background
             translate_candidate_background(candidate_id, structured)
-
-            # Smart Pool: auto-match candidate to all jobs
-            if embedding:
-                from app.services.smart_pool import background_match_candidate
-                background_match_candidate(candidate_id)
         except Exception as e:
-            logger.error(f"Background AI failed for {candidate_id[:8]}: {e}")
+            import traceback
+            logger.error(f"Background AI failed for {candidate_id[:8]}: {e}\n{traceback.format_exc()}")
 
     threading.Thread(target=_run, daemon=True).start()
 
