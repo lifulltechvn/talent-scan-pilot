@@ -202,11 +202,12 @@ export function CandidateDetailPage() {
     staleTime: 0,
     refetchInterval: (query) => {
       const d = query.state.data;
-      if (!d) return 5000;
+      if (!d) return 2000;
       const sd = d.structuredData || d.structured_data;
-      // Stop once enrichment + translation complete for current locale
-      if (!sd?.experience?.length || !sd?.insight?.strengths) return 5000;
-      if (sd?.skill_level?.reason && !sd.skill_level.reason.vi) return 5000;
+      // Stop once enrichment + G-level + translation complete
+      if (!sd?.experience?.length || !sd?.insight?.strengths) return 2000;
+      if (!sd?.skill_level?.reason?.en) return 2000;
+      if (sd?.skill_level?.reason && !sd.skill_level.reason.vi) return 3000;
       return false;
     },
   });
