@@ -218,53 +218,53 @@ Category rules:
 - "hr": Recruitment, labor law, payroll, training, employee relations
 - "accounting": Accounting, financial reporting, bookkeeping, tax
 
-STEP 2 — SCORE EACH SKILL DOMAIN:
+STEP 2 — SCORE EACH SKILL DOMAIN AT EACH G-LEVEL:
 Below is the FULL Skill Map for the matched category. It is structured as a table: each ROW is a skill domain, each COLUMN is a G-level (G0-G6).
 
 You MUST score ONLY the skill domains listed in the skill map.
 Do NOT invent your own skill names. Use EXACTLY the domain names from the map.
 
-For EACH skill domain, determine the HIGHEST G-level the candidate demonstrates based on CV evidence:
-- 0: No evidence of meeting even G0 criteria for this domain
-- 1: Meets G0 criteria (basic understanding with help)
-- 2: Meets G1 criteria (can complete basic tasks independently)
-- 3: Meets G2 criteria (quality-conscious, proposes improvements, self-managing)
-- 4: Meets G3 criteria (proactive leadership of team goals, optimization, cross-domain)
-- 5: Meets G4+ criteria (drives company-wide success, strategic thinking)
+For EACH skill domain, score the candidate AT G0 level on a scale of 0-9:
+- If the skill map has NO criteria/content for a domain at G0 (empty cell), use -1 (skip)
+- 0: No evidence at all
+- 1-2: Partial evidence, not fully meeting G0 criteria
+- 3: Fully meets G0 criteria
+- 4-5: Exceeds G0, meets G1 criteria (score 5 = fully meets G1)
+- 6-7: Far exceeds, meets G2 criteria (score 7 = fully meets G2)
+- 8-9: Meets G3+ criteria (score 9 = fully meets G3)
 
-IMPORTANT: Score based on EVIDENCE in the CV, not assumptions:
-- Listing a skill name without context of USE = score 1 maximum
-- "Familiar with X" or "studied X" = score 0-1
-- "Used X in production for Y years" with specific outcomes = score 2-3
-- "Led/architected/optimized X across projects" = score 3-4
-- "Senior" or "Lead" title alone does NOT guarantee high score — need evidence of DEPTH
+CRITICAL: Score reflects the HIGHEST level the candidate demonstrates for each domain.
+Example: G0 Programming requires "basic e-commerce page". If candidate has 8 years building complex web apps with optimization → they exceed G0 AND G1 AND likely meet G2 → score 7.
+
+IMPORTANT:
+- If a domain's cell is EMPTY at G0 in the skill map, score -1
+- Score based on EVIDENCE in the CV
+- Listing a skill without context of USE = score 1-2
+- "Used X in production for Y years" with outcomes = score 4-6
+- "Led/architected/optimized X across teams" = score 6-8
+- Title alone does NOT guarantee high score — need evidence of DEPTH
 
 {skill_map_text}
 
-STEP 3 — DETERMINE G-LEVEL:
-The candidate's G-level = the level where the MAJORITY of domains are scored at or above.
-- G0: Average score < 1.0 OR most domains scored 0
-- G1: Average score >= 1.0 AND >= 70% domains scored >= 1
-- G2: Average score >= 2.0 AND >= 70% domains scored >= 2
-- G3: Average score >= 3.0 AND >= 70% domains scored >= 3
-- G4: Average score >= 4.0 AND >= 80% domains scored >= 4
-- G5: Average score >= 4.5 AND >= 90% domains scored >= 4
+STEP 3 — G-LEVEL is calculated by the system from your scores (you don't need to calculate it).
 
 Candidate:
 - Skills: {skills}
 - Experience: {experience_years} years
 - Roles: {roles}
+- Experience Details:
+{experience_details}
 - Education: {education}
+- Certifications: {certifications}
 
 Respond EXACTLY in this format (each field on its own line):
 CATEGORY: <application_engineer|bridge_se|qa_engineer|admin|hr|accounting>
-LEVEL: <G0|G1|G2|G3|G4|G5>
-SCORES: <domain_name:score, domain_name:score, ...> (score EVERY domain from the skill map, 0-5 each)
-STRENGTHS_EN: <3-4 specific strengths with evidence from CV. Example: "Strong backend skills (5yr Python, optimized API to 200ms), solid DevOps (Docker, AWS, CI/CD pipeline), good system design thinking (Clean Architecture, microservices migration)">
+G0_SCORES: <domain_name:score, domain_name:score, ...> (score every domain at G0, 0-9 scale, or -1 if no criteria)
+STRENGTHS_EN: <3-4 specific strengths with evidence from CV>
 STRENGTHS_VI: <Same in Vietnamese>
-GAPS_EN: <2-3 specific weak areas or missing skills based on skill map. Example: "No evidence of security practices (OAuth, SAML, vulnerability prevention), limited frontend depth (only basic React mentioned), no data analysis or pipeline experience">
+GAPS_EN: <2-3 specific weak areas or missing skills based on skill map>
 GAPS_VI: <Same in Vietnamese>
-SUMMARY_EN: <2-3 sentences: What level they are, why, and what would bring them to next level. Example: "Candidate demonstrates solid G2 capabilities across programming, infrastructure and architecture domains. Their 5 years of backend experience with optimization evidence pushes them beyond basic G1. To reach G3, they need to show security design skills, cross-team project leadership, and data store design at physical/logical level.">
+SUMMARY_EN: <2-3 sentences: What level they are, why, and what would bring them to next level>
 SUMMARY_VI: <Same in Vietnamese>"""
 
 
@@ -336,10 +336,28 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
         f"{e.get('role_en', '') or e.get('role', '')} @ {e.get('company', '')}"
         for e in experience[:5]
     ) or "N/A"
+    
+    # Build detailed experience text for better assessment
+    exp_details = []
+    for e in experience[:4]:
+        role = e.get('role_en', '') or e.get('role', '')
+        company = e.get('company', '')
+        duration = e.get('duration', '')
+        desc = e.get('description', '') or e.get('description_en', '') or e.get('description_vi', '')
+        exp_line = f"- {role} @ {company} ({duration})"
+        if desc:
+            exp_line += f": {desc[:200]}"
+        exp_details.append(exp_line)
+    exp_text = "\n".join(exp_details) if exp_details else "N/A"
+    
     edu_str = ", ".join(
         f"{e.get('degree_en', '') or e.get('degree', '')} {e.get('major_en', '') or e.get('major', '')} ({e.get('school', '')})"
         for e in education[:3]
     ) or "N/A"
+    
+    # Include certifications if available
+    certs = candidate_data.get("certifications", [])
+    certs_str = ", ".join(c.get("name", "") for c in certs[:5]) if certs else "None"
 
     # Determine target category
     target_cat = job_category if (job_category and job_category in SKILL_MAPS) else None
@@ -365,6 +383,8 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
         roles=roles,
         education=edu_str,
         skill_map_text=skill_map_text,
+        experience_details=exp_text,
+        certifications=certs_str,
     )
 
     try:
@@ -382,6 +402,7 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
         reason_vi = ""
         reason_en = ""
         scores_str = ""
+        g_level_scores: dict[str, str] = {}  # {"G0": "domain:score,...", "G1": ...}
         strengths_en = ""
         strengths_vi = ""
         gaps_en = ""
@@ -394,6 +415,16 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                 category = line.replace("CATEGORY:", "").strip()
             elif line.startswith("LEVEL:"):
                 ai_level = line.replace("LEVEL:", "").strip()
+            elif line.startswith("G0_SCORES:"):
+                g_level_scores["G0"] = line.replace("G0_SCORES:", "").strip()
+            elif line.startswith("G1_SCORES:"):
+                g_level_scores["G1"] = line.replace("G1_SCORES:", "").strip()
+            elif line.startswith("G2_SCORES:"):
+                g_level_scores["G2"] = line.replace("G2_SCORES:", "").strip()
+            elif line.startswith("G3_SCORES:"):
+                g_level_scores["G3"] = line.replace("G3_SCORES:", "").strip()
+            elif line.startswith("G4_SCORES:"):
+                g_level_scores["G4"] = line.replace("G4_SCORES:", "").strip()
             elif line.startswith("SCORES:"):
                 scores_str = line.replace("SCORES:", "").strip()
             elif line.startswith("STRENGTHS_EN:"):
@@ -408,7 +439,6 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                 summary_en = line.replace("SUMMARY_EN:", "").strip()
             elif line.startswith("SUMMARY_VI:"):
                 summary_vi = line.replace("SUMMARY_VI:", "").strip()
-            # Legacy fallback
             elif line.startswith("REASON_EN:"):
                 reason_en = line.replace("REASON_EN:", "").strip()
             elif line.startswith("REASON_VI:"):
@@ -436,48 +466,133 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                 parts_vi.append(f"⚠️ Thiếu sót: {gaps_vi}")
             reason_vi = "\n".join(parts_vi)
 
-        # Parse scores
-        skill_scores = {}
-        if scores_str:
-            for pair in scores_str.split(","):
+        # Parse G0 scores (0-9 scale, AI scores ALL domains based on overall ability)
+        def _parse_scores_line(line: str) -> dict:
+            scores = {}
+            for pair in line.split(","):
                 pair = pair.strip()
                 if ":" in pair:
                     name, score_val = pair.rsplit(":", 1)
                     try:
                         s = int(score_val.strip())
-                        skill_scores[name.strip()] = max(0, min(5, s))
+                        scores[name.strip()] = max(-1, min(9, s))
                     except ValueError:
                         pass
+            return scores
+
+        g0_scores = {}
+        if "G0" in g_level_scores:
+            g0_scores = _parse_scores_line(g_level_scores["G0"])
+        elif scores_str:
+            g0_scores = _parse_scores_line(scores_str)
+
+        # Apply experience baseline: senior devs have implicit knowledge not written in CV
+        # Only boost domains where candidate has at least some evidence (score >= 1)
+        EXPERIENCE_BASELINE = {
+            (0, 1): 0,    # 0-1 years: no boost
+            (2, 3): 3,    # 2-3 years: at least G0
+            (4, 5): 5,    # 4-5 years: at least G1
+            (6, 8): 7,    # 6-8 years: at least G2
+            (9, 99): 8,   # 9+ years: at least G2-G3
+        }
+        baseline = 0
+        for (low, high), val in EXPERIENCE_BASELINE.items():
+            if low <= experience_years <= high:
+                baseline = val
+                break
+
+        if baseline > 0 and g0_scores:
+            for domain in g0_scores:
+                score = g0_scores[domain]
+                if score >= 3 and score < baseline:  # Meets G0 criteria → full boost
+                    g0_scores[domain] = baseline
+                elif score >= 1 and score < baseline:  # Partial evidence → boost to baseline - 2
+                    g0_scores[domain] = max(score, baseline - 2)
+
+        # Derive higher level scores: score at G(N) = G0_score - 2*N (min 0)
+        level_scores = {}
+        if g0_scores:
+            for g_idx, g in enumerate(["G0", "G1", "G2", "G3", "G4"]):
+                derived = {}
+                for domain, score in g0_scores.items():
+                    if score == -1:
+                        derived[domain] = -1
+                    else:
+                        derived[domain] = max(0, score - 2 * g_idx)
+                level_scores[g] = derived
+
+        skill_scores = g0_scores
 
         if not category:
             category = target_cat
 
-        # Calculate G-level using proportional logic
-        calculated_level = _calculate_g_level(skill_scores)
+        # Calculate G-level: avg >= 3 at each level to advance (3 = meets criteria)
+        # Only count domains that have criteria at this level (from domain_criteria_map)
+        G_THRESHOLD = 3.0
 
-        # Trust AI-recommended level — AI has full Skill Map context + CV evidence
-        # AI scored every domain individually, then concluded the level
-        # Only sanity check: if calc says G0 (truly no evidence), cap AI at G2
-        g_order = ["G0", "G1", "G2", "G3", "G4", "G5", "G6"]
-        ai_idx = g_order.index(ai_level) if ai_level in g_order else -1
-        calc_idx = g_order.index(calculated_level) if calculated_level in g_order else 0
+        # Load domain criteria map
+        _skill_map_data = _load_skill_map_json()
+        _criteria_map = _skill_map_data.get(category, {}).get("domain_criteria_map", {})
 
-        if ai_idx >= 0:
-            if calc_idx == 0 and ai_idx > 2:
-                # Calc says G0 but AI says G3+ → something off, cap at G2
-                level = "G2"
-            else:
-                # Trust AI
-                level = ai_level
+        if level_scores:
+            level = "G0"
+            level_avgs = {}
+            for g in ["G0", "G1", "G2", "G3", "G4"]:
+                scores_at_level = level_scores.get(g, {})
+                if not scores_at_level:
+                    break
+
+                # Filter: only domains that have criteria at this G-level
+                applicable = {}
+                for domain, score in scores_at_level.items():
+                    # Check criteria map - normalize domain name
+                    domain_normalized = domain.replace("_", " ").replace("-", "-").strip()
+                    domain_map = _criteria_map.get(domain, {}) or _criteria_map.get(domain_normalized, {})
+                    if not domain_map:
+                        for config_domain in _criteria_map:
+                            if config_domain.replace("-", " ").replace("_", " ").lower() == domain.replace("-", " ").replace("_", " ").lower():
+                                domain_map = _criteria_map[config_domain]
+                                break
+                    has_criteria = domain_map.get(g, True) if domain_map else True
+                    if has_criteria and score >= 0:
+                        applicable[domain] = score
+
+                if len(applicable) < 2:
+                    break
+
+                avg = sum(applicable.values()) / len(applicable)
+                level_avgs[g] = round(avg, 2)
+                print(f"[G-CALC] {g}: {len(applicable)} applicable / {len(scores_at_level)} total, avg={avg:.2f}, pass={avg>=G_THRESHOLD}", flush=True)
+                if avg >= G_THRESHOLD:
+                    g_order = ["G0", "G1", "G2", "G3", "G4", "G5"]
+                    g_idx = g_order.index(g)
+                    if g_idx + 1 < len(g_order):
+                        level = g_order[g_idx + 1]
+                else:
+                    break
+            logger.info(f"G-level calc: avgs={level_avgs}, threshold={G_THRESHOLD}, result={level}")
         else:
-            level = calculated_level
+            # Fallback to old logic with single scores
+            calculated_level = _calculate_g_level(skill_scores)
+            g_order = ["G0", "G1", "G2", "G3", "G4", "G5", "G6"]
+            ai_idx = g_order.index(ai_level) if ai_level in g_order else -1
+            calc_idx = g_order.index(calculated_level) if calculated_level in g_order else 0
+            if ai_idx >= 0:
+                if calc_idx == 0 and ai_idx > 2:
+                    level = "G2"
+                else:
+                    level = ai_level
+            else:
+                level = calculated_level
+            level_avgs = {}
 
         # Build total string
         total_skills = len(skill_scores)
-        total_points = sum(skill_scores.values())
-        max_points = total_skills * 5
+        total_points = sum(v for v in skill_scores.values() if v >= 0)
+        max_points = total_skills * 9
         avg_score = round(total_points / total_skills, 2) if total_skills > 0 else 0
-        total_str = f"{total_points}/{max_points} (avg {avg_score}/5, {total_skills} domains)"
+        level_avgs_str = ", ".join(f"{k}={v}" for k, v in level_avgs.items()) if level_avgs else f"avg={avg_score}"
+        total_str = f"{total_points}/{max_points} ({level_avgs_str}, {total_skills} domains)"
 
         # Ensure Vietnamese reason exists
         if reason_en and len(reason_vi.strip()) < 20:
@@ -511,16 +626,18 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                 "ja": cat_data.get("title_ja", category_title_vi),
             }
             domains = cat_data.get("domains", [])
-            return {
+            result_data = {
                 "category": category,
                 "level": level,
                 "reason": {"vi": reason_vi, "en": reason_en},
                 "scores": skill_scores,
+                "level_scores": level_scores if level_scores else None,
                 "total": total_str,
                 "level_description": {"vi": level_desc_vi, "en": level_desc_en},
                 "category_title": category_titles,
                 "domains": domains,
             }
+            return result_data
     except Exception as e:
         import traceback
         logger.warning(f"Skill level assessment failed: {e}\n{traceback.format_exc()}")
