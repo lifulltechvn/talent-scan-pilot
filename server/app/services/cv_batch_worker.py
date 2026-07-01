@@ -123,14 +123,20 @@ async def _process_batch(batch_id: str, target_job_id: str | None = None):
                 _eng = _ce(settings.DATABASE_URL, pool_size=1)
                 _sf = _asm(_eng, expire_on_commit=False)
                 try:
+                    # Assess skill level (full assessment with scores, strengths, gaps)
+                    from app.skill_maps import assess_skill_level as _assess
+                    skill_level = _assess(base_sd, candidate_id=cid)
+
                     enriched = _parse_cv_enrichment(cv_text, cid)
                     sd = dict(base_sd)
+                    if skill_level:
+                        sd["skill_level"] = skill_level
                     if enriched.get("experience"): sd["experience"] = enriched["experience"]
                     if enriched.get("education"): sd["education"] = enriched["education"]
                     if enriched.get("certifications"): sd["certifications"] = enriched["certifications"]
                     if enriched.get("languages"): sd["languages"] = enriched["languages"]
                     sd["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
-                    # Keep Phase 1 skill_level — only fill reason if currently empty
+                    # Don't overwrite skill_level reason if already assessed
                     sl = enriched.get("skill_level")
                     if sl and isinstance(sl, dict) and (sl.get("reason_en") or sl.get("reason")) and sd.get("skill_level"):
                         existing_reason = sd["skill_level"].get("reason", {})
@@ -433,15 +439,20 @@ def process_single_item(item_id: str, file_path: str, file_name: str, file_hash:
             await db.execute(text("UPDATE cv_batch_items SET status = 'done', candidate_id = :cid WHERE id = :id"), {"cid": str(candidate_id), "id": item_id})
             await db.commit()
 
-            # Phase 2: Enrichment (background, same DB session pattern)
+            # Phase 2: Enrichment + G-level assessment
             try:
+                from app.skill_maps import assess_skill_level as _assess2
+                skill_level = _assess2(structured, candidate_id=str(candidate_id))
+                if skill_level:
+                    structured["skill_level"] = skill_level
+
                 enriched = _parse_cv_enrichment(masked_text, str(candidate_id))
                 if enriched.get("experience"): structured["experience"] = enriched["experience"]
                 if enriched.get("education"): structured["education"] = enriched["education"]
                 if enriched.get("certifications"): structured["certifications"] = enriched["certifications"]
                 if enriched.get("languages"): structured["languages"] = enriched["languages"]
                 structured["insight"] = {"strengths": enriched.get("strengths", ""), "weaknesses": enriched.get("weaknesses", "")}
-                # Keep Phase 1 skill_level — only fill reason if currently empty
+                # Don't overwrite skill_level reason if already assessed
                 sl = enriched.get("skill_level")
                 if sl and isinstance(sl, dict) and (sl.get("reason_en") or sl.get("reason")) and structured.get("skill_level"):
                     existing_reason = structured["skill_level"].get("reason", {})
