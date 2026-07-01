@@ -396,13 +396,13 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
             candidate_id=candidate_id,
         )
 
-        # Parse response
+        # Parse response — handle multi-line fields
         category = ""
         ai_level = ""
         reason_vi = ""
         reason_en = ""
         scores_str = ""
-        g_level_scores: dict[str, str] = {}  # {"G0": "domain:score,...", "G1": ...}
+        g_level_scores: dict[str, str] = {}
         strengths_en = ""
         strengths_vi = ""
         gaps_en = ""
@@ -410,41 +410,55 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
         summary_en = ""
         summary_vi = ""
 
-        for line in result.strip().split("\n"):
-            if line.startswith("CATEGORY:"):
-                category = line.replace("CATEGORY:", "").strip()
-            elif line.startswith("LEVEL:"):
-                ai_level = line.replace("LEVEL:", "").strip()
-            elif line.startswith("G0_SCORES:"):
-                g_level_scores["G0"] = line.replace("G0_SCORES:", "").strip()
-            elif line.startswith("G1_SCORES:"):
-                g_level_scores["G1"] = line.replace("G1_SCORES:", "").strip()
-            elif line.startswith("G2_SCORES:"):
-                g_level_scores["G2"] = line.replace("G2_SCORES:", "").strip()
-            elif line.startswith("G3_SCORES:"):
-                g_level_scores["G3"] = line.replace("G3_SCORES:", "").strip()
-            elif line.startswith("G4_SCORES:"):
-                g_level_scores["G4"] = line.replace("G4_SCORES:", "").strip()
-            elif line.startswith("SCORES:"):
-                scores_str = line.replace("SCORES:", "").strip()
-            elif line.startswith("STRENGTHS_EN:"):
-                strengths_en = line.replace("STRENGTHS_EN:", "").strip()
-            elif line.startswith("STRENGTHS_VI:"):
-                strengths_vi = line.replace("STRENGTHS_VI:", "").strip()
-            elif line.startswith("GAPS_EN:"):
-                gaps_en = line.replace("GAPS_EN:", "").strip()
-            elif line.startswith("GAPS_VI:"):
-                gaps_vi = line.replace("GAPS_VI:", "").strip()
-            elif line.startswith("SUMMARY_EN:"):
-                summary_en = line.replace("SUMMARY_EN:", "").strip()
-            elif line.startswith("SUMMARY_VI:"):
-                summary_vi = line.replace("SUMMARY_VI:", "").strip()
-            elif line.startswith("REASON_EN:"):
-                reason_en = line.replace("REASON_EN:", "").strip()
-            elif line.startswith("REASON_VI:"):
-                reason_vi = line.replace("REASON_VI:", "").strip()
-            elif line.startswith("REASON:"):
-                reason_en = line.replace("REASON:", "").strip()
+        # Known field prefixes (order matters for multi-line parsing)
+        FIELD_PREFIXES = ["CATEGORY:", "LEVEL:", "G0_SCORES:", "G1_SCORES:", "G2_SCORES:", "G3_SCORES:", "G4_SCORES:", "SCORES:", "STRENGTHS_EN:", "STRENGTHS_VI:", "GAPS_EN:", "GAPS_VI:", "SUMMARY_EN:", "SUMMARY_VI:", "REASON_EN:", "REASON_VI:", "REASON:"]
+
+        # Split into field blocks
+        lines = result.strip().split("\n")
+        current_field = None
+        current_content = []
+        fields: dict[str, str] = {}
+
+        for line in lines:
+            # Check if this line starts a new field
+            matched_prefix = None
+            for prefix in FIELD_PREFIXES:
+                if line.startswith(prefix):
+                    matched_prefix = prefix
+                    break
+
+            if matched_prefix:
+                # Save previous field
+                if current_field:
+                    fields[current_field] = " ".join(current_content).strip()
+                # Start new field
+                current_field = matched_prefix.rstrip(":")
+                current_content = [line.replace(matched_prefix, "").strip()]
+            elif current_field:
+                # Continue current field (multi-line)
+                current_content.append(line.strip())
+
+        # Save last field
+        if current_field:
+            fields[current_field] = " ".join(current_content).strip()
+
+        # Map to variables
+        category = fields.get("CATEGORY", "")
+        ai_level = fields.get("LEVEL", "")
+        g_level_scores["G0"] = fields.get("G0_SCORES", "")
+        g_level_scores["G1"] = fields.get("G1_SCORES", "")
+        g_level_scores["G2"] = fields.get("G2_SCORES", "")
+        g_level_scores["G3"] = fields.get("G3_SCORES", "")
+        g_level_scores["G4"] = fields.get("G4_SCORES", "")
+        scores_str = fields.get("SCORES", "")
+        strengths_en = fields.get("STRENGTHS_EN", "")
+        strengths_vi = fields.get("STRENGTHS_VI", "")
+        gaps_en = fields.get("GAPS_EN", "")
+        gaps_vi = fields.get("GAPS_VI", "")
+        summary_en = fields.get("SUMMARY_EN", "")
+        summary_vi = fields.get("SUMMARY_VI", "")
+        reason_en = fields.get("REASON_EN", "") or fields.get("REASON", "")
+        reason_vi = fields.get("REASON_VI", "")
 
         # Build rich reason from structured fields
         if strengths_en or gaps_en or summary_en:
