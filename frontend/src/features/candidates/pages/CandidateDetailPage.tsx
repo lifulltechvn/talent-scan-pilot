@@ -831,8 +831,8 @@ function MatchedJobsSection({ candidateId, hasAssignedJob, sourceJobId, sourceJo
       <div className="space-y-2">
         {jobs.map((j) => {
           const isScored = j.status === 'scored' && j.final_score != null;
-          const mainScore = isScored ? `${j.final_score}/100` : `${Math.round(j.combined_score * 100)}%`;
-          const mainLabel = isScored ? 'Final Score' : 'Match Score';
+          const mainScore = isScored ? `${j.final_score}/100` : `${Math.round((j.skill_score || j.combined_score) * 100)}%`;
+          const mainLabel = isScored ? 'Final Score' : 'Skill Match';
           return (
             <div key={j.job_id} className="rounded-lg border border-border-subtle overflow-hidden">
               <div
