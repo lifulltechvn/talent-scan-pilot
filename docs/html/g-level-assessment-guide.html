@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G-Level Assessment Guide — TalentScan</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.7; color: #1a1a2e; background: #f8f9fc; }
+.container { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+h1 { font-size: 2.2em; background: linear-gradient(135deg, #6366f1, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+.subtitle { color: #64748b; font-size: 1.1em; margin-bottom: 40px; }
+h2 { font-size: 1.4em; color: #1e293b; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 1.1em; color: #475569; margin: 24px 0 12px; }
+.card { background: white; border-radius: 12px; padding: 24px; margin: 16px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+.card-purple { border-left: 4px solid #8b5cf6; }
+.card-blue { border-left: 4px solid #3b82f6; }
+.card-green { border-left: 4px solid #10b981; }
+.card-amber { border-left: 4px solid #f59e0b; }
+.card-red { border-left: 4px solid #ef4444; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.9em; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+th { background: #f1f5f9; font-weight: 600; color: #475569; }
+tr:hover { background: #f8fafc; }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }
+.badge-purple { background: #ede9fe; color: #6d28d9; }
+.badge-green { background: #d1fae5; color: #065f46; }
+.badge-amber { background: #fef3c7; color: #92400e; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+.flow-box { background: linear-gradient(135deg, #eef2ff, #faf5ff); border: 1px solid #c7d2fe; border-radius: 12px; padding: 20px; margin: 16px 0; font-family: monospace; font-size: 0.85em; line-height: 2; white-space: pre-wrap; }
+.example { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 12px 0; }
+.example-fail { background: #fef2f2; border-color: #fecaca; }
+.step { display: flex; align-items: flex-start; gap: 16px; margin: 20px 0; }
+.step-num { width: 36px; height: 36px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; }
+.step-content { flex: 1; }
+.highlight { background: #fef9c3; padding: 2px 6px; border-radius: 4px; }
+code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+.formula { background: #1e293b; color: #e2e8f0; padding: 12px 16px; border-radius: 8px; font-family: monospace; margin: 12px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+.tag { display: inline-block; padding: 4px 8px; margin: 2px; border-radius: 6px; font-size: 0.8em; background: #f1f5f9; color: #475569; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🎯 G-Level Assessment Guide</h1>
+<p class="subtitle">Hệ thống đánh giá năng lực kỹ thuật tự động — TalentScan</p>
+
+<h2>📌 1. G-Level là gì?</h2>
+<div class="card card-purple">
+<p><strong>G-Level</strong> (Grade Level) là thước đo năng lực kỹ thuật của ứng viên, từ <span class="badge badge-red">G0</span> (fresher) đến <span class="badge badge-purple">G5</span> (expert).</p>
+<p style="margin-top:12px">Hệ thống dựa trên <strong>Technical Skill Map</strong> — bảng tiêu chí kỹ năng chi tiết cho từng vị trí, được sử dụng tại LIFULL Tech Vietnam.</p>
+</div>
+
+<table>
+<tr><th>Level</th><th>Mô tả</th><th>Tương đương</th></tr>
+<tr><td><span class="badge badge-red">G0</span></td><td>Hiểu cơ bản, cần hỗ trợ</td><td>Fresher / Intern</td></tr>
+<tr><td><span class="badge badge-amber">G1</span></td><td>Tự hoàn thành nhiệm vụ cơ bản</td><td>Junior (1-3 năm)</td></tr>
+<tr><td><span class="badge badge-green">G2</span></td><td>Nâng cao chất lượng, đề xuất cải thiện</td><td>Mid-level (3-6 năm)</td></tr>
+<tr><td><span class="badge badge-purple">G3</span></td><td>Chủ động dẫn dắt team đạt mục tiêu</td><td>Senior (6-10 năm)</td></tr>
+<tr><td><span class="badge badge-purple">G4</span></td><td>Dẫn dắt bộ phận hướng tới thành công công ty</td><td>Lead / Principal</td></tr>
+<tr><td><span class="badge badge-purple">G5</span></td><td>Chiến lược đa bộ phận, đối tác bên ngoài</td><td>Staff / Architect</td></tr>
+</table>
+
+<h3>Categories (Vị trí)</h3>
+<div class="grid-2">
+<div class="card"><strong>🖥️ Application Engineer</strong><br>12 domains kỹ năng</div>
+<div class="card"><strong>🌉 Bridge SE</strong><br>11 domains kỹ năng</div>
+<div class="card"><strong>🧪 QA Engineer</strong><br>12 domains kỹ năng</div>
+<div class="card"><strong>📋 Admin</strong><br>12 domains kỹ năng</div>
+<div class="card"><strong>👥 HR</strong><br>11 domains kỹ năng</div>
+<div class="card"><strong>💰 Accounting</strong><br>6 domains kỹ năng</div>
+</div>
+
+<h2>⚙️ 2. Flow xử lý</h2>
+<div class="flow-box">Upload CV → Parse Data → AI Scoring → Baseline Boost → Derive Levels → Tính G-Level → AI Summary → Lưu kết quả</div>
+
+<div class="step">
+<div class="step-num">1</div>
+<div class="step-content">
+<h3>Parse CV</h3>
+<p>Hệ thống trích xuất từ CV: tên, skills, số năm kinh nghiệm, chi tiết kinh nghiệm (công ty, vai trò, mô tả dự án), học vấn, chứng chỉ.</p>
+</div>
+</div>
+
+<div class="step">
+<div class="step-num">2</div>
+<div class="step-content">
+<h3>AI Call 1 — Scoring</h3>
+<p>Gửi đến Claude Haiku: skills + kinh nghiệm chi tiết + toàn bộ Skill Map. AI chấm mỗi domain trên thang <strong>0-9</strong>:</p>
+<table>
+<tr><th>Điểm</th><th>Ý nghĩa</th></tr>
+<tr><td>0</td><td>Không có evidence trong CV</td></tr>
+<tr><td>1-2</td><td>Có đề cập nhưng chưa đạt G0</td></tr>
+<tr><td><span class="highlight">3</span></td><td>Đạt đúng criteria G0</td></tr>
+<tr><td>4-5</td><td>Vượt G0, đạt criteria G1</td></tr>
+<tr><td>6-7</td><td>Vượt xa, đạt criteria G2</td></tr>
+<tr><td>8-9</td><td>Đạt criteria G3+</td></tr>
+</table>
+<p><em>Ví dụ: Domain "Programming" tại G0 yêu cầu "code trang e-commerce cơ bản". Ứng viên 8 năm experience → AI cho 7 (vượt xa G0, đạt G2).</em></p>
+</div>
+</div>
+
+<div class="step">
+<div class="step-num">3</div>
+<div class="step-content">
+<h3>Experience Baseline Boost</h3>
+<p><strong>Vấn đề:</strong> Senior dev 8 năm không viết "tôi biết SQL SELECT/JOIN" vào CV — quá hiển nhiên. AI sẽ cho điểm thấp vì thiếu evidence trực tiếp.</p>
+<p><strong>Giải pháp:</strong> Boost điểm tối thiểu dựa trên số năm kinh nghiệm.</p>
+<table>
+<tr><th>Kinh nghiệm</th><th>Baseline</th><th>Boost logic</th></tr>
+<tr><td>0-1 năm</td><td>0</td><td>Không boost</td></tr>
+<tr><td>2-3 năm</td><td>3</td><td>Ít nhất đạt G0</td></tr>
+<tr><td>4-5 năm</td><td>5</td><td>Ít nhất đạt G1</td></tr>
+<tr><td>6-8 năm</td><td>7</td><td>Ít nhất đạt G2</td></tr>
+<tr><td>9+ năm</td><td>8</td><td>Ít nhất G2-G3</td></tr>
+</table>
+<p><strong>Rules:</strong></p>
+<ul style="margin:8px 0 0 20px">
+<li>Domain đã đạt G0 (score ≥ 3) → boost lên <strong>baseline</strong></li>
+<li>Domain có partial evidence (score 1-2) → boost lên <strong>baseline - 2</strong></li>
+<li>Domain không có evidence (score = 0) → <strong>không boost</strong></li>
+</ul>
+</div>
+</div>
+
+<div class="step">
+<div class="step-num">4</div>
+<div class="step-content">
+<h3>Derive scores tại mỗi G-level</h3>
+<div class="formula">score tại G(N) = G0_score - 2 × N &nbsp;&nbsp;(tối thiểu = 0)</div>
+<div class="example">
+<strong>Ví dụ:</strong> Programming G0 = 7<br>
+→ G1 = 7 - 2×1 = <strong>5</strong><br>
+→ G2 = 7 - 2×2 = <strong>3</strong> ✅ (đạt criteria G2)<br>
+→ G3 = 7 - 2×3 = <strong>1</strong> ❌ (chưa đạt G3)<br>
+→ G4 = 7 - 2×4 = <strong>0</strong>
+</div>
+</div>
+</div>
+
+<div class="step">
+<div class="step-num">5</div>
+<div class="step-content">
+<h3>Tính G-Level cuối cùng</h3>
+<p>Tại mỗi level, tính <strong>trung bình (average)</strong> trên các domains <strong>có criteria</strong>:</p>
+<div class="card card-blue">
+<p><strong>🔑 Quy tắc quan trọng:</strong></p>
+<ul style="margin:8px 0 0 20px">
+<li>Chỉ tính domains CÓ criteria tại level đó (từ domain_criteria_map)</li>
+<li>Domains không có criteria → bỏ qua</li>
+<li><strong>Threshold: avg ≥ 3.0 → PASS</strong>, advance lên level tiếp</li>
+<li>avg < 3.0 → FAIL, dừng lại</li>
+</ul>
+</div>
+<div class="example">
+<strong>Application Engineer:</strong><br>
+• G0: chỉ có <strong>6/12</strong> domains có criteria (Programming, Data Store, Testing, Security, Định nghĩa yêu cầu, Quản lý tiến độ)<br>
+• G1 trở đi: <strong>12/12</strong> domains đều có criteria
+</div>
+<div class="formula">G0 avg = (sum applicable domains) / 6 ≥ 3.0 → Pass G0 → lên G1
+G1 avg = (sum all 12 domains) / 12 ≥ 3.0 → Pass G1 → lên G2
+G2 avg = ... / 12 ≥ 3.0 → Pass G2 → lên G3
+G3 avg < 3.0 → FAIL → Kết quả cuối cùng: <strong>G3</strong></div>
+</div>
+</div>
+
+<div class="step">
+<div class="step-num">6</div>
+<div class="step-content">
+<h3>AI Call 2 — Summary</h3>
+<p>Sau khi code tính xong level, gọi AI lần 2 <strong>với level đã biết trước</strong>:</p>
+<ul style="margin:8px 0 0 20px">
+<li>AI biết chính xác candidate ở G mấy → viết nhận xét không bị lệch</li>
+<li>Nêu điểm mạnh (strengths) dựa trên domains score cao</li>
+<li>Nêu kỹ năng cần phát triển (gaps) theo criteria của level tiếp theo</li>
+<li>Không đề cập số điểm — chỉ mô tả kỹ năng</li>
+</ul>
+</div>
+</div>
+
+<h2>📊 3. Domain Criteria Map</h2>
+<div class="card card-amber">
+<p><strong>Không phải tất cả domains đều có criteria ở mọi G-level!</strong></p>
+<p style="margin-top:8px">Ví dụ Application Engineer tại G0:</p>
+<table>
+<tr><th>Domain</th><th>Có criteria tại G0?</th></tr>
+<tr><td>Programming</td><td>✅ Có</td></tr>
+<tr><td>Data Store</td><td>✅ Có</td></tr>
+<tr><td>Testing</td><td>✅ Có</td></tr>
+<tr><td>Security</td><td>✅ Có</td></tr>
+<tr><td>Định nghĩa yêu cầu</td><td>✅ Có</td></tr>
+<tr><td>Quản lý tiến độ</td><td>✅ Có</td></tr>
+<tr><td>Architecture</td><td>❌ Trống</td></tr>
+<tr><td>Server-Middleware</td><td>❌ Trống</td></tr>
+<tr><td>Infrastructure-Network</td><td>❌ Trống</td></tr>
+<tr><td>Frontend</td><td>❌ Trống</td></tr>
+<tr><td>Data Analysis</td><td>❌ Trống</td></tr>
+<tr><td>Đề xuất cải tiến</td><td>❌ Trống</td></tr>
+</table>
+<p style="margin-top:12px"><em>→ Tại G0, chỉ tính avg trên 6 domains có criteria. Từ G1 trở đi tính tất cả 12.</em></p>
+</div>
+
+<h2>💡 4. Ví dụ thực tế</h2>
+
+<h3>Ví dụ 1: Fresher (0 năm kinh nghiệm)</h3>
+<div class="card example-fail">
+<p><strong>AI Scores:</strong> Programming=3, Data Store=3, Frontend=3, Testing=1, Security=1, Quản lý tiến độ=1</p>
+<p><strong>Baseline:</strong> 0 (không boost)</p>
+<p><strong>G0 avg</strong> (6 domains): (3+3+1+1+1+1)/6 = <strong>1.67</strong> < 3.0 → ❌ FAIL</p>
+<p><strong>Kết quả: <span class="badge badge-red">G0</span></strong></p>
+</div>
+
+<h3>Ví dụ 2: Senior Fullstack Developer (7 năm)</h3>
+<div class="card example">
+<p><strong>AI Scores:</strong> Programming=7, Data Store=6, Frontend=5, Architecture=5, Server=3, Req=3, Testing=1, Security=2, Data Analysis=2, Infra=2, Schedule=2</p>
+<p><strong>Baseline = 7</strong> → Boost:</p>
+<ul style="margin:4px 0 0 20px; font-size:0.9em">
+<li>Score ≥ 3 (Prog, DS, FE, Arch, Server, Req) → boost lên 7</li>
+<li>Score 1-2 (Testing, Security, DA, Infra, Schedule) → boost lên 5 (baseline-2)</li>
+</ul>
+<p style="margin-top:8px"><strong>Sau boost:</strong> tất cả ≥ 5</p>
+<p><strong>Derive:</strong> G1 = score-2, G2 = score-4</p>
+<p><strong>G0 avg</strong> (6 domains): ~5.5 → ✅ PASS</p>
+<p><strong>G1 avg</strong> (12 domains): ~3.6 → ✅ PASS</p>
+<p><strong>G2 avg</strong> (12 domains): ~1.6 → ❌ FAIL</p>
+<p><strong>Kết quả: <span class="badge badge-green">G2</span></strong></p>
+</div>
+
+<h3>Ví dụ 3: Principal Engineer (9 năm)</h3>
+<div class="card example">
+<p><strong>AI Scores:</strong> Programming=9, Frontend=9, Architecture=8, Data Store=8, ...</p>
+<p><strong>Baseline = 8</strong> → Boost tất cả domains</p>
+<p><strong>G0</strong>: avg ~7.5 → ✅ | <strong>G1</strong>: avg ~5.3 → ✅ | <strong>G2</strong>: avg ~3.3 → ✅ | <strong>G3</strong>: avg ~1.3 → ❌</p>
+<p><strong>Kết quả: <span class="badge badge-purple">G3</span></strong></p>
+</div>
+
+<h2>❓ 5. Tại sao thiết kế như vậy?</h2>
+
+<div class="card card-purple">
+<h3>Tại sao cần Baseline Boost?</h3>
+<p>Senior dev 8 năm không ai viết "tôi biết viết SQL SELECT/JOIN" vào CV — nó quá hiển nhiên. Nếu không boost, AI sẽ cho điểm thấp vì "không có evidence trực tiếp", dẫn đến senior bị đánh giá như fresher.</p>
+</div>
+
+<div class="card card-blue">
+<h3>Tại sao 2 AI calls thay vì 1?</h3>
+<p><strong>Vấn đề:</strong> Nếu AI vừa scoring vừa viết nhận xét trong 1 call, nó có thể nói "candidate ở G3" nhưng code tính ra G2 → lệch nhau.</p>
+<p><strong>Giải pháp:</strong> Call 1 chỉ scoring (objective) → code tính level → Call 2 viết nhận xét với level đã biết chắc chắn → không bao giờ bị lệch.</p>
+</div>
+
+<div class="card card-green">
+<h3>Tại sao threshold = 3.0?</h3>
+<p>Trên thang derive, score = 3 tại 1 level nghĩa là "đạt đúng criteria level đó". Avg ≥ 3 nghĩa là đa số domains đạt hoặc vượt criteria → đủ điều kiện lên level tiếp.</p>
+</div>
+
+<div class="card card-amber">
+<h3>Tại sao cần Domain Criteria Map?</h3>
+<p>Skill Map gốc (PDF) không phải mọi ô đều có nội dung. Ví dụ G0 không yêu cầu Architecture hay Frontend → nếu tính avg bao gồm những domains này sẽ bất công cho ứng viên.</p>
+</div>
+
+<div class="card card-red">
+<h3>Tại sao công thức derive là -2 mỗi level?</h3>
+<p>Nếu score tại G0 = 3 (vừa đạt G0), thì khi lên G1 chỉ còn 1 (partial) — hợp lý vì mới vừa đủ G0 thì chưa đạt G1. Score = 5 (đạt G1) → G1 = 3 (vừa đạt) → nhất quán.</p>
+</div>
+
+<hr style="margin:40px 0; border:none; border-top:1px solid #e2e8f0">
+<p style="text-align:center; color:#94a3b8; font-size:0.9em">TalentScan — LIFULL Tech Vietnam © 2026</p>
+
+</div>
+</body>
+</html>
