@@ -633,16 +633,19 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
             # Post-process: fix first G-level mention in reason to match calculated level
             # Only replace the description of current state, not "advance to next level"
             import re
+            # Pattern handles: G1, G1-G2, **G1**, **G1-G2**, **G1-G2 level**
+            g_replace_pattern_en = r'\b(demonstrates?|shows?|is at|is a|at early|at solid|at strong|at\s+)\s*\*{0,2}G\d(?:\s*-\s*G\d)?\s*\*{0,2}(\s*level\*{0,2})?'
+            g_replace_pattern_vi = r'(thể hiện|đạt|ở mức)\s*\*{0,2}G\d(?:\s*-\s*G\d)?\*{0,2}'
             if reason_en:
                 reason_en = re.sub(
-                    r'\b(demonstrates?|shows?|is at|is a|at early|at solid|at strong)\s+(G\d)(?:\s*-\s*G\d)?',
-                    lambda m: f"{m.group(1)} {level}",
+                    g_replace_pattern_en,
+                    lambda m: f"{m.group(1).strip()} {level}{' level' if m.group(2) else ''} ",
                     reason_en,
                     count=1
-                )
+                ).replace("  ", " ")
             if reason_vi:
                 reason_vi = re.sub(
-                    r'\b(thể hiện|đạt|ở mức)\s+(G\d)(?:\s*-\s*G\d)?',
+                    g_replace_pattern_vi,
                     lambda m: f"{m.group(1)} {level}",
                     reason_vi,
                     count=1
