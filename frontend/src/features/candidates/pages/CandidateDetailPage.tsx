@@ -719,13 +719,16 @@ function MatchedJobsSection({ candidateId, hasAssignedJob, sourceJobId, sourceJo
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let retryCount = 0;
     const fetchJobs = () => {
       apiClient.get(`/candidates/${candidateId}/matched-jobs`)
         .then(({ data }) => {
           setJobs(data);
-          // Retry once after 10s if empty (Phase 2 might still be running)
-          if (data.length === 0 && !timer) {
-            timer = setTimeout(fetchJobs, 10000);
+          setLoading(false);
+          // Retry up to 3 times (every 5s) if empty (matching might still be running)
+          if (data.length === 0 && retryCount < 3) {
+            retryCount++;
+            timer = setTimeout(fetchJobs, 5000);
           }
         })
         .catch(() => {})

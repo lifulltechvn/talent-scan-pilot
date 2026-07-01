@@ -304,8 +304,17 @@ def _background_ai_task(candidate_id: str, masked_text: str, is_scanned: bool, f
 
             # Smart Pool: auto-match candidate to all jobs (needs embedding)
             if emb:
-                from app.services.smart_pool import background_match_candidate
-                background_match_candidate(candidate_id)
+                from app.services.smart_pool import match_candidate_to_all_jobs
+                async def _do_match():
+                    from sqlalchemy import text as sa_text
+                    engine_m = create_async_engine(settings.DATABASE_URL, pool_size=1)
+                    factory_m = async_sessionmaker(engine_m, expire_on_commit=False)
+                    async with factory_m() as db_m:
+                        await match_candidate_to_all_jobs(candidate_id, db_m)
+                    await engine_m.dispose()
+                loop_m = asyncio.new_event_loop()
+                loop_m.run_until_complete(_do_match())
+                loop_m.close()
                 print(f"[DEBUG] smart pool matched for {candidate_id[:8]}", flush=True)
 
             # Phase 3: G-level assessment (slower, ~10-15s)
