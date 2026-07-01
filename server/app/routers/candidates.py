@@ -353,15 +353,30 @@ async def get_candidate_matched_jobs(
     cand_row = cand.mappings().first()
     cand_skills = [s.lower() for s in (cand_row["structured_data"].get("skills", []) if cand_row else [])]
 
+    from app.services.scoring import _expand_skill
+    # Expand candidate skills with aliases (Laravel→PHP, React→JavaScript, etc.)
+    cand_expanded = set()
+    for cs in cand_skills:
+        cand_expanded.update(_expand_skill(cs))
+
     results = []
     for r in rows.mappings().all():
         req_skills = r["required_skills"] or []
-        # Match using same logic as scoring: split "/" for OR-groups
+        # Match using same logic as scoring: split "/" for OR-groups + expand aliases
         matched = []
         missing = []
         for s in req_skills:
             alternatives = [a.strip().lower() for a in s.split("/")]
-            if any(alt in cand_skills or any(alt in cs or cs in alt for cs in cand_skills) for alt in alternatives):
+            found = False
+            for alt in alternatives:
+                alt_parts = _expand_skill(alt)
+                for ap in alt_parts:
+                    if ap in cand_expanded or any(ap in cs or cs in ap for cs in cand_expanded):
+                        found = True
+                        break
+                if found:
+                    break
+            if found:
                 matched.append(s)
             else:
                 missing.append(s)
