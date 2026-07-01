@@ -259,13 +259,31 @@ Candidate:
 
 Respond EXACTLY in this format (each field on its own line):
 CATEGORY: <application_engineer|bridge_se|qa_engineer|admin|hr|accounting>
-G0_SCORES: <domain_name:score, domain_name:score, ...> (score every domain at G0, 0-9 scale, or -1 if no criteria)
-STRENGTHS_EN: <3-4 specific strengths with evidence from CV>
-STRENGTHS_VI: <Same in Vietnamese>
-GAPS_EN: <2-3 specific weak areas or missing skills based on skill map>
-GAPS_VI: <Same in Vietnamese>
-SUMMARY_EN: <2-3 sentences: What level they are, why, and what would bring them to next level>
-SUMMARY_VI: <Same in Vietnamese>"""
+G0_SCORES: <domain_name:score, domain_name:score, ...> (score every domain at G0, 0-9 scale, or -1 if no criteria)"""
+
+
+SKILL_LEVEL_SUMMARY_PROMPT = """You are an HR assessor. Write an assessment summary for a candidate.
+
+The candidate has been evaluated and their G-level is: {level} (out of G0-G5 scale).
+Category: {category}
+Experience: {experience_years} years
+
+Their domain scores (0-9 at G0 level):
+{scores_text}
+
+Write the assessment in this EXACT format (each field on its own line):
+SUMMARY_EN: 2-3 sentences: (1) Confirm candidate is at {level}, (2) briefly explain why based on their strengths, (3) to advance to {next_level} they need to improve specific skills from the skill map (name the actual skills/knowledge required at {next_level} level, not scores).
+SUMMARY_VI: Same in Vietnamese
+STRENGTHS_EN: 3-4 specific strengths with evidence. Use semicolons to separate each point. Do NOT include numeric scores.
+STRENGTHS_VI: Same in Vietnamese
+GAPS_EN: 2-3 specific skills/knowledge from the skill map that the candidate needs to develop to reach {next_level}. Be specific about WHAT they need to learn (e.g., "unit testing with C0/C1/C2 coverage", "OAuth/SAML authentication design"), not just domain names. Use semicolons to separate.
+GAPS_VI: Same in Vietnamese
+
+RULES:
+- Do NOT mention numeric scores (like 7/9 or 8/9) in the text
+- The candidate IS confirmed at {level}. Do NOT say a different level.
+- For GAPS, refer to specific criteria from the {next_level} level in the skill map
+- Keep it professional and actionable"""
 
 
 def _calculate_g_level(skill_scores: dict) -> str:
@@ -443,42 +461,13 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
             fields[current_field] = " ".join(current_content).strip()
 
         # Map to variables
+        # Map fields from AI call 1 (scoring only)
         category = fields.get("CATEGORY", "")
         ai_level = fields.get("LEVEL", "")
         g_level_scores["G0"] = fields.get("G0_SCORES", "")
-        g_level_scores["G1"] = fields.get("G1_SCORES", "")
-        g_level_scores["G2"] = fields.get("G2_SCORES", "")
-        g_level_scores["G3"] = fields.get("G3_SCORES", "")
-        g_level_scores["G4"] = fields.get("G4_SCORES", "")
         scores_str = fields.get("SCORES", "")
-        strengths_en = fields.get("STRENGTHS_EN", "")
-        strengths_vi = fields.get("STRENGTHS_VI", "")
-        gaps_en = fields.get("GAPS_EN", "")
-        gaps_vi = fields.get("GAPS_VI", "")
-        summary_en = fields.get("SUMMARY_EN", "")
-        summary_vi = fields.get("SUMMARY_VI", "")
-        reason_en = fields.get("REASON_EN", "") or fields.get("REASON", "")
-        reason_vi = fields.get("REASON_VI", "")
-
-        # Build rich reason from structured fields
-        if strengths_en or gaps_en or summary_en:
-            parts_en = []
-            if summary_en:
-                parts_en.append(summary_en)
-            if strengths_en:
-                parts_en.append(f"✅ Strengths: {strengths_en}")
-            if gaps_en:
-                parts_en.append(f"⚠️ Gaps: {gaps_en}")
-            reason_en = "\n".join(parts_en)
-
-            parts_vi = []
-            if summary_vi:
-                parts_vi.append(summary_vi)
-            if strengths_vi:
-                parts_vi.append(f"✅ Điểm mạnh: {strengths_vi}")
-            if gaps_vi:
-                parts_vi.append(f"⚠️ Thiếu sót: {gaps_vi}")
-            reason_vi = "\n".join(parts_vi)
+        reason_en = ""
+        reason_vi = ""
 
         # Parse G0 scores (0-9 scale, AI scores ALL domains based on overall ability)
         def _parse_scores_line(line: str) -> dict:
@@ -608,48 +597,77 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
         level_avgs_str = ", ".join(f"{k}={v}" for k, v in level_avgs.items()) if level_avgs else f"avg={avg_score}"
         total_str = f"{total_points}/{max_points} ({level_avgs_str}, {total_skills} domains)"
 
-        # Ensure Vietnamese reason exists
-        if reason_en and len(reason_vi.strip()) < 20:
-            import time
-            for attempt in range(2):
-                try:
-                    vi_r = invoke_claude(
-                        f"Translate to Vietnamese. Output ONLY the translation:\n{reason_en}",
-                        model=settings.BEDROCK_MODEL_HAIKU,
-                        max_tokens=400,
-                        feature="skill_level",
-                        candidate_id=candidate_id,
-                    )
-                    reason_vi = vi_r.strip().split("\n\n")[0].strip()
-                    if len(reason_vi) >= 20:
-                        break
-                except Exception:
-                    if attempt < 1:
-                        time.sleep(2)
-                    else:
-                        reason_vi = reason_en
-
         if level and category:
-            # Post-process: fix first G-level mention in reason to match calculated level
-            # Only replace the description of current state, not "advance to next level"
-            import re
-            # Pattern handles: G1, G1-G2, **G1**, **G1-G2**, **G1-G2 level**
-            g_replace_pattern_en = r'\b(demonstrates?|shows?|is at|is a|at early|at solid|at strong|at\s+)\s*\*{0,2}G\d(?:\s*-\s*G\d)?\s*\*{0,2}(\s*level\*{0,2})?'
-            g_replace_pattern_vi = r'(thể hiện|đạt|ở mức)\s*\*{0,2}G\d(?:\s*-\s*G\d)?\*{0,2}'
-            if reason_en:
-                reason_en = re.sub(
-                    g_replace_pattern_en,
-                    lambda m: f"{m.group(1).strip()} {level}{' level' if m.group(2) else ''} ",
-                    reason_en,
-                    count=1
-                ).replace("  ", " ")
-            if reason_vi:
-                reason_vi = re.sub(
-                    g_replace_pattern_vi,
-                    lambda m: f"{m.group(1)} {level}",
-                    reason_vi,
-                    count=1
+            # === AI CALL 2: Generate summary with KNOWN level ===
+            g_order_names = ["G0", "G1", "G2", "G3", "G4", "G5"]
+            level_idx = g_order_names.index(level) if level in g_order_names else 0
+            next_level = g_order_names[min(level_idx + 1, len(g_order_names) - 1)]
+
+            scores_text = ", ".join(f"{k}:{v}" for k, v in g0_scores.items() if v >= 0)
+            summary_prompt = SKILL_LEVEL_SUMMARY_PROMPT.format(
+                level=level,
+                next_level=next_level,
+                category=category,
+                experience_years=experience_years,
+                scores_text=scores_text,
+            )
+
+            try:
+                summary_result = invoke_claude(
+                    summary_prompt,
+                    model=settings.BEDROCK_MODEL_HAIKU,
+                    max_tokens=1500,
+                    feature="skill_level_summary",
+                    candidate_id=candidate_id,
                 )
+
+                # Parse summary response (same multi-line parser)
+                s_lines = summary_result.strip().split("\n")
+                s_current_field = None
+                s_current_content = []
+                s_fields: dict[str, str] = {}
+                S_PREFIXES = ["SUMMARY_EN:", "SUMMARY_VI:", "STRENGTHS_EN:", "STRENGTHS_VI:", "GAPS_EN:", "GAPS_VI:"]
+
+                for s_line in s_lines:
+                    matched = None
+                    for prefix in S_PREFIXES:
+                        if s_line.startswith(prefix):
+                            matched = prefix
+                            break
+                    if matched:
+                        if s_current_field:
+                            s_fields[s_current_field] = " ".join(s_current_content).strip()
+                        s_current_field = matched.rstrip(":")
+                        s_current_content = [s_line.replace(matched, "").strip()]
+                    elif s_current_field:
+                        s_current_content.append(s_line.strip())
+                if s_current_field:
+                    s_fields[s_current_field] = " ".join(s_current_content).strip()
+
+                summary_en = s_fields.get("SUMMARY_EN", "")
+                summary_vi = s_fields.get("SUMMARY_VI", "")
+                strengths_en = s_fields.get("STRENGTHS_EN", "")
+                strengths_vi = s_fields.get("STRENGTHS_VI", "")
+                gaps_en = s_fields.get("GAPS_EN", "")
+                gaps_vi = s_fields.get("GAPS_VI", "")
+
+                # Build rich reason
+                parts_en = []
+                if summary_en: parts_en.append(summary_en)
+                if strengths_en: parts_en.append(f"✅ Strengths: {strengths_en}")
+                if gaps_en: parts_en.append(f"⚠️ Gaps: {gaps_en}")
+                reason_en = "\n".join(parts_en)
+
+                parts_vi = []
+                if summary_vi: parts_vi.append(summary_vi)
+                if strengths_vi: parts_vi.append(f"✅ Điểm mạnh: {strengths_vi}")
+                if gaps_vi: parts_vi.append(f"⚠️ Thiếu sót: {gaps_vi}")
+                reason_vi = "\n".join(parts_vi)
+
+            except Exception as e2:
+                logger.warning(f"Summary generation failed: {e2}")
+                reason_en = f"Candidate assessed at {level} level."
+                reason_vi = f"Ứng viên được đánh giá ở mức {level}."
 
             cat_data = SKILL_MAPS.get(category, {})
             level_desc_vi = cat_data.get("g_criteria", {}).get(level, "")
