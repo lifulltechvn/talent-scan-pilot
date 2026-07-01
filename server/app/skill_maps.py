@@ -630,6 +630,24 @@ def assess_skill_level(candidate_data: dict, candidate_id: str | None = None, jo
                         reason_vi = reason_en
 
         if level and category:
+            # Post-process: fix first G-level mention in reason to match calculated level
+            # Only replace the description of current state, not "advance to next level"
+            import re
+            if reason_en:
+                reason_en = re.sub(
+                    r'\b(demonstrates?|shows?|is at|is a|at early|at solid|at strong)\s+(G\d)(?:\s*-\s*G\d)?',
+                    lambda m: f"{m.group(1)} {level}",
+                    reason_en,
+                    count=1
+                )
+            if reason_vi:
+                reason_vi = re.sub(
+                    r'\b(thể hiện|đạt|ở mức)\s+(G\d)(?:\s*-\s*G\d)?',
+                    lambda m: f"{m.group(1)} {level}",
+                    reason_vi,
+                    count=1
+                )
+
             cat_data = SKILL_MAPS.get(category, {})
             level_desc_vi = cat_data.get("g_criteria", {}).get(level, "")
             level_desc_en = cat_data.get("g_criteria_en", {}).get(level, "")
