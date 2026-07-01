@@ -328,11 +328,66 @@ export function CandidateDetailPage() {
 
           {/* AI Reason — main assessment */}
           {d.skill_level.reason && ((locale === 'vi' ? d.skill_level.reason.vi : d.skill_level.reason.en)) ? (
-            <div className="p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
-              <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">💬 {locale === 'vi' ? 'Nhận xét từ AI' : 'AI Assessment'}</span>
-              </div>
-              <p className="text-[12.5px] text-text-primary leading-[1.8] whitespace-pre-wrap">{locale === 'vi' ? d.skill_level.reason.vi : d.skill_level.reason.en}</p>
+            <div className="space-y-3">
+              {(() => {
+                const raw = (locale === 'vi' ? d.skill_level.reason.vi : d.skill_level.reason.en) || '';
+                const summaryMatch = raw.split(/✅|⚠️/)[0]?.trim();
+                const strengthsMatch = raw.match(/✅\s*(?:Strengths|Điểm mạnh)[:\s]*(.*?)(?=⚠️|$)/s);
+                const gapsMatch = raw.match(/⚠️\s*(?:Gaps|Thiếu sót)[:\s]*(.*?)$/s);
+                const strengths = strengthsMatch?.[1]?.trim().split(';').map(s => s.trim()).filter(Boolean) || [];
+                const gaps = gapsMatch?.[1]?.trim().split(';').map(s => s.trim()).filter(Boolean) || [];
+                return (
+                  <>
+                    {/* Summary */}
+                    {summaryMatch && (
+                      <div className="p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">💬 {locale === 'vi' ? 'Nhận xét tổng quan' : 'Summary'}</span>
+                        </div>
+                        <p className="text-[12.5px] text-text-primary leading-[1.7]">{summaryMatch}</p>
+                      </div>
+                    )}
+                    {/* Strengths */}
+                    {strengths.length > 0 && (
+                      <div className="p-3 bg-emerald-50/80 rounded-lg border border-emerald-100">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">✅ {locale === 'vi' ? 'Điểm mạnh' : 'Strengths'}</span>
+                        </div>
+                        <ul className="space-y-1.5">
+                          {strengths.map((s, i) => (
+                            <li key={i} className="text-[12px] text-emerald-900 leading-[1.6] flex gap-2">
+                              <span className="text-emerald-500 mt-0.5 shrink-0">•</span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {/* Gaps */}
+                    {gaps.length > 0 && (
+                      <div className="p-3 bg-amber-50/80 rounded-lg border border-amber-100">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">⚠️ {locale === 'vi' ? 'Cần cải thiện' : 'Areas to Improve'}</span>
+                        </div>
+                        <ul className="space-y-1.5">
+                          {gaps.map((g, i) => (
+                            <li key={i} className="text-[12px] text-amber-900 leading-[1.6] flex gap-2">
+                              <span className="text-amber-500 mt-0.5 shrink-0">•</span>
+                              <span>{g}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {/* Fallback: if no structured content parsed, show raw */}
+                    {!summaryMatch && strengths.length === 0 && gaps.length === 0 && (
+                      <div className="p-3 bg-bg-secondary/60 rounded-lg border border-border-subtle/50">
+                        <p className="text-[12.5px] text-text-primary leading-[1.8] whitespace-pre-wrap">{raw}</p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           ) : (
             <div className="p-3 bg-bg-secondary/30 rounded-lg border border-border-subtle/30 flex items-center gap-2">
